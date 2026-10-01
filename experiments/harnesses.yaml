@@ -1,0 +1,41 @@
+version: 1
+
+harnesses:
+  pi:
+    repo: https://github.com/badlogic/pi-mono
+    package: confirm at pilot
+    version: null
+    endpoint: litellm
+    notes: minimal hackable agent loop; verify MCP client support before conditions run
+
+  opencode:
+    repo: https://github.com/anomalyco/opencode
+    package: npm/opencode
+    version: null
+    endpoint: litellm
+    notes: MCP client and skills/file mounting supported
+
+  codex-cli:
+    repo: https://github.com/openai/codex
+    package: npm/@openai/codex
+    version: null
+    endpoint: litellm
+    notes: targets the gateway via custom model_providers base_url; MCP support per release notes
+
+  claude-code:
+    repo: https://github.com/anthropics/claude-code
+    package: npm/@anthropic-ai/claude-code
+    version: null
+    endpoint: anthropic_native
+    notes: cannot target the LiteLLM gateway; restricted lane
+
+crossing:
+  default_harnesses: [pi, opencode, codex-cli]
+  default_models: all
+  restricted:
+    claude-code:
+      models: [claude-sonnet-5-5]
+      reason: anthropic-native model binding; gateway not reachable
+
+version_pinning:
+  policy: pin every harness version at pilot burn-in and record it in RunManifest.harness_version

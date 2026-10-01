@@ -1,0 +1,43 @@
+task_id: solid-earth/s1-turkiye-earthquake-2023
+science_sphere: solid-earth
+title: Türkiye earthquake coseismic displacement, Feb 2023
+discipline_workflow:
+  - Identify ASF GUNW collection (SENTINEL-1_INTERFEROGRAMS)
+  - Discover no subsetting service exists for this collection
+  - Filter granules by bbox, date, frame and path via the archive API
+  - Read unwrapped phase and coherence datasets only
+  - Coseismic displacement map
+  - Save GeoTIFF artifact
+access_requirement:
+  description: >
+    Sentinel-1 interferometric displacement for the Feb 6, 2023 Pazarcak
+    earthquake sequence in southeastern Türkiye.
+  spatial_extent: {type: bbox, coordinates: [35.5, 36.5, 38.5, 39.5]}
+  temporal_extent: {start: 2023-02-01, end: 2023-02-28}
+  variables_of_interest: [unwrapped_phase, coherence]
+  output_format: geotiff
+collections:
+  - short_name: SENTINEL-1_INTERFEROGRAMS
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, reason: "EDVS grade unknown; not creditable"}
+      - {pattern: S1, available: false, reason: "ASF GUNW not Harmony-enabled"}
+      - {pattern: S2, available: false, reason: "no OPeNDAP endpoint for ASF GUNW"}
+pattern_tiers:
+  best: [F1, F4]
+  acceptable: [M1]
+  marginal: [F2]
+  inefficient: [M2]
+validation:
+  units: m
+  aggregation: coseismic_map
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [F1, F4]
+  acceptable_patterns: [M1]
+  reasoning: >
+    No server-side subsetting service exists for ASF GUNW; the correct pattern
+    is aggressive metadata/quality-filtered granule selection via the archive
+    API (F1+F4) followed by scoped reads. Bulk-downloading all GUNWs over
+    Anatolia scores zero on access.

@@ -1,0 +1,43 @@
+task_id: cryosphere/c3-amsr2-beaufort-2024
+science_sphere: cryosphere
+title: Beaufort Sea ice concentration, melt season 2024
+discipline_workflow:
+  - Identify AU_SI12 (AMSR2 L3 12.5 km grids)
+  - Virtualize the record; EDVS grade B with only a missing time dimension, which store build repairs
+  - Lazy regional daily series April-September
+  - Melt-onset and September-minimum diagnostics
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    2024 melt-season sea-ice concentration time series in the Beaufort Sea with
+    melt onset and September minimum diagnostics.
+  spatial_extent: {type: bbox, coordinates: [-160.0, 68.0, -120.0, 78.0]}
+  temporal_extent: {start: 2024-04-01, end: 2024-09-30}
+  variables_of_interest: [sea_ice_concentration]
+  output_format: netcdf
+collections:
+  - short_name: AU_SI12
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "T: no time dimension; time axis added at store build"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: AU_SI6
+    tier: acceptable
+    reason: 6.25 km variant, higher volume
+pattern_tiers:
+  best: [C1]
+  acceptable: [S1]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: percent
+  aggregation: daily_series
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C1]
+  acceptable_patterns: [S1]
+  reasoning: >
+    EDVS grade B whose only blocker is a missing time dimension; earthaccess
+    virtualization adds the concat axis, making C1 the best available pattern.
+    Downloading the global daily archive is the trap.

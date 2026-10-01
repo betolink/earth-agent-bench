@@ -1,0 +1,40 @@
+task_id: ocean/o1-chlorophyll-ca-current-2023
+science_sphere: ocean
+title: California Current chlorophyll during the 2023 heatwave
+discipline_workflow:
+  - Identify MODISA_L3m_CHL
+  - Check virtualizability oracle (grade D; chunk shapes differ across granules)
+  - Use OPeNDAP or tightly-filtered daily downloads
+  - Monthly means; 2023 anomalies vs 2018-2022 monthly climatology
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    2023 chlorophyll concentration vs a 2018-2022 monthly climatology in the
+    California Current during the marine heatwave.
+  spatial_extent: {type: bbox, coordinates: [-130.0, 33.0, -115.0, 45.0]}
+  temporal_extent: {start: 2018-01-01, end: 2023-12-31}
+  variables_of_interest: [chlor_a]
+  output_format: netcdf
+collections:
+  - short_name: MODISA_L3m_CHL
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, grade: D, source: edvs-parquet, reason: "H2: chunk shape differs across granules (chlor_a: [44,87] vs [16,1024])"}
+      - {pattern: S2, available: true, source: "catalog: OB.DAAC OPeNDAP; verify endpoint"}
+pattern_tiers:
+  best: [S2, S3]
+  acceptable: [S1]
+  marginal: [F2]
+  inefficient: [M1, M2]
+validation:
+  units: mg m-3
+  aggregation: monthly_anomaly
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S2, S3]
+  acceptable_patterns: [S1]
+  reasoning: >
+    EDVS grade D: virtualization is off the table, and the agent must find the
+    next-best service (OB.DAAC OPeNDAP/DMR++). Attempting C1 on a D-grade
+    archive is the designed trap.

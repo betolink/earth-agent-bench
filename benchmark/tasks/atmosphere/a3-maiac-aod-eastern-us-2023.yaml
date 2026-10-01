@@ -1,0 +1,43 @@
+task_id: atmosphere/a3-maiac-aod-eastern-us-2023
+science_sphere: atmosphere
+title: Canadian wildfire smoke AOD over the eastern US, June 2023
+discipline_workflow:
+  - Identify MCD19A2 (MAIAC AOD, tiled HDF4)
+  - Check virtualizability oracle (grade C; chunk misalignment blocks C1)
+  - Use server-side subsetting (Harmony) or DMR++ range reads
+  - QA-filter AOD (cloud, high-retrieval-quality)
+  - Produce daily maps and episode mean
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    MODIS MAIAC aerosol optical depth over the eastern US during the June 2023
+    Canadian smoke episode; daily maps plus episode mean.
+  spatial_extent: {type: bbox, coordinates: [-90.0, 35.0, -70.0, 45.0]}
+  temporal_extent: {start: 2023-06-01, end: 2023-06-30}
+  variables_of_interest: [AOD_550]
+  output_format: netcdf
+collections:
+  - short_name: MCD19A2
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, grade: C, source: edvs-parquet, reason: "chunk misalignment across granules"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+      - {pattern: S2, available: true, source: "catalog; verify via CMR"}
+pattern_tiers:
+  best: [S1]
+  acceptable: [S3, S2]
+  marginal: [F1]
+  inefficient: [M1, M2]
+validation:
+  units: dimensionless
+  aggregation: daily_maps_and_episode_mean
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S1]
+  acceptable_patterns: [S3, S2]
+  reasoning: >
+    EDVS grade C (chunk misalignment across granules blocks virtualization).
+    Harmony subsetting is the best available pattern; DMR++/OPeNDAP acceptable.
+notes:
+  - pilot task

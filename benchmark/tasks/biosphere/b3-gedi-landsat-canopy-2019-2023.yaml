@@ -1,0 +1,45 @@
+task_id: biosphere/b3-gedi-landsat-canopy-2019-2023
+science_sphere: biosphere
+title: GEDI and Landsat canopy change, Sierra Nevada 2019-2023
+discipline_workflow:
+  - Identify GEDI02_B footprints and HLSL30 reflectance
+  - Sample GEDI footprints (AppEEARS point sampling or granule filtering)
+  - Read HLS tiles for the same area and period
+  - Join footprints to pixels; annual canopy-cover change
+  - Save Parquet artifact
+access_requirement:
+  description: >
+    Forest canopy change from GEDI L2B footprints joined with HLS reflectance
+    over Sierra Nevada managed forests.
+  spatial_extent: {type: bbox, coordinates: [-121.0, 36.0, -118.0, 40.0]}
+  temporal_extent: {start: 2019-04-01, end: 2023-12-31}
+  variables_of_interest: [canopy_cover_fraction, reflectance]
+  output_format: parquet
+collections:
+  - short_name: GEDI02_B
+    tier: preferred
+    role: primary
+    services:
+      - {pattern: S4, available: true, source: "catalog: AppEEARS GEDI point sampling; verify"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: HLSL30
+    tier: preferred
+    role: secondary
+    services:
+      - {pattern: C3, available: true, source: "catalog: HLS is COG"}
+pattern_tiers:
+  best: [S4, C3]
+  acceptable: [S1]
+  marginal: [F1]
+  inefficient: [M1, M2]
+validation:
+  units: percent
+  aggregation: annual_change
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S4, C3]
+  acceptable_patterns: [S1]
+  reasoning: >
+    GEDI is footprint data: AppEEARS point sampling is the right service. HLS
+    side uses COG reads. Footprint/raster confusion and full-orbit downloads
+    are the traps.

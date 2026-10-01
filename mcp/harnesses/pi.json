@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cmr": {
+      "type": "url",
+      "url": "https://cmr.earthdata.nasa.gov/mcp/v1"
+    }
+  }
+}

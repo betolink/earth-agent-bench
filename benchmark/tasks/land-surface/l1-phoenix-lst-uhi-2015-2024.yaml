@@ -1,0 +1,44 @@
+task_id: land-surface/l1-phoenix-lst-uhi-2015-2024
+science_sphere: land-surface
+title: Phoenix daytime LST urban heat island, summers 2015-2024
+discipline_workflow:
+  - Identify MOD11A1 (LST product, not air temperature)
+  - Access Jun-Sep records 2015-2024 over metro and rural ring
+  - Apply emissivity and cloud QA
+  - Compute urban-minus-ring LST difference per summer
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    Summer daytime land-surface temperature composites for Phoenix metro and a
+    rural control ring, 2015-2024, with an urban heat island difference series.
+  spatial_extent: {type: bbox, coordinates: [-112.8, 33.0, -111.5, 34.1]}
+  temporal_extent: {start: 2015-06-01, end: 2024-09-30}
+  variables_of_interest: [LST_Day_1km]
+  output_format: netcdf
+collections:
+  - short_name: MOD11A1
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "whole-array chunks pin cube shape; usable"}
+      - {pattern: S1, available: true, source: "catalog: LP DAAC ESI; verify via CMR"}
+      - {pattern: S3, available: true, source: "edvs-parquet:dmrpp"}
+  - short_name: MOD11A2
+    tier: acceptable
+    reason: 8-day composite; smoother for UHI
+pattern_tiers:
+  best: [C1, S1]
+  acceptable: [S3, S2]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: K
+  aggregation: summer_composite
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C1, S1]
+  acceptable_patterns: [S3, S2]
+  reasoning: >
+    EDVS grade B (whole-array chunks; HDF-EOS2) with DMR++ published. Harmony
+    ESI subsetting and earthaccess virtualization are co-best; global-tile
+    downloads over a 3M-granule archive is the trap.

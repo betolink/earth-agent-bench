@@ -1,0 +1,118 @@
+version: 1
+
+gateway:
+  type: litellm
+  base_url: http://localhost:4000
+  api_key_env: LITELLM_API_KEY
+  config_example: experiments/litellm.example.yaml
+  note: every model, local and API, is served through this single LiteLLM gateway
+
+budget:
+  closed_reference:
+    shared_cap_usd: 100.0
+    hard_stop: true
+    accounting: per-run cost recorded in RunManifest; cumulative stop enforced by the runner
+
+tiers: [local, frontier_open, closed_reference]
+
+defaults:
+  sampling: {temperature: 0.2, top_p: 0.95}
+
+models:
+  lfm2.5-2.6b:
+    tier: local
+    display_name: LFM2.5 2.6B Turbo-Brilliance (edge floor)
+    repo: DavidAU/LFM2.5-2.6B-Qwen3.8-Turbo-Brilliance-Power-X12-NEO-MAX-GGUF
+    gguf: LFM2.5-2.6B-Q3.8-TBrilliance-NEO-MAX-Q6_K.gguf
+    quantization: MAX-Q6_K
+    architecture: lfm2
+    context: 131072
+    vram_estimate_gb: 2.5
+    notes:
+      - pin exactly one reasoning mode for the whole experiment (template ships 14; default 'high')
+      - role: capability floor of the price ladder
+
+  ornith-1.5-9b:
+    tier: local
+    display_name: Ornith 1.5 9B (dense)
+    repo: ornith-ai/Ornith-1.5-9B-GGUF
+    gguf: pin exact quant file at download
+    quantization: Q6_K
+    architecture: qwen3_5
+    context: null
+    vram_estimate_gb: 8.0
+    notes:
+      - confirm context length from model card at pilot
+
+  gpt-oss-20b:
+    tier: local
+    display_name: gpt-oss 20B
+    repo: openai/gpt-oss-20b
+    gguf: official GGUF release
+    quantization: MXFP4
+    architecture: gpt-oss
+    context: 131072
+    vram_estimate_gb: 13.0
+    notes:
+      - reasoning effort pinned (medium) across all runs
+
+  qwen3.8-27b-gsq:
+    tier: local
+    display_name: Qwen3.8 27B GSQ-RCO (research quant)
+    repo: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
+    gguf: Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf
+    quantization: IQ3_S (GSQ/RCO mixed precision)
+    architecture: qwen35
+    context: 262144
+    vram_estimate_gb: 13.5
+    notes:
+      - record average bit width per tensor-allocation report in RunManifest
+      - mtp variant enables llama.cpp speculative decoding
+
+  tiel-coder-35b:
+    tier: local
+    display_name: Tiel Coder 35B A3B (local flagship)
+    repo: peculiar-ragdoll/Tiel-Coder-35B-A3B-GGUF-MTP
+    gguf_24gb: Tiel-Coder-35B-A3B-MTP-UD-IQ4_XS.gguf
+    gguf_16gb: Tiel-Coder-35B-A3B-MTP-UD-IQ3_XXS.gguf
+    quantization: IQ4_XS (24GB GPU) / IQ3_XXS (16GB GPU)
+    base_model: ornith-ai/Ornith-1.5-35B-A3B
+    architecture: qwen35_moe
+    context: null
+    vram_estimate_gb: 20.0
+    notes:
+      - confirm context length from model card at pilot
+      - vision mmproj available but unused; text-only mode
+
+  deepseek-flash-4.1:
+    tier: frontier_open
+    display_name: DeepSeek Flash 4.1
+    litellm_model: deepseek/deepseek-flash-4.1
+    confirm_at_pilot: exact provider string and context
+    context: null
+
+  glm-5.3-flash:
+    tier: frontier_open
+    display_name: GLM 5.3 Flash
+    litellm_model: zhipu/glm-5.3-flash
+    confirm_at_pilot: exact provider string and context
+    context: null
+
+  claude-sonnet-5-5:
+    tier: closed_reference
+    display_name: Claude Sonnet 5.5 (reference)
+    litellm_model: anthropic/claude-sonnet-5-5
+    confirm_at_pilot: exact model id
+    context: null
+    notes:
+      - only model permitted on the claude-code lane
+      - subject to closed_reference shared budget cap
+
+  gpt-sol:
+    tier: closed_reference
+    display_name: GPT Sol (reference)
+    litellm_model: openai/gpt-sol
+    confirm_at_pilot: exact model id
+    context: null
+    notes:
+      - subject to closed_reference shared budget cap

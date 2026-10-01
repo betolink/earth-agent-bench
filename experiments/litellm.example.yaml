@@ -1,0 +1,56 @@
+model_list:
+  - model_name: lfm2.5-2.6b
+    litellm_params:
+      model: openai/lfm2.5-2.6b
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: ornith-1.5-9b
+    litellm_params:
+      model: openai/ornith-1.5-9b
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: gpt-oss-20b
+    litellm_params:
+      model: openai/gpt-oss-20b
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: qwen3.8-27b-gsq
+    litellm_params:
+      model: openai/qwen3.8-27b-gsq
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: tiel-coder-35b
+    litellm_params:
+      model: openai/tiel-coder-35b
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: deepseek-flash-4.1
+    litellm_params:
+      model: deepseek/deepseek-flash-4.1
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  - model_name: glm-5.3-flash
+    litellm_params:
+      model: zhipu/glm-5.3-flash
+      api_key: os.environ/ZHIPU_API_KEY
+
+  - model_name: claude-sonnet-5-5
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: gpt-sol
+    litellm_params:
+      model: openai/gpt-sol
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

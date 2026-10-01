@@ -1,0 +1,52 @@
+task_id: atmosphere/a1-tempo-no2-florida-2024
+science_sphere: atmosphere
+title: Monthly tropospheric NO2 over Florida, 2024
+discipline_workflow:
+  - Identify TEMPO L3 tropospheric NO2 (not total column, not L2)
+  - Discover access services for TEMPO_NO2_L3
+  - Open the 2024 record over Florida lazily
+  - Apply main QA flag and cloud screening
+  - Compute monthly means of the tropospheric column
+  - Save small NetCDF artifact
+access_requirement:
+  description: >
+    Seasonal air-quality picture of tropospheric NO2 over Florida for calendar
+    year 2024 at monthly resolution from TEMPO, QA-filtered.
+  spatial_extent: {type: bbox, coordinates: [-87.5, 24.5, -80.0, 31.0]}
+  temporal_extent: {start: 2024-01-01, end: 2024-12-31}
+  variables_of_interest: [tropospheric_no2_vertical_column]
+  output_format: netcdf
+collections:
+  - short_name: TEMPO_NO2_L3
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+      - {pattern: S3, available: true, source: "edvs-parquet:dmrpp"}
+      - {pattern: S5, available: true, source: "catalog; verify via CMR"}
+  - short_name: TEMPO_NO2_L2
+    tier: acceptable
+    reason: hourly swath product; higher volume and QA burden
+  - short_name: OMDOAO3
+    tier: discouraged
+    reason: coarser resolution, different overpass sampling
+pattern_tiers:
+  best: [C1]
+  acceptable: [S1, S3, S2, S5]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: mol m-2
+  aggregation: monthly_mean
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2, S5]
+  reasoning: >
+    EDVS grade B (blocker only performance-related: "P-md: median 51 blocks in
+    46 runs, 4% leading"); earthaccess virtualization is the best available
+    pattern. Harmony, DMR++ and Giovanni are acceptable alternates.
+notes:
+  - pilot task
+  - exact variable name pinned at task-build time from UMM-Var

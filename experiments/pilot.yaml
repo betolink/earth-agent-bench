@@ -1,0 +1,31 @@
+version: 1
+suite: pilot
+
+tasks:
+  - atmosphere/a1-tempo-no2-florida-2024
+  - atmosphere/a3-maiac-aod-eastern-us-2023
+  - cryosphere/c1-itslive-jakobshavn-2015-2024
+
+models: [lfm2.5-2.6b, tiel-coder-35b, glm-5.3-flash]
+harnesses: [pi, opencode, codex-cli]
+conditions: all
+trials: 1
+
+main_runs: 108
+
+lanes:
+  claude-reference:
+    models: [claude-sonnet-5-5]
+    harnesses: [claude-code]
+    conditions: all
+    trials: 1
+    lane_runs: 12
+
+budget_guard: enabled
+
+purpose:
+  - pin harness versions and confirm API model provider strings
+  - measure runtime and tokens/s per local model
+  - verify harness compatibility (MCP clients, skill mounting)
+  - verify verifier reliability and access reproducibility
+  - calibrate trial count for the full matrix

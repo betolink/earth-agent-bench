@@ -1,0 +1,47 @@
+task_id: biosphere/b2-amazon-gpp-soilmoisture-2023
+science_sphere: biosphere
+title: Amazon GPP and SMAP soil moisture anomalies, 2023
+discipline_workflow:
+  - Identify MOD17A2H (GPP) and SPL4SMGP (SMAP L4 soil moisture)
+  - Access 2018-2023 records for both collections
+  - Regrid SMAP to MODIS grid or coarse-aggregate
+  - Compute 2023 anomalies against the 2018-2022 baseline
+  - Correlation map
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    2023 GPP and soil-moisture anomalies against a 2018-2022 baseline over the
+    Amazon, with a coupling correlation map.
+  spatial_extent: {type: bbox, coordinates: [-75.0, -10.0, -50.0, 5.0]}
+  temporal_extent: {start: 2018-01-01, end: 2023-12-31}
+  variables_of_interest: [gpp, soil_moisture]
+  output_format: netcdf
+collections:
+  - short_name: MOD17A2H
+    tier: preferred
+    role: primary
+    services:
+      - {pattern: C1, available: false, reason: "HDF4; EDVS sampling pending"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: SPL4SMGP
+    tier: preferred
+    role: secondary
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "time-var-without-time-dim; cube-able"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+pattern_tiers:
+  best: [S1, C1]
+  acceptable: [S2, S3]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: kg C m-2 (8-day)
+  aggregation: anomaly_vs_baseline
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S1, C1]
+  acceptable_patterns: [S2, S3]
+  reasoning: >
+    Mixed availability: Harmony for MOD17A2H (HDF4 tiles), earthaccess
+    virtualization for SPL4SMGP (grade B). Scale factors and grid mismatch are
+    the science-side traps.

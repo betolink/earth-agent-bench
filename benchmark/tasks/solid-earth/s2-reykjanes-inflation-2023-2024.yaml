@@ -1,0 +1,40 @@
+task_id: solid-earth/s2-reykjanes-inflation-2023-2024
+science_sphere: solid-earth
+title: Reykjanes inflation time series, 2023-2024
+discipline_workflow:
+  - Identify ASF GUNW collection
+  - Filter to the Reykjanes peninsula and window via archive metadata
+  - Stack unwrapped phase to displacement per date
+  - Reference-frame correction to a stable area
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    InSAR displacement time series over Reykjanes during the Nov 2023 - Apr
+    2024 inflation and eruption sequence.
+  spatial_extent: {type: bbox, coordinates: [-24.5, 63.8, -21.5, 64.5]}
+  temporal_extent: {start: 2023-11-01, end: 2024-04-30}
+  variables_of_interest: [unwrapped_phase, coherence]
+  output_format: netcdf
+collections:
+  - short_name: SENTINEL-1_INTERFEROGRAMS
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, reason: "EDVS grade unknown; not creditable"}
+      - {pattern: S1, available: false, reason: "ASF GUNW not Harmony-enabled"}
+      - {pattern: S2, available: false, reason: "no OPeNDAP endpoint for ASF GUNW"}
+pattern_tiers:
+  best: [F1, F4]
+  acceptable: [M1]
+  marginal: [F2]
+  inefficient: [M2]
+validation:
+  units: m
+  aggregation: displacement_time_series
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [F1, F4]
+  acceptable_patterns: [M1]
+  reasoning: >
+    As with S1: no subsetting service; filtered granule selection is best.
+    Reference-frame handling is an additional gate item.

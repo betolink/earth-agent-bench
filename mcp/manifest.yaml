@@ -1,0 +1,22 @@
+version: 1
+
+servers:
+  cmr-mcp:
+    description: >
+      NASA CMR baseline MCP — collection/granule discovery and service metadata.
+      This is the discovery baseline available to all MCP conditions.
+    transport: http
+    url: https://cmr.earthdata.nasa.gov/mcp/v1
+    auth: none
+    status: ready
+    expose_as: cmr
+
+  earthaccess-mcp:
+    description: >
+      earthaccess operational MCP — data_taxonomy, access services, virtualizability,
+      related science. This is the intervention under test.
+    transport: http
+    url: null
+    status: pending
+    expose_as: earthaccess
+    note: not deployed yet; wire into MCP conditions when the endpoint is published

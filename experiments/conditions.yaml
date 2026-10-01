@@ -1,0 +1,42 @@
+version: 1
+
+conditions:
+  baseline:
+    mcp: false
+    skills: false
+    description: ordinary agent capability
+  mcp:
+    mcp: true
+    skills: false
+    description: structured operational knowledge via earthaccess MCP
+  skills:
+    mcp: false
+    skills: true
+    description: procedural Earthdata guidance via mounted skill files
+  mcp-skills:
+    mcp: true
+    skills: true
+    description: combined intervention
+
+order: [baseline, mcp, skills, mcp-skills]
+
+invariants:
+  - same model, harness, task, environment and execution limits across conditions
+  - only the available Earthdata knowledge changes
+
+wiring:
+  mcp_manifest: mcp/manifest.yaml
+  skills_dir: skills/
+  mcp_servers:
+    baseline: []
+    mcp: [cmr-mcp, earthaccess-mcp]
+    skills: []
+    mcp-skills: [cmr-mcp, earthaccess-mcp]
+  skills_mounted:
+    baseline: false
+    mcp: false
+    skills: true
+    mcp-skills: true
+  note: >
+    earthaccess-mcp is pending deployment; until then MCP conditions run with
+    cmr-mcp only and results are interpreted as discovery-level knowledge.

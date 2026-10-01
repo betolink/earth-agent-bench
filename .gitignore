@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# generated harbor task packages
+harbor/generated/
+# single-run workspaces (eab run)
+runs/

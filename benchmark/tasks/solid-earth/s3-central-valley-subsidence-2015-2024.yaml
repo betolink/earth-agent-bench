@@ -1,0 +1,44 @@
+task_id: solid-earth/s3-central-valley-subsidence-2015-2024
+science_sphere: solid-earth
+title: Central Valley subsidence, 2015-2024
+discipline_workflow:
+  - Identify OPERA_L3_DISP-S1_V1 (preferred) or GUNW fallback
+  - Access the 2015-2024 record with archive filtering
+  - Fit displacement to line-of-sight velocity
+  - Save GeoTIFF artifact
+access_requirement:
+  description: >
+    Long-term InSAR subsidence velocity for the Central Valley from
+    displacement time series, 2015-2024.
+  spatial_extent: {type: bbox, coordinates: [-121.5, 36.0, -119.0, 37.8]}
+  temporal_extent: {start: 2015-01-01, end: 2024-12-31}
+  variables_of_interest: [los_displacement]
+  output_format: geotiff
+collections:
+  - short_name: OPERA_L3_DISP-S1_V1
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, reason: "EDVS sampling pending for DISP-S1"}
+      - {pattern: S1, available: false, reason: "ASF OPERA not Harmony-enabled; verify"}
+  - short_name: SENTINEL-1_INTERFEROGRAMS
+    tier: acceptable
+    reason: fallback via GUNW stacking; much higher granule volume
+pattern_tiers:
+  best: [F1]
+  acceptable: [M1]
+  marginal: [F2]
+  inefficient: [M2]
+validation:
+  units: cm yr-1
+  aggregation: velocity_fit
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [F1]
+  acceptable_patterns: [M1]
+  reasoning: >
+    DISP-S1 provides ready-made displacement time series; archive-filtered
+    reads beat GUNW stacking by orders of magnitude. OPERA_L2_CSLC-S1 is EDVS
+    grade B, and C1 becomes creditable if DISP-S1 is sampled A/B later.
+notes:
+  - revisit gold when EDVS samples OPERA_L3_DISP-S1_V1

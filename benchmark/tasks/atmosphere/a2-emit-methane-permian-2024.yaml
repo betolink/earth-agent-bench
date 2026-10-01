@@ -1,0 +1,45 @@
+task_id: atmosphere/a2-emit-methane-permian-2024
+science_sphere: atmosphere
+title: EMIT methane plume screening, Permian Basin, 2024
+discipline_workflow:
+  - Identify EMITL2BCH4PLM (plume product, not radiance)
+  - Filter granules to Permian bbox and 2024 via metadata
+  - Read plume enhancement and mask datasets only
+  - Summarize plume count and max enhancement per month
+  - Save CSV artifact
+access_requirement:
+  description: >
+    Screen 2024 EMIT methane plume-complexity observations over the Permian
+    Basin and summarize detected plumes per month.
+  spatial_extent: {type: bbox, coordinates: [-104.5, 30.5, -101.0, 33.5]}
+  temporal_extent: {start: 2024-01-01, end: 2024-12-31}
+  variables_of_interest: [ch4_plume_enhancement, plume_mask]
+  output_format: csv
+collections:
+  - short_name: EMITL2BCH4PLM
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, reason: "EDVS grade unknown (not sampled)"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: EMITL1BRAD
+    tier: unacceptable
+    reason: radiance is not methane enhancement
+pattern_tiers:
+  best: [S1]
+  acceptable: [S2, S3]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: ppb m
+  aggregation: monthly_plume_summary
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S1]
+  acceptable_patterns: [S2, S3]
+  reasoning: >
+    Plume product is per-scene and sparse; EDVS has not sampled this collection
+    so C1 is not creditable. Harmony subsetting is the curated best pattern
+    pending CMR verification of the association.
+notes:
+  - "service tiers pending CMR verification (curated verified: false)"

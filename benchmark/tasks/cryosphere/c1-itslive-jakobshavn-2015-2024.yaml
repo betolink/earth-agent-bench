@@ -1,0 +1,46 @@
+task_id: cryosphere/c1-itslive-jakobshavn-2015-2024
+science_sphere: cryosphere
+title: Jakobshavn Isbrae velocity, 2015-2024
+discipline_workflow:
+  - Identify ITS_LIVE velocity mosaics (NSIDC-0776) and the Zarr datacube endpoint
+  - Prefer native Zarr datacube or virtualize the netCDF archive
+  - Lazy regional read of vx and vy
+  - Compute annual means
+  - Save small NetCDF artifact
+access_requirement:
+  description: >
+    Decade-long surface velocity time series (vx, vy) at Jakobshavn Isbrae for
+    a speed-up analysis, annual resolution.
+  spatial_extent: {type: bbox, coordinates: [-52.0, 68.5, -48.0, 70.0]}
+  temporal_extent: {start: 2015-01-01, end: 2024-12-31}
+  variables_of_interest: [vx, vy]
+  output_format: netcdf
+collections:
+  - short_name: NSIDC-0776
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "cube over vx/vy available; time dim added at store build"}
+      - {pattern: C2, available: true, source: "catalog: ITS_LIVE datacube Zarr endpoints"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: ITS_LIVE_GeoTIFF_Mosaics
+    tier: discouraged
+    reason: would force F1 or M1 over thousands of files
+pattern_tiers:
+  best: [C2, C1]
+  acceptable: [S1]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: m yr-1
+  aggregation: annual_mean
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C2, C1]
+  acceptable_patterns: [S1]
+  reasoning: >
+    ITS_LIVE publishes native Zarr datacubes (C2) over the netCDF archive
+    (EDVS grade B; cube over vx/vy available). earthaccess virtualization (C1)
+    is equivalent-quality. Harmony acceptable. GeoTIFF download is the trap.
+notes:
+  - pilot task

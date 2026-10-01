@@ -1,0 +1,24 @@
+cli: harbor
+
+run_command_template: "run --task-path {task_path} --agent {agent} --model {model} --environment-tag {condition}"
+
+agents:
+  opencode: opencode
+  codex: codex
+  claude-code: claude-code
+  pi: pi
+
+pass_through_env:
+  - LITELLM_BASE_URL
+  - LITELLM_API_KEY
+  - OPENAI_BASE_URL
+  - OPENAI_API_KEY
+  - ANTHROPIC_BASE_URL
+  - ANTHROPIC_AUTH_TOKEN
+  - EARTHDATA_USERNAME
+  - EARTHDATA_PASSWORD
+
+note: >
+  The exact harbor CLI flags are pinned at pilot burn-in against the harbor
+  release we adopt; edit run_command_template here if flags differ. Nothing
+  else in the repo hard-codes the harbor command line.

@@ -1,0 +1,52 @@
+task_id: biosphere/b1-pnw-wildfire-recovery-2020-2023
+science_sphere: biosphere
+title: PNW wildfire vegetation recovery, 2020-2023
+discipline_workflow:
+  - Identify HLSL30/HLSS30 surface reflectance
+  - Discover COG layout (EDVS grade B; no dimension names, per-tile grids)
+  - Read only NIR and SWIR2 bands over the burned area and reference period
+  - Compute NBR/dNBR per seasonal step
+  - Recovery curve and map
+  - Save GeoTIFF plus CSV
+access_requirement:
+  description: >
+    Post-fire vegetation recovery trajectories (dNBR) over 2020 Oregon fire
+    perimeters using HLS reflectance, through 2023.
+  spatial_extent: {type: bbox, coordinates: [-124.0, 44.0, -118.0, 49.0]}
+  temporal_extent: {start: 2020-06-01, end: 2023-10-31}
+  variables_of_interest: [nir_reflectance, swir2_reflectance]
+  output_format: geotiff
+collections:
+  - short_name: HLSL30
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C3, available: true, source: "catalog: HLS is COG on LP DAAC cloud"}
+      - {pattern: S4, available: true, source: "catalog; verify"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: HLSS30
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C3, available: true, source: "catalog: HLS is COG on LP DAAC cloud"}
+      - {pattern: S4, available: true, source: "catalog; verify"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: Landsat_C2_ARD
+    tier: acceptable
+    reason: alternative tile convention, more granule handling
+pattern_tiers:
+  best: [C3, S4]
+  acceptable: [S1]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: dimensionless
+  aggregation: seasonal_nbr
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C3, S4]
+  acceptable_patterns: [S1]
+  reasoning: >
+    HLS is COG (EDVS grade B with COG-typical blockers); band-specific COG
+    range reads or AppEEARS sampling are best. Full-scene downloads across a
+    16-22M granule archive is the trap.

@@ -1,0 +1,50 @@
+[project]
+name = "earth-agent-bench"
+version = "0.1.0"
+description = "Access-pattern selection benchmark for AI agents working with NASA Earthdata"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "earth-agent-bench contributors" }]
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "pandas>=2.2",
+    "pyarrow>=16.0",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.scripts]
+eab = "earth_agent_bench.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/earth_agent_bench"]
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+agent = [
+    "earthaccess>=0.18",
+    "virtualizarr",
+    "icechunk",
+    "xarray",
+    "dask[distributed]",
+    "h5netcdf",
+    "netCDF4",
+    "fsspec",
+    "s3fs",
+    "zarr",
+    "pydap",
+    "harmony-py",
+    "rioxarray",
+    "geopandas",
+    "pyarrow",
+    "matplotlib",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

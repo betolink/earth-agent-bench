@@ -1,0 +1,25 @@
+version: 1
+suite: full
+
+tasks: all
+models: all
+harnesses: [pi, opencode, codex-cli]
+conditions: all
+trials: 3
+
+main_runs: 5832
+
+lanes:
+  claude-reference:
+    models: [claude-sonnet-5-5]
+    harnesses: [claude-code]
+    conditions: all
+    trials: 3
+    lane_runs: 216
+
+total_runs: 6048
+
+notes:
+  - trials tunable; pilot calibrates whether 3 is affordable
+  - closed_reference models stop when the shared cap is reached; remaining cells marked infrastructure_failure
+  - all models, local and API, are served through the single LiteLLM gateway

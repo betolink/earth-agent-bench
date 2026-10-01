@@ -1,0 +1,48 @@
+task_id: land-surface/l2-black-marble-ian-2022
+science_sphere: land-surface
+title: Black Marble nighttime-light recovery after Hurricane Ian
+discipline_workflow:
+  - Identify VNP46A2 (gap-filled BRDF-corrected Black Marble, not raw DNB)
+  - Query the virtualizability oracle (grade unknown, C1 not creditable)
+  - Use DMR++/OPeNDAP or Harmony subsetting per service discovery
+  - Apply cloud and lunar QA
+  - County-level outage and recovery index
+  - Save CSV and NetCDF artifacts
+access_requirement:
+  description: >
+    Nighttime-light outage and recovery curve for Florida counties after
+    Hurricane Ian (Sep 2022 - Mar 2023) from VIIRS Black Marble.
+  spatial_extent: {type: bbox, coordinates: [-87.5, 24.5, -80.0, 31.0]}
+  temporal_extent: {start: 2022-09-20, end: 2023-03-31}
+  variables_of_interest: [gap_filled_brdf_corrected_ntl]
+  output_format: netcdf
+collections:
+  - short_name: VNP46A2
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: false, reason: "not sampled in EDVS; not creditable"}
+      - {pattern: S3, available: true, source: "catalog; verify via CMR"}
+      - {pattern: S2, available: true, source: "catalog; verify via CMR"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: VNP46A1
+    tier: acceptable
+    reason: requires own gap filling and moonlight correction
+pattern_tiers:
+  best: [S3, S2]
+  acceptable: [S1]
+  marginal: [F2]
+  inefficient: [M1, M2]
+validation:
+  units: nW cm-2 sr-1
+  aggregation: county_recovery_curve
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S3, S2]
+  acceptable_patterns: [S1]
+  reasoning: >
+    The parquet oracle returns unknown for VNP46A2, so C1 is not creditable;
+    the agent must fall back to service discovery (DMR++/OPeNDAP, Harmony).
+    This task tests fallback behavior when the score cannot bless C1.
+notes:
+  - revisit gold if a future EDVS release grades VNP46A2 A/B

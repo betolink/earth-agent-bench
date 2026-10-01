@@ -1,0 +1,48 @@
+task_id: land-surface/l3-iowa-drought-2022
+science_sphere: land-surface
+title: Iowa 2022 drought from SMAP soil moisture and MODIS ET
+discipline_workflow:
+  - Identify SPL4SMGP and MOD16A2
+  - Access Apr-Oct 2018-2022 for both collections
+  - Align grids and units (9 km SMAP vs 500 m MODIS)
+  - Compute 2022 z-score anomalies vs climatology
+  - Drought-index map and series
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    Growing-season drought characterization for the Iowa Corn Belt: 2022 soil
+    moisture and evapotranspiration anomalies vs the 2018-2022 climatology.
+  spatial_extent: {type: bbox, coordinates: [-96.6, 40.3, -90.0, 43.6]}
+  temporal_extent: {start: 2018-04-01, end: 2022-10-31}
+  variables_of_interest: [soil_moisture, et]
+  output_format: netcdf
+collections:
+  - short_name: SPL4SMGP
+    tier: preferred
+    role: primary
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "time var without time dim; cube-able via store build"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: MOD16A2
+    tier: preferred
+    role: secondary
+    services:
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+pattern_tiers:
+  best: [C1, S1]
+  acceptable: [S3, S2]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: m3 m-3
+  aggregation: zscore_anomaly
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C1, S1]
+  acceptable_patterns: [S3, S2]
+  reasoning: >
+    Mixed availability: earthaccess virtualization for SPL4SMGP (grade B),
+    Harmony for MOD16A2 (HDF4 tiles). Grid and unit alignment is the
+    science-side trap.
+notes:
+  - temporal_extent covers the climatology baseline; the 2022 anomaly window is described in the requirement

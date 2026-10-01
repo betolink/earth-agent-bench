@@ -1,0 +1,44 @@
+task_id: ocean/o2-mur-sst-gbr-2024
+science_sphere: ocean
+title: Great Barrier Reef thermal stress, 2023-24 summer
+discipline_workflow:
+  - Identify MUR-JPL-L4-GLOB-v4.1
+  - Virtualize; read only analysed_sst (stable chunking; H2 blocker affects dt_1km_data)
+  - GBR daily series Dec 2023 - Mar 2024
+  - Thermal-stress accumulation vs bleaching threshold
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    Daily MUR SST over the Great Barrier Reef for austral summer 2023-24 with
+    degree-heating-style thermal stress accumulation.
+  spatial_extent: {type: bbox, coordinates: [142.0, -25.0, 155.0, -8.0]}
+  temporal_extent: {start: 2023-12-01, end: 2024-03-31}
+  variables_of_interest: [analysed_sst]
+  output_format: netcdf
+collections:
+  - short_name: MUR-JPL-L4-GLOB-v4.1
+    tier: preferred
+    role: main
+    services:
+      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "analysed_sst stable across granules; cube available"}
+      - {pattern: S3, available: true, source: "edvs-parquet:dmrpp"}
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+  - short_name: MUR25-JPL-L4-GLOB-v4.1
+    tier: acceptable
+    reason: 25 km variant; coarser for reef-scale stress
+pattern_tiers:
+  best: [C1]
+  acceptable: [S3, S2, S1]
+  marginal: [F1, F2]
+  inefficient: [M1, M2]
+validation:
+  units: K
+  aggregation: daily_series_and_accumulation
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [C1]
+  acceptable_patterns: [S3, S2, S1]
+  reasoning: >
+    EDVS grade B; the H2 blocker affects only dt_1km_data, while analysed_sst
+    is cube-able. Variable-level awareness (read analysed_sst, not the archive)
+    is part of the access lesson. DMR++ published per EDVS.

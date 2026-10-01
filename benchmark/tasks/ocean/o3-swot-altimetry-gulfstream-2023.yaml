@@ -1,0 +1,46 @@
+task_id: ocean/o3-swot-altimetry-gulfstream-2023
+science_sphere: ocean
+title: SWOT vs conventional altimetry, Gulf Stream 2023
+discipline_workflow:
+  - Identify SWOT_L2_LR_SSH_Expert_2.0 and the gridded reference altimetry product
+  - Subset swaths and grids to region and 2023
+  - Interpolate gridded SSH to swath points
+  - Difference statistics
+  - Save NetCDF artifact
+access_requirement:
+  description: >
+    Compare SWOT KaRIn swath sea-surface height with gridded two-satellite
+    reference altimetry over the Gulf Stream for 2023.
+  spatial_extent: {type: bbox, coordinates: [-80.0, 30.0, -60.0, 45.0]}
+  temporal_extent: {start: 2023-04-01, end: 2023-12-31}
+  variables_of_interest: [swath_ssh, gridded_sla]
+  output_format: netcdf
+collections:
+  - short_name: SWOT_L2_LR_SSH_Expert_2.0
+    tier: preferred
+    role: primary
+    services:
+      - {pattern: S1, available: true, source: "catalog: PODAAC Harmony SWOT; verify via CMR"}
+  - short_name: SEA_SURFACE_HEIGHT_ALT_GRIDS_L4_2SATS_5DAY_6THDEG_V_JPL
+    tier: preferred
+    role: secondary
+    services:
+      - {pattern: S1, available: true, source: "catalog; verify via CMR"}
+      - {pattern: S3, available: true, source: "catalog; verify (DMR++)"}
+pattern_tiers:
+  best: [S1]
+  acceptable: [S3, S2, F1]
+  marginal: [F2]
+  inefficient: [M1, M2]
+validation:
+  units: m
+  aggregation: collocation_statistics
+  checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
+gold:
+  primary_patterns: [S1, S1]
+  acceptable_patterns: [S3, S2, F1]
+  reasoning: >
+    Swath plus gridded product, both PODAAC Harmony-enabled per curation.
+    Pass/cycle sprawl without subsetting is the trap.
+notes:
+  - "service tiers pending CMR verification (curated verified: false)"

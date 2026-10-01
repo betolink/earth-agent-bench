@@ -1,0 +1,158 @@
+version: 1
+notes: >
+  Curated service availability. All entries are verified: false until checked
+  against CMR (`eab matrix --cmr <short_name>`) or DAAC docs. The EDVS parquet
+  oracle is authoritative for C1 (virtualization) and DMR++ (S3) and overrides
+  this catalog where they disagree.
+
+collections:
+  TEMPO_NO2_L3:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LARC/ASDC Harmony; verify via CMR"}
+      giovanni: {available: true, source: "curated: Giovanni serves TEMPO NO2; verify"}
+
+  TEMPO_NO2_L2:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated; verify via CMR"}
+
+  EMITL2BCH4PLM:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI; verify via CMR"}
+
+  MCD19A2:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI; verify via CMR"}
+      opendap: {available: true, source: "curated: cloud OPeNDAP; verify via CMR"}
+
+  NSIDC-0776:
+    verified: false
+    services:
+      native_zarr:
+        available: true
+        source: "curated: ITS_LIVE datacube Zarr endpoints (its-live.jpl.nasa.gov)"
+      harmony: {available: true, source: "curated: NSIDC Harmony ITS_LIVE service; verify"}
+
+  PREFIRE_SAT1_2B-Radiance:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: NSIDC Harmony; verify via CMR"}
+
+  MOD35_L2:
+    verified: false
+    services:
+      opendap: {available: true, source: "curated: LAADS cloud OPeNDAP; verify via CMR"}
+
+  AU_SI12:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: NSIDC Harmony; verify via CMR"}
+
+  AU_SI6:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: NSIDC Harmony; verify via CMR"}
+
+  HLSL30:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC Harmony HLS; verify"}
+      appeears: {available: true, source: "curated: AppEEARS serves HLS; verify"}
+
+  HLSS30:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC Harmony HLS; verify"}
+      appeears: {available: true, source: "curated: AppEEARS serves HLS; verify"}
+
+  MOD17A2H:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI; verify via CMR"}
+
+  SPL4SMGP:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: NSIDC Harmony; verify via CMR"}
+
+  GEDI02_B:
+    verified: false
+    services:
+      appeears: {available: true, source: "curated: AppEEARS GEDI point sampling; verify"}
+      harmony: {available: true, source: "curated: LP DAAC GEDI subsets; verify"}
+
+  GEDI_L4B_AGB_Density_V2_1_2256:
+    verified: false
+    services:
+      appeears: {available: true, source: "curated: AppEEARS GEDI point sampling; verify"}
+
+  MODISA_L3m_CHL:
+    verified: false
+    services:
+      opendap:
+        available: true
+        source: "curated: OB.DAAC oceandata OPeNDAP; verify endpoint"
+
+  MUR-JPL-L4-GLOB-v4.1:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: PODAAC Harmony; verify via CMR"}
+      opendap: {available: true, source: "curated: PODAAC cloud OPeNDAP; verify"}
+
+  MUR25-JPL-L4-GLOB-v4.1:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: PODAAC Harmony; verify via CMR"}
+      opendap: {available: true, source: "curated: PODAAC cloud OPeNDAP; verify"}
+
+  SWOT_L2_LR_SSH_Expert_2.0:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: PODAAC Harmony SWOT; verify via CMR"}
+
+  SEA_SURFACE_HEIGHT_ALT_GRIDS_L4_2SATS_5DAY_6THDEG_V_JPL:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: PODAAC Harmony; verify via CMR"}
+      opendap: {available: true, source: "curated: PODAAC cloud OPeNDAP; verify"}
+
+  SENTINEL-1_INTERFEROGRAMS:
+    verified: false
+    services:
+      harmony: {available: false, reason: "ASF GUNW not Harmony-enabled"}
+      opendap: {available: false, reason: "no OPeNDAP endpoint for ASF GUNW"}
+      appeears: {available: false, reason: "not an LP DAAC collection"}
+
+  OPERA_L3_DISP-S1_V1:
+    verified: false
+    services:
+      harmony: {available: false, reason: "ASF OPERA not Harmony-enabled; verify"}
+      opendap: {available: false, reason: "verify ASF OPERA access paths"}
+
+  MOD11A1:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI MOD11; verify via CMR"}
+
+  MOD11A2:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI MOD11; verify via CMR"}
+
+  VNP46A2:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LAADS/EOSC; verify via CMR"}
+
+  VNP46A1:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LAADS/EOSC; verify via CMR"}
+
+  MOD16A2:
+    verified: false
+    services:
+      harmony: {available: true, source: "curated: LP DAAC ESI; verify via CMR"}
