@@ -6,7 +6,7 @@ import json
 import shutil
 from pathlib import Path
 
-from ..evals import EvalGold, load_suite
+from ..evals import EVAL_OUTPUT_NOTE, EvalGold, load_suite, render_eval_instruction
 from ..tasks import load_task, render_instruction
 from ..wiring import mcp_servers_for, ready_mcp_urls, skills_mounted
 from .config import DEFAULT_OUT, EVAL_SUITE, RUNTIME_DIR, skills_env_dir
@@ -36,7 +36,8 @@ HARBOR_OUTPUT_CONTRACT = """
 - Do not modify `instruction.md`.
 """
 
-EVAL_ABS_NOTE = "\n\nWrite the final value to `/app/output/answer.txt` (absolute path)."
+# Re-exported for callers that referenced the old constant name.
+EVAL_ABS_NOTE = EVAL_OUTPUT_NOTE
 
 
 def find_gold(task_id: str) -> EvalGold:
@@ -147,7 +148,7 @@ def generate_package(
     shutil.copy(RUNTIME_DIR / "solve.sh", solution / "solve.sh")
 
     if is_eval:
-        instruction = task_path.read_text().rstrip() + EVAL_ABS_NOTE + "\n"
+        instruction = render_eval_instruction(task_path)
         shutil.copy(RUNTIME_DIR / "verify_eval.py", tests / "verify.py")
         (tests / "gold.json").write_text(find_gold(task_id).model_dump_json(indent=2))
         _vendor_eval(tests)

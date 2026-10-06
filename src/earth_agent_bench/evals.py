@@ -16,6 +16,7 @@ not as a wrong answer — reported separately, never scored as zero.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -23,6 +24,11 @@ import yaml
 from pydantic import BaseModel
 
 AnswerType = Literal["label", "boolean", "integer", "string"]
+
+# Authoring-only guidance lives in these comments and is stripped before the
+# instruction reaches the agent, so hints cannot leak by construction.
+AUTHORING_RE = re.compile(r"<!--\s*authoring.*?-->", re.IGNORECASE | re.DOTALL)
+EVAL_OUTPUT_NOTE = "\n\nWrite the final value to `/app/output/answer.txt` (absolute path)."
 
 
 class EvalGold(BaseModel):
@@ -154,3 +160,32 @@ def summarize(results: list[EvalResult]) -> dict:
         "mean_reward": sum(r.reward for r in covered) / len(covered) if covered else 0.0,
         "mean_tool_calls": sum(r.tool_calls for r in tooled) / len(tooled) if tooled else None,
     }
+
+
+def accepted_tokens(gold: EvalGold) -> set[str]:
+    """Strings that would count as this gold's correct answer.
+
+    Derived from the grader's own normalization (not a hand-written list), so the
+    leakage guard stays in sync with the judge. Single-character boolean aliases
+    are omitted because they occur incidentally in task text.
+    """
+    if gold.answer is None:
+        return set()
+    if gold.answer_type == "boolean":
+        return {"yes", "true"} if _gold_value(gold) is True else {"no", "false"}
+    if gold.answer_type == "integer":
+        return {str(int(gold.answer))}
+    if gold.answer_type == "label":
+        return {_label(str(gold.answer))}
+    return {str(gold.answer).strip()}
+
+
+def render_eval_instruction(task_path: str | Path) -> str:
+    """Agent-facing instruction for an eval task.
+
+    Strips authoring-only guidance (``<!-- authoring ... -->``) and appends the
+    absolute output path, so the agent sees exactly the question and the sink.
+    """
+    text = Path(task_path).read_text()
+    text = AUTHORING_RE.sub("", text)
+    return text.rstrip() + EVAL_OUTPUT_NOTE + "\n"

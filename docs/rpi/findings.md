@@ -14,7 +14,9 @@ methodology (`05-multi-harness-rl`, github.com/adithya-s-k/FineEnvs).
 > `earth_agent_bench.evals` (`eab eval grade` / `eab eval report`); the answer
 > sink is `./output/answer.txt` (tasks normalized); and the runnable path is
 > **Harbor** (`eab harbor run`, real Harbor, instrumented auto-scoring), not the
-> direct runner. The three "open decisions" at the end are resolved.
+> direct runner. The three "open decisions" at the end are resolved. See
+> `docs/tasks-and-evals.md` §0 for the benchmark-vs-eval separation of concerns
+> and `experiments/evals/README.md` for adding eval tasks.
 
 ---
 

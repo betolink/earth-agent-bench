@@ -1,13 +1,22 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
-from earth_agent_bench.evals import EvalGold, grade, load_suite, summarize
+from earth_agent_bench.evals import (
+    EvalGold,
+    accepted_tokens,
+    grade,
+    load_suite,
+    render_eval_instruction,
+    summarize,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
+EVAL_TASKS = REPO_ROOT / "experiments" / "evals" / "tasks"
 
 
 def _gold(task_id: str) -> EvalGold:
@@ -57,7 +66,7 @@ def test_empty_answer_is_uncovered_not_wrong():
 
 
 def test_unpinned_gold_is_ungraded():
-    gold = _gold("09_atl06_search_count")
+    gold = EvalGold(task_id="x", answer_type="integer", answer=None, pinned=False)
     result = grade(gold, "12")
     assert result.covered is False
     assert result.error
@@ -85,3 +94,33 @@ def test_summary_pass1_and_coverage():
     assert summary["covered"] == 2
     assert summary["coverage"] == pytest.approx(2 / 3)
     assert summary["pass@1"] == pytest.approx(0.5)
+
+
+def _question_body(instruction: str) -> str:
+    """What the agent sees before the answer-format / output contract."""
+    for marker in (
+        "Express your answer as",
+        "Write only that value",
+        "Write the final value",
+    ):
+        instruction = instruction.split(marker)[0]
+    return instruction.lower()
+
+
+def test_eval_prompts_do_not_leak_the_gold():
+    """The agent-facing instruction must not contain its own answer.
+
+    Derived from the suite + the grader's normalization, so it stays in sync
+    with the judge and needs no hand-maintained phrase list.
+    """
+    for gold in load_suite(SUITE):
+        body = _question_body(render_eval_instruction(EVAL_TASKS / f"{gold.task_id}.md"))
+        for token in accepted_tokens(gold):
+            assert not re.search(
+                rf"(?<!\w){re.escape(token.lower())}(?!\w)", body
+            ), f"{gold.task_id}: instruction leaks answer token {token!r}"
+
+
+def test_eval_prompts_strip_authoring_blocks():
+    for path in EVAL_TASKS.glob("*.md"):
+        assert "<!-- authoring" not in render_eval_instruction(path).lower()

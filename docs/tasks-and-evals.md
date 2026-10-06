@@ -5,6 +5,72 @@
 
 ---
 
+## 0. Two suites, two questions
+
+The repo ships two deliberately separate task suites. They answer different
+questions, carry different golds, and are graded by different judges. Both run
+through the same `eab harbor` pipeline (same models × harnesses × conditions,
+same instrumentation), but the *measurement* differs — do not read one number as
+the other.
+
+| | Access-pattern benchmark (`benchmark/tasks/`) | Correctness eval (`experiments/evals/`) |
+|---|---|---|
+| Count / format | 18 `.yaml` (3 per sphere × 6) | 10 `.md` + `experiments/evals/suite.yaml` |
+| Question | did the agent **pick and execute** the best access pattern? | did the agent produce the **single correct value**? |
+| Gold | `pattern_tiers` (C1/S1/…) + per-collection services | one typed answer (`label`/`boolean`/`integer`/`string`) |
+| Judge | weighted rubric over **observed behavior** (pattern 35% · discovery 15% · representation 15% · efficiency 15% · collection 10% · validation 10%) | deterministic typed equality, LLM-free |
+| Output | component scores + overall `reward` 0..1 | `correct`/`covered` → pass@1 + coverage |
+| Tests | **process**: access-pattern decision quality under Earthdata constraints | **outcome**: earthaccess API knowledge |
+| Run | `eab harbor run <task>` (`eab run` for host-side smoke) | same, plus `eab eval grade` / `eab eval report` |
+
+### 0.1 Why both — the value is orthogonal
+
+- The **eval** suite isolates *knowledge*: given a tiny, unambiguous question
+  ("which single function — `open`/`download`/`virtualize`?"), can the agent get
+  the right answer? Cheap, fast, deterministic, with a clean pass@1.
+- The **benchmark** suite isolates *judgment*: given a real, bounded access
+  requirement, does the agent choose and execute the best pattern (C1/S1/…/M1)
+  and justify it? Richer, slower, graded on a rubric.
+- They fail for different reasons. An agent can know the API (eval passes) yet
+  pick a wasteful pattern (benchmark scores low), or execute a reasonable pattern
+  yet get a parameter/count wrong (eval fails). Reporting both separates
+  "doesn't know the tooling" from "doesn't make the right access decision."
+- Coverage matters for both: an infra failure is *uncovered*, never scored wrong.
+
+### 0.2 Can they be graded the same way? No — and that is the point
+
+A single clean value has exactly one right answer, so it takes a **deterministic
+typed-equality judge** (normalized label, normalized boolean, numeric with
+tolerance, exact string). There is nothing to weight and no partial credit; an
+LLM judge would inject a second uncontrolled model.
+
+An access-pattern task has **no single right answer** — there is a tiered ladder
+(best / acceptable / marginal / inefficient) across several partially-orthogonal
+dimensions (collection, service, lazy vs materialized, bytes). It needs a
+**weighted rubric over observed behavior** (what the agent *actually called*, not
+what it claimed).
+
+Applying the rubric to a value question mis-scores it (its "validation gate" is
+artifact-presence, not answer equality); applying equality to a pattern task is
+impossible (there is no scalar to compare). Hence two judges, one per suite.
+
+### 0.3 What each number means
+
+- **Eval → pass@1 and coverage.** `pass@1` = fraction of *covered* attempts whose
+  answer equals the gold; `coverage` = fraction that produced an answer (infra
+  failures excluded). Read it as "API-knowledge accuracy." Not a rubric score.
+- **Benchmark → weighted reward 0..1 and its breakdown.** The dominant term is
+  the access-pattern tier (best 1.0 / acceptable 0.7 / marginal 0.3 / else 0.0,
+  averaged over the patterns actually used); the rest reward discovering the
+  available services, a lazy representation, staying inside efficiency
+  envelopes, the right collection, and a passed science gate. **Not** a
+  percent-correct score.
+
+To add an eval task, see `experiments/evals/README.md`. Benchmark task anatomy
+and the rubric are §1–§9 below.
+
+---
+
 ## 1. Design principles
 
 1. **Access-pattern selection is the scored surface.** Each task is a bounded, science-motivated *access requirement*. The science computation is a thin, representative gate (right variable, right extent, right units, trivial aggregation such as a monthly or seasonal mean). We measure "did we choose the best available access pattern(s)," not "did we produce amazing science."

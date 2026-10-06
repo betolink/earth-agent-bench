@@ -65,12 +65,13 @@ tasks:
 
   - task_id: 09_atl06_search_count
     answer_type: integer
-    answer: null
-    pinned: false
+    answer: 11
+    pinned: true
     note: >
       live CMR count for search_data(short_name=ATL06,
       temporal=("2019-07-01","2019-07-31"),
-      bounding_box=(160.0,-78.0,164.0,-76.0), count=-1). Pin the integer at build time.
+      bounding_box=(160.0,-78.0,164.0,-76.0), count=-1). Pinned 2026-10-06;
+      re-pin if the archive grows.
 
   - task_id: 10_hlss30_concept_id
     answer_type: string
