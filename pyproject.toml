@@ -26,7 +26,10 @@ build-backend = "hatchling.build"
 packages = ["src/earth_agent_bench"]
 
 [dependency-groups]
-dev = ["pytest>=8.2"]
+dev = [
+    "harbor>=0.24,<0.25",
+    "pytest>=8.2",
+]
 agent = [
     "earthaccess>=0.18",
     "virtualizarr",
@@ -48,3 +51,7 @@ agent = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+# Container-side verifier scripts inject sys.path before importing vendored modules.
+"src/earth_agent_bench/harbor/runtime/*.py" = ["E402"]

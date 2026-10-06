@@ -45,12 +45,21 @@ def score_efficiency(task: Task, metrics: EfficiencyMetrics,
                      observed_patterns: list[str]) -> float:
     if not observed_patterns:
         return 0.0
+    # Only score metrics that were actually observed; reporting nothing earns no
+    # efficiency credit (previously every zero metric scored 1.0).
+    measured = [
+        (metrics.bytes_read, "max_bytes"),
+        (metrics.objects_read, "max_objects"),
+        (metrics.runtime_seconds, "max_runtime_s"),
+    ]
+    measured = [(value, limit) for value, limit in measured if value]
+    if not measured:
+        return 0.0
     scores = []
     for pattern_id in observed_patterns:
         envelope = envelope_for(task, pattern_id)
-        scores.extend([
-            score_against_envelope(metrics.bytes_read, envelope.max_bytes),
-            score_against_envelope(metrics.objects_read, envelope.max_objects),
-            score_against_envelope(metrics.runtime_seconds, envelope.max_runtime_s),
-        ])
+        scores.extend(
+            score_against_envelope(value, getattr(envelope, limit))
+            for value, limit in measured
+        )
     return sum(scores) / len(scores)

@@ -1,0 +1,16 @@
+earthaccess[all] @ git+https://github.com/betolink/earthaccess.git@nextgen-virtual
+xarray
+dask[distributed]
+h5netcdf
+netCDF4
+fsspec
+s3fs
+zarr
+pydap
+harmony-py
+rioxarray
+geopandas
+pyarrow
+matplotlib
+pydantic>=2.7
+pyyaml>=6.0

@@ -12,15 +12,15 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 
 ## P0 — blocks the pilot
 
-### 1. Harbor CLI adoption
-- **What/why:** `eab harbor run` shells out to the `harbor` CLI, which is not yet
-  installed or validated against the generated packages. The command line is a
-  guess-encoded template.
-- **Where:** `harbor/harbor.yaml` (template), `harbor/README.md`.
-- **Acceptance:** a generated package runs end-to-end via the installed harbor
-  CLI (`eab harbor run cryo-1 ... --condition baseline`) for at least one
-  harness; harbor version recorded in `experiments/harnesses.yaml`; template
-  flags corrected and frozen.
+### 1. Harbor CLI adoption — RESOLVED
+- **Status:** resolved. Real Harbor (PyPI `harbor`, v0.24) is a pinned dev
+  dependency (`pyproject.toml` + `pixi.toml`); `eab harbor` generates real
+  `task.toml` packages, writes a JobConfig, and invokes `harbor run`. Validated
+  end-to-end (`harbor run --dry-run` and live runs) on `pi`. The old
+  guess-encoded command template is gone.
+- **Where:** `src/earth_agent_bench/harbor/`, `harbor/harbor.yaml`.
+- **Remaining:** record `harbor --version` in `experiments/harnesses.yaml`; pin
+  the earthaccess fork commit in `harbor/runtime/agent-requirements.txt`.
 
 ### 2. API model IDs (4 × `confirm_at_pilot`)
 - **What/why:** exact LiteLLM provider strings and context lengths for Claude
@@ -52,7 +52,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **What/why:** `solution/reference_workflow.py` is a TODO placeholder in every
   generated package; the validity rule (each task's expert workflow must achieve
   its own gold score before the experiment) is unenforceable without them.
-- **Where:** `harbor_adapter.py` (`SOLVE_SH` / generated `solution/`);
+- **Where:** `harbor/runtime/solve.sh` (generated `solution/`);
   general-plan §40.
 - **Acceptance:** one expert workflow per task passing primary pattern + science
   gate + efficiency envelopes; recorded reference metrics become the envelope
@@ -62,16 +62,17 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 
 ## P1 — blocks credible full-run results
 
-### 6. Access instrumentation
-- **What/why:** `observed_patterns`, bytes, objects, runtime come from
-  operator-filled `observation.json` or heuristics over `access_summary.json` —
-  the benchmark's core claim ("best pattern *observed*, not claimed") is not
-  yet instrumented.
-- **Where:** `harbor_adapter.py` `VERIFY_PY` (heuristic classifier);
-  `docs/tasks-and-evals.md` §9.2 (intended classification from access logs).
-- **Acceptance:** HTTP/S3 request logging in the agent environment produces
-  pattern classification + byte/object counts automatically into
-  `observation.json`.
+### 6. Access instrumentation — PARTIAL
+- **Status:** partial. `eab_instrument.py` (installed into the sandbox image)
+  patches `earthaccess`, `harmony`, `pydap`, `s3fs`, and `virtualizarr` and logs
+  every real call to `/logs/agent/access_events.jsonl`; the verifier derives
+  patterns/services/representation/validation from those events (self-report is
+  only a fallback). Object counts and runtime are measured.
+- **Remaining:** `bytes_read` is still self-reported; `earthaccess.open → C1` is
+  coarse (cannot yet split cloud-native C1 from OPeNDAP S2); HTTP/S3-level
+  logging would close both.
+- **Where:** `harbor/runtime/eab_instrument.py`, `harbor/runtime/harbor_verify.py`,
+  `harbor/runtime/verify_benchmark.py`; `docs/tasks-and-evals.md` §9.2.
 
 ### 7. Minimal-science-gate depth
 - **What/why:** verifier treats `validation_passed` as "an artifact exists".
@@ -148,7 +149,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 | `confirm_at_pilot` (×4) | `experiments/models.yaml` | #2 |
 | `version: null` (×4) | `experiments/harnesses.yaml` | #3 |
 | `verified: false` (×28) | `benchmark/oracles/services.yaml` | #4 |
-| `TODO` reference workflow | `harbor_adapter.py`, generated `solution/` | #5 |
+| `TODO` reference workflow | `harbor/runtime/solve.sh`, generated `solution/` | #5 |
 | heuristic verifier note | `harbor/README.md` | #6 |
 | `status: pending` | `mcp/manifest.yaml` | #10 |
 | scaffold skills note | `skills/`, `docs/quickstart.md` §7 | #11 |

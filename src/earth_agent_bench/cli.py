@@ -8,22 +8,30 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from .evals import EvalResult, grade, load_suite, summarize
+from .models import discover_models, reconcile_models
 from .oracles.cmr import fetch_services
 from .oracles.service_matrix import build_matrix
 from .oracles.services import ServiceCatalog
 from .oracles.virtualizability import VirtualizabilityOracle
 from .scoring import score_run
 from .schemas import RunObservation
+from .sweep import SweepSpec, run_sweep
 from .tasks import DEFAULT_TASKS_DIR, load_all, load_task, render_instruction
 
 app = typer.Typer(help="earth-agent-bench: access-pattern selection benchmark tooling")
 harbor_app = typer.Typer(help="Generate Harbor task packages and run them")
+eval_app = typer.Typer(help="Grade the single-clean-value correctness eval suite")
+models_app = typer.Typer(help="Query and reconcile the LiteLLM model roster")
 app.add_typer(harbor_app, name="harbor")
+app.add_typer(eval_app, name="eval")
+app.add_typer(models_app, name="models")
 console = Console()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PARQUET = REPO_ROOT / "benchmark" / "data" / "virtualizability.parquet"
 DEFAULT_SERVICES = REPO_ROOT / "benchmark" / "oracles" / "services.yaml"
+DEFAULT_EVAL_SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
 
 
 def _oracle(parquet: Path) -> VirtualizabilityOracle:
@@ -61,12 +69,13 @@ def validate(
 
 @app.command()
 def run(
-    task: Path = typer.Argument(..., help="Path to a task YAML file"),
+    task: Path = typer.Argument(..., help="Path to a task .yaml or eval .md file"),
     model: str = typer.Option(..., help="Model id from experiments/models.yaml"),
-    harness: str = typer.Option(..., help="opencode | codex | claude-code | pi"),
+    harness: str = typer.Option(..., help="pi | opencode | codex-cli | claude-code"),
     condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
     trial: int = typer.Option(1),
     runs_root: Path = typer.Option(REPO_ROOT / "runs", help="Where run workspaces live"),
+    timeout: int = typer.Option(600, help="Per-run timeout in seconds (default 600 = 10 min)"),
     dry_run: bool = typer.Option(False, help="Print workspace/env/command only"),
 ) -> None:
     """Direct single-run trial (no Harbor). Builds a workspace and launches the harness."""
@@ -75,18 +84,43 @@ def run(
     spec = RunSpec(
         task_path=task, model_id=model, harness=harness,
         condition=condition, trial=trial, runs_root=runs_root,
+        timeout_s=timeout,
     )
     raise typer.Exit(code=execute(spec, dry_run=dry_run))
 
 
+@app.command()
+def sweep(
+    tasks: str = typer.Argument(..., help="Comma-separated task paths/dirs/globs, or 'all'"),
+    models: str = typer.Option("all", help="Comma-separated model ids or 'all'"),
+    harnesses: str = typer.Option("all", help="Comma-separated harnesses or 'all'"),
+    conditions: str = typer.Option("all", help="Comma-separated conditions or 'all'"),
+    trial: int = typer.Option(1),
+    runs_root: Path = typer.Option(REPO_ROOT / "runs", help="Where run workspaces live"),
+    timeout: int = typer.Option(600, help="Per-run timeout in seconds (default 600 = 10 min)"),
+    dry_run: bool = typer.Option(False, help="Print every cell without executing"),
+    continue_on_error: bool = typer.Option(True, help="Keep going after a failed cell"),
+) -> None:
+    """Run the cartesian product of tasks x models x harnesses x conditions."""
+    spec = SweepSpec(
+        tasks=tasks, models=models, harnesses=harnesses, conditions=conditions,
+        trial=trial, runs_root=runs_root, dry_run=dry_run,
+        continue_on_error=continue_on_error, timeout_s=timeout,
+    )
+    raise typer.Exit(code=run_sweep(spec))
+
+
 @harbor_app.command("generate")
 def harbor_generate(
-    tasks: str = typer.Argument("all", help="Task ids: cryo-1,atmo-2 | all | pilot"),
+    tasks: str = typer.Argument(
+        "all",
+        help="Comma-separated paths / eval ids / benchmark ids / sphere aliases, or 'all' / 'pilot'",
+    ),
     condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
     out: Path = typer.Option(REPO_ROOT / "harbor" / "generated"),
 ) -> None:
-    """Generate Harbor task packages from benchmark tasks."""
-    from .harbor_adapter import generate_package, resolve_tasks
+    """Generate real Harbor task packages (task.toml layout) for each task."""
+    from .harbor import generate_package, resolve_tasks
 
     for task_path in resolve_tasks(tasks):
         package = generate_package(task_path, condition, out)
@@ -95,19 +129,34 @@ def harbor_generate(
 
 @harbor_app.command("run")
 def harbor_run(
-    tasks: str = typer.Argument(..., help="Task ids: cryo-1,atmo-2 | pilot"),
+    tasks: str = typer.Argument(
+        ..., help="Paths / ids / sphere aliases, or 'pilot'"
+    ),
     model: str = typer.Option(..., help="Model id from experiments/models.yaml"),
-    harness: str = typer.Option(..., help="opencode | codex | claude-code | pi"),
+    harness: str = typer.Option(..., help="pi | opencode | codex-cli | claude-code"),
     condition: str = typer.Option("baseline"),
     out: Path = typer.Option(REPO_ROOT / "harbor" / "generated"),
+    jobs_dir: Path = typer.Option(REPO_ROOT / "runs" / "harbor"),
+    job_name: Optional[str] = typer.Option(
+        None, "--job-name", help="Fixed job directory name (default: unique per run)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Delete an existing job directory of the same name first"
+    ),
     dry_run: bool = typer.Option(False, help="Print the harbor command only"),
 ) -> None:
-    """Generate packages, then invoke the harbor CLI for each task."""
-    from .harbor_adapter import resolve_tasks, run_harbor
+    """Generate packages and a JobConfig, then invoke the harbor CLI."""
+    from .harbor import resolve_tasks, run_harbor
 
     code = 0
     for task_path in resolve_tasks(tasks):
-        code = run_harbor(task_path, model, harness, condition, out, dry_run) or code
+        code = (
+            run_harbor(
+                task_path, model, harness, condition, out, jobs_dir, dry_run,
+                job_name=job_name, force=force,
+            )
+            or code
+        )
         if code != 0:
             break
     raise typer.Exit(code=code)
@@ -177,6 +226,77 @@ def _find_task(task_id: str, tasks_dir: Path):
             return task
     console.print(f"[red]Task '{task_id}' not found under {tasks_dir}[/red]")
     raise typer.Exit(code=1)
+
+
+@eval_app.command("grade")
+def eval_grade(
+    task_id: str = typer.Argument(..., help="Eval task id, e.g. 01_hls_open_vs_download"),
+    answer_file: Path = typer.Argument(..., help="Path to the produced ./output/answer.txt"),
+    suite: Path = typer.Option(DEFAULT_EVAL_SUITE, help="Eval suite manifest"),
+    tool_calls: Optional[int] = typer.Option(None, help="Instrumented tool-call count"),
+) -> None:
+    """Grade one produced answer against its gold (deterministic, no LLM)."""
+    gold = _find_gold(task_id, suite)
+    produced = answer_file.read_text().strip() if answer_file.exists() else None
+    console.print_json(grade(gold, produced, tool_calls).model_dump_json())
+
+
+@eval_app.command("report")
+def eval_report(
+    results_dir: Path = typer.Argument(..., help="Directory of per-attempt result JSON files"),
+    out: Optional[Path] = typer.Option(None, help="Write summary.json here (default: results_dir)"),
+) -> None:
+    """Aggregate per-attempt results into pass@1 / coverage / tool-call summary."""
+    files = sorted(results_dir.glob("*.json"))
+    results = [EvalResult.model_validate(json.loads(p.read_text())) for p in files]
+    summary = summarize(results)
+    console.print_json(json.dumps(summary))
+    if out is None:
+        out = results_dir / "summary.json"
+    out.write_text(json.dumps(summary, indent=2))
+    console.print(f"[green]wrote[/green] {out}")
+
+
+def _find_gold(task_id: str, suite: Path):
+    for gold in load_suite(suite):
+        if gold.task_id == task_id:
+            return gold
+    console.print(f"[red]Eval task '{task_id}' not found in {suite}[/red]")
+    raise typer.Exit(code=1)
+
+
+@models_app.command("discover")
+def models_discover() -> None:
+    """List model ids served by the LiteLLM gateway (/v1/models)."""
+    try:
+        records = discover_models()
+    except Exception as error:  # noqa: BLE001
+        console.print(f"[red]gateway query failed: {error}[/red]")
+        raise typer.Exit(code=1)
+    table = Table(title=f"Gateway models ({len(records)})")
+    table.add_column("id")
+    for record in sorted(records, key=lambda r: r["id"]):
+        table.add_row(record["id"])
+    console.print(table)
+
+
+@models_app.command("reconcile")
+def models_reconcile() -> None:
+    """Check which roster entries resolve to a gateway model name."""
+    try:
+        reconciled = reconcile_models()
+    except Exception as error:  # noqa: BLE001
+        console.print(f"[red]gateway query failed: {error}[/red]")
+        raise typer.Exit(code=1)
+    table = Table(title="Roster -> gateway reconciliation")
+    table.add_column("roster id")
+    table.add_column("gateway model")
+    for model_id, gateway_model in reconciled.items():
+        if gateway_model:
+            table.add_row(model_id, f"[green]{gateway_model}[/green]")
+        else:
+            table.add_row(model_id, "[red]MISSING[/red]")
+    console.print(table)
 
 
 if __name__ == "__main__":

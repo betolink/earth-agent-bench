@@ -77,10 +77,27 @@ def test_claude_lane_restriction(tmp_path):
 
 
 def test_build_commands(tmp_path):
-    spec = make_spec(tmp_path, harness="codex")
+    spec = make_spec(tmp_path, harness="codex-cli")
     assert "codex exec" in " ".join(build_command(spec))
     spec = make_spec(tmp_path, harness="opencode")
-    assert "litellm/tiel-coder-35b" in " ".join(build_command(spec))
+    assert "litellm/local/Tiel-Coder-35B-A3B" in " ".join(build_command(spec))
     spec = make_spec(tmp_path, harness="claude-code", model="claude-sonnet-5-5")
     command = " ".join(build_command(spec))
     assert "claude -p" in command and "claude-sonnet-5-5" in command
+
+
+EVAL_TASK = Path("experiments/evals/tasks/01_hls_open_vs_download.md")
+
+
+def test_prepare_run_md_eval_task(tmp_path):
+    spec = RunSpec(
+        task_path=EVAL_TASK, model_id="tiel-coder-35b", harness="opencode",
+        condition="baseline", trial=1, runs_root=tmp_path / "runs",
+    )
+    run_dir = prepare_run(spec)
+    instruction = run_dir.joinpath("instruction.md").read_text()
+    assert "open" in instruction.lower()
+    assert "./output/answer.txt" in instruction
+    assert not (run_dir / "observation.template.json").exists()
+    manifest = json.loads(run_dir.joinpath("manifest.json").read_text())
+    assert manifest["task_id"] == "01_hls_open_vs_download"

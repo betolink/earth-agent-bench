@@ -1,6 +1,4 @@
-import pytest
 
-from earth_agent_bench.schemas import Task
 from earth_agent_bench.tasks import load_all, load_task, render_instruction
 from earth_agent_bench.scoring import score_run, score_access_pattern
 from earth_agent_bench.schemas import RunObservation, PatternTiers
@@ -75,3 +73,26 @@ def test_score_run_full_download_is_penalized():
     result = score_run(task, observation)
     assert result.access_pattern == 0.0
     assert result.reward < 0.5
+
+
+def test_score_efficiency_no_metrics_no_credit():
+    from earth_agent_bench.scoring import score_efficiency
+    from earth_agent_bench.schemas import EfficiencyMetrics
+
+    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    assert score_efficiency(task, EfficiencyMetrics(), ["C1"]) == 0.0
+    assert score_efficiency(task, EfficiencyMetrics(bytes_read=1000), ["C1"]) == 1.0
+
+
+def test_collection_selection_is_normalized():
+    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    observation = RunObservation(
+        task_id=task.task_id,
+        observed_patterns=["C1"],
+        collection_short_names=["tempo-no2-l3"],
+        discovered_services=[],
+        representation="lazy",
+        validation_passed=True,
+        metrics={"bytes_read": 1, "objects_read": 1, "runtime_seconds": 1.0},
+    )
+    assert score_run(task, observation).collection_selection == 1.0

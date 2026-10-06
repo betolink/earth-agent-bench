@@ -23,10 +23,10 @@ Task ids accept aliases everywhere: `cryo-1`, `atmo-2`, `solid-3`, `o1`, `l1`
 2. **Python environment + oracle data:**
 
    ```bash
-   cp .env.example .env        # fill EARTHDATA_USERNAME/PASSWORD
-   uv sync --group agent       # bench tooling + the agent-side Earthdata stack
+   uv sync                     # bench tooling + Harbor (dev group); or: pixi install -e dev
    uv run python scripts/build_virtualizability_parquet.py
    uv run eab validate         # 18 tasks should validate
+   cp .env.example .env        # fill EARTHDATA_USERNAME/PASSWORD (or EARTHDATA_TOKEN)
    ```
 
 3. **LiteLLM gateway** — all nine models (5 local, 2 frontier-open, 2 closed
@@ -41,8 +41,10 @@ Task ids accept aliases everywhere: `cryo-1`, `atmo-2`, `solid-3`, `o1`, `l1`
    burn-in (`confirm_at_pilot` entries in `experiments/models.yaml`).
 4. **Harnesses** — install pi / opencode / codex cli / claude code; pin
    versions and record them in `RunManifest.harness_version`.
-5. **For the Harbor path only** — install the `harbor` CLI. The exact command
-   line is a template in `harbor/harbor.yaml` (pinned at pilot burn-in).
+5. **Harbor** — installed as a pinned dev dependency (`uv sync` / `pixi install
+   -e dev`); no separate install. `eab harbor` generates a `task.toml` package +
+   JobConfig and calls `harbor run` (agent/model/endpoint config lives in
+   `harbor/harbor.yaml`).
 
 ## 2. Quick trial — direct path (one task · one model · one condition)
 
@@ -73,21 +75,28 @@ uv run eab score runs/.../observation.json
 ## 3. Quick trial — Harbor path (isolated + auto-scored)
 
 ```bash
-uv run eab harbor generate cryo-1 --condition mcp-skills   # package → harbor/generated/
 uv run eab harbor run cryo-1 --model tiel-coder-35b --harness opencode --dry-run
+# drop --dry-run to run; add --job-name NAME --force for a stable, overwritable job dir
 ```
 
-The generated package (see `harbor/README.md`) contains an agent environment
-Dockerfile (agent Python stack baked in, secrets injected at runtime via env),
-condition wiring (skills + MCP configs), and a verifier that:
+The generated package (see `harbor/README.md`) contains the agent environment
+Dockerfile (earthaccess fork + scientific stack baked in; secrets injected at
+runtime via env templates), condition wiring in `task.toml` (MCP servers,
+skills), and a deterministic verifier that:
 
-- uses `output/observation.json` verbatim if the agent/operator wrote one;
-- otherwise classifies `output/access_summary.json` heuristically
-  (service names → pattern IDs, `artifact*` presence = gate passed) and
-  scores it — full `VerifierResult` lands in `tests/evaluation.json`.
+- runs in the agent environment (shared) and grades **observed behavior**:
+  `eab_instrument` logs the agent's real `earthaccess` / `harmony` / `pydap` /
+  `s3fs` / `virtualizarr` calls to `/logs/agent/access_events.jsonl`, and the
+  verifier derives patterns/services/representation/validation from them
+  (falling back to `output/access_summary.json`);
+- writes component scores to `/logs/verifier/reward.json` (numeric) and
+  diagnostics to `details.json`;
+- for the 10 eval tasks, grades `output/answer.txt` with the deterministic
+  `earth_agent_bench.evals.grade`.
 
-Without `--dry-run`, `eab harbor run` shells out to the `harbor` CLI per task
-(command template: `harbor/harbor.yaml`).
+`eab harbor run` writes a JobConfig per run and invokes
+`harbor run --config <task>/job.yaml --jobs-dir runs/harbor --yes`; results land
+in `runs/harbor/<job_name>/`.
 
 ## 4. Running the four knowledge conditions
 
@@ -137,19 +146,21 @@ closed references). A batch orchestrator that walks those matrices and writes a
 
 Authoritative backlog with acceptance criteria per gap: **`docs/gaps.md`**.
 
-**Exists now:** 18 validated tasks + gold standards · EDVS parquet oracle +
-curated service catalog + live CMR discovery · scoring CLI + schemas (incl.
-`RunManifest`) · experiment matrices · 5 skills · MCP wiring (cmr-mcp live) ·
-direct single-run runner (`eab run`) · Harbor package generation + thin
-`eab harbor` wrapper with auto-scoring verifier · this runbook.
+**Exists now:** 18 validated tasks + gold standards · 10 eval tasks +
+deterministic grader (`eab eval`) · EDVS parquet oracle + curated service
+catalog + live CMR discovery · scoring CLI + schemas (incl. `RunManifest`) ·
+experiment matrices · 5 skills · MCP wiring (cmr-mcp live) · direct single-run
+runner (`eab run`) · Harbor package generation + JobConfig + instrumented
+auto-scoring verifier (`eab harbor`) · this runbook.
 
 **Missing before the full run (in priority order):**
 
-1. **Harbor CLI adoption** — install `harbor`, validate the generated packages
-   against it, pin the version and the command template (`harbor/harbor.yaml`).
-2. **Access instrumentation fidelity** — `observed_patterns` and byte counts
-   are heuristic (from `access_summary.json`) or operator-recorded; replace
-   with HTTP/S3-logged measurement.
+1. **Harbor pinning** — adopted and validated; record `harbor --version` in
+   `experiments/harnesses.yaml` and pin the earthaccess fork commit
+   (`harbor/runtime/agent-requirements.txt`).
+2. **Access instrumentation fidelity** — observed calls are instrumented
+   (`eab_instrument`); remaining: measure `bytes_read` (still self-reported) and
+   disambiguate `earthaccess.open` (cloud C1 vs OPeNDAP S2).
 3. **Minimal-science-gate depth** — programmatic artifact checks per task
    (variable/extent/units/aggregation), not just artifact presence.
 4. **Reference solutions** — expert workflows per task (`solution/` is a

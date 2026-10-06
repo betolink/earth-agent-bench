@@ -219,5 +219,5 @@ __marimo__/
 
 # generated harbor task packages
 harbor/generated/
-# single-run workspaces (eab run)
+# run outputs: single-run workspaces (eab run) + Harbor jobs (eab harbor run)
 runs/

@@ -15,14 +15,26 @@ WEIGHTS = {
 }
 
 
+def _normalize_name(value: str) -> str:
+    return "".join(char for char in str(value).lower() if char.isalnum())
+
+
 def score_collection_selection(task: Task, observed_collections: list[str]) -> float:
     if not observed_collections:
         return 0.0
     tiers = {"preferred": 1.0, "acceptable": 0.7, "discouraged": 0.2, "unacceptable": 0.0}
+    by_name = {_normalize_name(c.short_name): c for c in task.collections}
+    by_concept = {c.concept_id: c for c in task.collections if c.concept_id}
     scores = []
-    by_short_name = {c.short_name.upper(): c for c in task.collections}
     for name in observed_collections:
-        collection = by_short_name.get(name.strip().upper())
+        token = str(name).strip()
+        collection = by_name.get(_normalize_name(token)) or by_concept.get(token)
+        if collection is None:
+            normalized = _normalize_name(token)
+            for key, candidate in by_name.items():
+                if len(key) >= 4 and (key in normalized or normalized in key):
+                    collection = candidate
+                    break
         scores.append(tiers[collection.tier] if collection else 0.0)
     return sum(scores) / len(scores)
 

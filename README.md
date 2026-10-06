@@ -46,9 +46,13 @@ uv run eab score observation.json            # score a run observation
 uv run eab run benchmark/tasks/cryosphere/c1-itslive-jakobshavn-2015-2024.yaml \
     --model tiel-coder-35b --harness opencode --condition mcp-skills --dry-run
 
-# Harbor path: generate packages / invoke the harbor CLI (task aliases: cryo-1, atmo-2, pilot, all)
+# Harbor path: generate task.toml packages + JobConfig, then run (isolated, auto-scored)
 uv run eab harbor generate cryo-1,atmo-2 --condition mcp-skills
 uv run eab harbor run cryo-1 --model tiel-coder-35b --harness opencode --dry-run
+
+# correctness eval suite (single clean value per task)
+uv run eab eval grade 01_hls_open_vs_download runs/.../output/answer.txt
+uv run eab eval report runs/eval-results
 ```
 
 Example run observation for `eab score`:
@@ -104,6 +108,12 @@ src/earth_agent_bench/
   patterns.py        pattern registry + selection ladder
   schemas.py         pydantic task/result models
   tasks.py           task loading + instruction rendering
+  evals.py           deterministic correctness grader (10 eval tasks)
+  models.py          LiteLLM roster helpers (discover / reconcile)
+  wiring.py          shared gateway / condition / MCP / skills wiring
+  runner.py          direct single-run orchestrator (eab run)
+  sweep.py           cartesian sweep (eab sweep)
+  harbor/            real Harbor integration (packages, JobConfig, runtime/)
   oracles/           virtualizability (parquet), services, CMR, matrix
   scoring/           access-pattern, efficiency, discovery, aggregate
 scripts/             parquet build script
@@ -112,8 +122,10 @@ tests/               unit tests
 
 ## Status
 
-Scaffolding (v3.2): task suite, oracles, scoring, CLI, skills, MCP wiring, the
-direct single-run runner (`eab run`) and the Harbor thin wrapper
-(`eab harbor generate|run`) are in place — see `docs/quickstart.md` for the
-runbook and remaining gaps (harbor CLI pinning, instrumentation, reference
-solutions, earthaccess-mcp, batch orchestration).
+Working (v3.3): task suite, oracles, scoring, CLI, skills, MCP wiring, the
+direct single-run runner (`eab run` / `eab sweep`), the correctness eval suite
+(`eab eval`), and the **real Harbor** integration (`eab harbor`: `task.toml`
+packages + JobConfig + instrumented auto-scoring verifier) are in place.
+Remaining gaps: harbor/earthaccess version pinning, byte-level instrumentation,
+reference solutions, earthaccess-mcp, and batch orchestration — see
+`docs/gaps.md` and `docs/quickstart.md`.

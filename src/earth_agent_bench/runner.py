@@ -13,16 +13,20 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
-import yaml
 
 from .schemas import RunManifest
 from .tasks import load_task, render_instruction
+from .wiring import (
+    gateway_base as _gateway_base,
+    litellm_model as _litellm_model,
+    load_yaml,
+    mcp_servers_for as _mcp_servers_for,
+    ready_mcp_urls as _ready_mcp_urls,
+    skills_mounted as _skills_mounted,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODELS_YAML = REPO_ROOT / "experiments" / "models.yaml"
@@ -30,8 +34,22 @@ CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 MCP_MANIFEST = REPO_ROOT / "mcp" / "manifest.yaml"
 SKILLS_DIR = REPO_ROOT / "skills"
 
-HARNESS_IDS = ("opencode", "codex", "claude-code", "pi")
+HARNESS_IDS = ("pi", "opencode", "codex-cli", "claude-code")
 CLAUDE_LANE_MODELS = {"claude-sonnet-5-5"}
+
+EVAL_OUTPUT_CONTRACT = """
+
+## Output contract
+
+- Write only your final answer to `./output/answer.txt` (a single clean value), then stop.
+
+## Constraints
+
+- Metadata search is permitted (e.g. `earthaccess.search_data` / `search_datasets`).
+- Do **not** download, open, stream, virtualize, or process any granules — no I/O on
+  science data. Produce the single value only.
+"""
+
 
 OUTPUT_CONTRACT = """
 
@@ -74,6 +92,7 @@ class RunSpec:
     condition: str = "baseline"
     trial: int = 1
     runs_root: Path = REPO_ROOT / "runs"
+    timeout_s: int = 600
 
     @property
     def run_dir(self) -> Path:
@@ -82,31 +101,6 @@ class RunSpec:
             self.runs_root / task_id / self.model_id / self.harness
             / self.condition / f"trial-{self.trial}"
         )
-
-
-def load_yaml(path: Path) -> dict:
-    with path.open() as f:
-        return yaml.safe_load(f) or {}
-
-
-def _mcp_servers_for(condition: str) -> list[str]:
-    wiring = load_yaml(CONDITIONS_YAML)["wiring"]
-    return list(wiring["mcp_servers"].get(condition, []))
-
-
-def _ready_mcp_urls(server_ids: list[str]) -> dict[str, str]:
-    manifest = load_yaml(MCP_MANIFEST)["servers"]
-    urls = {}
-    for server_id in server_ids:
-        entry = manifest.get(server_id, {})
-        if entry.get("status") == "ready" and entry.get("url"):
-            urls[entry.get("expose_as", server_id)] = entry["url"]
-    return urls
-
-
-def _skills_mounted(condition: str) -> bool:
-    wiring = load_yaml(CONDITIONS_YAML)["wiring"]
-    return bool(wiring["skills_mounted"].get(condition, False))
 
 
 def validate_spec(spec: RunSpec) -> None:
@@ -126,10 +120,6 @@ def validate_spec(spec: RunSpec) -> None:
         )
     if spec.condition not in ("baseline", "mcp", "skills", "mcp-skills"):
         raise SystemExit(f"unknown condition '{spec.condition}'")
-
-
-def _gateway_base() -> str:
-    return os.environ.get("LITELLM_BASE_URL", "http://localhost:4000")
 
 
 def _write_opencode_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
@@ -193,13 +183,18 @@ HARNESS_CONFIG_WRITERS = {
 
 def prepare_run(spec: RunSpec) -> Path:
     validate_spec(spec)
-    task = load_task(spec.task_path)
     run_dir = spec.run_dir
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    (run_dir / "instruction.md").write_text(
-        render_instruction(task) + OUTPUT_CONTRACT
-    )
+    if spec.task_path.suffix == ".md":
+        task_id = spec.task_path.stem
+        instruction = spec.task_path.read_text() + EVAL_OUTPUT_CONTRACT
+    else:
+        task = load_task(spec.task_path)
+        task_id = task.task_id
+        instruction = render_instruction(task) + OUTPUT_CONTRACT
+
+    (run_dir / "instruction.md").write_text(instruction)
     (run_dir / "AGENTS.md").write_text(
         AGENTS_MD.format(
             skills_note=SKILLS_NOTE if _skills_mounted(spec.condition) else ""
@@ -220,7 +215,7 @@ def prepare_run(spec: RunSpec) -> Path:
     roster = load_yaml(MODELS_YAML)["models"]
     model = roster[spec.model_id]
     manifest = RunManifest(
-        task_id=task.task_id,
+        task_id=task_id,
         model_id=spec.model_id,
         model_tier=model["tier"],
         harness=spec.harness,
@@ -230,22 +225,23 @@ def prepare_run(spec: RunSpec) -> Path:
     )
     (run_dir / "manifest.json").write_text(manifest.model_dump_json(indent=2))
 
-    observation = {
-        "task_id": task.task_id,
-        "observed_patterns": [],
-        "collection_short_names": [],
-        "discovered_services": [],
-        "representation": "unknown",
-        "validation_passed": False,
-        "metrics": {
-            "bytes_read": 0,
-            "objects_read": 0,
-            "runtime_seconds": 0.0,
-        },
-    }
-    (run_dir / "observation.template.json").write_text(
-        json.dumps(observation, indent=2)
-    )
+    if spec.task_path.suffix != ".md":
+        observation = {
+            "task_id": task_id,
+            "observed_patterns": [],
+            "collection_short_names": [],
+            "discovered_services": [],
+            "representation": "unknown",
+            "validation_passed": False,
+            "metrics": {
+                "bytes_read": 0,
+                "objects_read": 0,
+                "runtime_seconds": 0.0,
+            },
+        }
+        (run_dir / "observation.template.json").write_text(
+            json.dumps(observation, indent=2)
+        )
     return run_dir
 
 
@@ -267,11 +263,12 @@ def build_env(spec: RunSpec) -> dict[str, str]:
 
 def build_command(spec: RunSpec) -> list[str]:
     prompt = "$(cat instruction.md)"
+    model = _litellm_model(spec.model_id)
     if spec.harness == "opencode":
         return ["sh", "-c",
-                f'opencode run --model litellm/{spec.model_id} "{prompt}"']
-    if spec.harness == "codex":
-        return ["sh", "-c", f'codex exec --skip-git-repo-check "{prompt}"']
+                f'opencode run --model litellm/{model} "{prompt}"']
+    if spec.harness == "codex-cli":
+        return ["sh", "-c", f'codex exec --skip-git-repo-check -m {model} "{prompt}"']
     if spec.harness == "claude-code":
         return ["sh", "-c",
                 f'claude -p "{prompt}" --model {spec.model_id} '
@@ -301,12 +298,22 @@ def execute(spec: RunSpec, dry_run: bool = False) -> int:
     if dry_run:
         return 0
 
-    with (run_dir / "session.log").open("w") as log:
-        process = subprocess.run(
-            command, cwd=run_dir, env=env, stdout=log, stderr=subprocess.STDOUT
-        )
+    try:
+        with (run_dir / "session.log").open("w") as log:
+            process = subprocess.run(
+                command, cwd=run_dir, env=env, stdout=log, stderr=subprocess.STDOUT,
+                timeout=spec.timeout_s,
+            )
+    except subprocess.TimeoutExpired:
+        print(f"timed out after {spec.timeout_s}s; see {run_dir}/session.log")
+        (run_dir / "TIMED_OUT").touch()
+        return 124
     if process.returncode != 0:
         print(f"harness exited {process.returncode}; see {run_dir}/session.log")
-    print("next: fill observation.json from the trajectory, then "
-          f"uv run eab score {run_dir}/observation.json")
+    if spec.task_path.suffix == ".md":
+        print("next: grade the answer with "
+              f"uv run eab eval grade {spec.task_path.stem} {run_dir}/output/answer.txt")
+    else:
+        print("next: fill observation.json from the trajectory, then "
+              f"uv run eab score {run_dir}/observation.json")
     return process.returncode

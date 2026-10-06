@@ -1,0 +1,44 @@
+[project]
+name = "earth-agent-bench"
+version = "0.1.0"
+description = "Access-pattern selection benchmark for AI agents working with NASA Earthdata"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
+
+# Bench tooling (editable local package -> registers the `eab` console script).
+# Python floor matches the earthaccess fork (requires-python >= 3.12).
+[dependencies]
+python = "3.12.*"
+
+[pypi-dependencies]
+earth-agent-bench = { path = ".", editable = true }
+
+# --- Agent environment: the earthaccess fork + the exposed scientific stack. ---
+# Mirrors the "Installed:" line in experiments/evals/tasks/*.md, so the agent
+# sandbox actually has what the tasks claim to expose. earthaccess[all] pulls
+# virtualizarr, icechunk, kerchunk, lonboard, odc-stac, rasterio, etc.
+[feature.agent.pypi-dependencies]
+earthaccess = { git = "https://github.com/betolink/earthaccess.git", rev = "nextgen-virtual", extras = ["all"] }
+xarray = "*"
+dask = { version = "*", extras = ["distributed"] }
+h5netcdf = "*"
+netcdf4 = "*"
+rioxarray = "*"
+geopandas = "*"
+matplotlib = "*"
+pydap = "*"
+harmony-py = "*"
+
+# --- Dev-only: test runner + Harbor CLI (the real evaluation framework). ---
+[feature.dev.pypi-dependencies]
+pytest = ">=8.2"
+harbor = ">=0.24,<0.25"
+
+# Named environments include the default feature automatically.
+[environments]
+agent = ["agent"]
+dev = ["agent", "dev"]
+
+[tasks]
+eab = "eab"
+test = "pytest"

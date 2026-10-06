@@ -2,10 +2,13 @@ version: 1
 
 gateway:
   type: litellm
-  base_url: http://localhost:4000
+  base_url: https://llm.betolink.cloud
   api_key_env: LITELLM_API_KEY
-  config_example: experiments/litellm.example.yaml
-  note: every model, local and API, is served through this single LiteLLM gateway
+  note: >
+    Single LiteLLM gateway serving all models (local and API). Local models are
+    namespaced `local/...`, API models under their provider prefix (zai/, copilot/,
+    opencode-go/, deepseek/). Query live names with `eab models discover`.
+  discover_endpoint: /v1/models
 
 budget:
   closed_reference:
@@ -21,24 +24,21 @@ defaults:
 models:
   lfm2.5-2.6b:
     tier: local
-    display_name: LFM2.5 2.6B Turbo-Brilliance (edge floor)
+    display_name: LFM2.5 2.6B (edge floor)
+    litellm_model: local/LFM2.5-2.6B
     repo: DavidAU/LFM2.5-2.6B-Qwen3.8-Turbo-Brilliance-Power-X12-NEO-MAX-GGUF
-    gguf: LFM2.5-2.6B-Q3.8-TBrilliance-NEO-MAX-Q6_K.gguf
     quantization: MAX-Q6_K
-    architecture: lfm2
     context: 131072
     vram_estimate_gb: 2.5
     notes:
       - pin exactly one reasoning mode for the whole experiment (template ships 14; default 'high')
-      - role: capability floor of the price ladder
 
   ornith-1.5-9b:
     tier: local
     display_name: Ornith 1.5 9B (dense)
+    litellm_model: local/Ornith-1.5-9B
     repo: ornith-ai/Ornith-1.5-9B-GGUF
-    gguf: pin exact quant file at download
     quantization: Q6_K
-    architecture: qwen3_5
     context: null
     vram_estimate_gb: 8.0
     notes:
@@ -47,10 +47,9 @@ models:
   gpt-oss-20b:
     tier: local
     display_name: gpt-oss 20B
+    litellm_model: local/gpt-oss-20b
     repo: openai/gpt-oss-20b
-    gguf: official GGUF release
     quantization: MXFP4
-    architecture: gpt-oss
     context: 131072
     vram_estimate_gb: 13.0
     notes:
@@ -59,12 +58,12 @@ models:
   qwen3.8-27b-gsq:
     tier: local
     display_name: Qwen3.8 27B GSQ-RCO (research quant)
+    litellm_model: local/Qwen3.8-27B
     repo: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF
-    gguf: Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf
     quantization: IQ3_S (GSQ/RCO mixed precision)
-    architecture: qwen35
     context: 262144
     vram_estimate_gb: 13.5
+    confirm_at_pilot: GSQ-RCO variant not on the gateway; mapped to local/Qwen3.8-27B — confirm the intended quant
     notes:
       - record average bit width per tensor-allocation report in RunManifest
       - mtp variant enables llama.cpp speculative decoding
@@ -72,37 +71,32 @@ models:
   tiel-coder-35b:
     tier: local
     display_name: Tiel Coder 35B A3B (local flagship)
+    litellm_model: local/Tiel-Coder-35B-A3B
     repo: peculiar-ragdoll/Tiel-Coder-35B-A3B-GGUF-MTP
-    gguf_24gb: Tiel-Coder-35B-A3B-MTP-UD-IQ4_XS.gguf
-    gguf_16gb: Tiel-Coder-35B-A3B-MTP-UD-IQ3_XXS.gguf
     quantization: IQ4_XS (24GB GPU) / IQ3_XXS (16GB GPU)
-    base_model: ornith-ai/Ornith-1.5-35B-A3B
-    architecture: qwen35_moe
     context: null
     vram_estimate_gb: 20.0
     notes:
       - confirm context length from model card at pilot
-      - vision mmproj available but unused; text-only mode
+      - text-only mode
 
   deepseek-flash-4.1:
     tier: frontier_open
     display_name: DeepSeek Flash 4.1
-    litellm_model: deepseek/deepseek-flash-4.1
-    confirm_at_pilot: exact provider string and context
+    litellm_model: opencode-go/deepseek-v4.1-flash
+    confirm_at_pilot: confirm the intended DeepSeek flash model (v4.1 vs v4-flash)
     context: null
 
   glm-5.3-flash:
     tier: frontier_open
     display_name: GLM 5.3 Flash
-    litellm_model: zhipu/glm-5.3-flash
-    confirm_at_pilot: exact provider string and context
+    litellm_model: zai/glm-5.3-flash
     context: null
 
   claude-sonnet-5-5:
     tier: closed_reference
     display_name: Claude Sonnet 5.5 (reference)
-    litellm_model: anthropic/claude-sonnet-5-5
-    confirm_at_pilot: exact model id
+    litellm_model: copilot/claude-sonnet-5.5
     context: null
     notes:
       - only model permitted on the claude-code lane
@@ -111,8 +105,8 @@ models:
   gpt-sol:
     tier: closed_reference
     display_name: GPT Sol (reference)
-    litellm_model: openai/gpt-sol
-    confirm_at_pilot: exact model id
+    litellm_model: copilot/gpt-6.1-sol
+    confirm_at_pilot: confirm the intended Sol model (gpt-6.1-sol vs gpt-6-sol vs gpt-5.6-sol)
     context: null
     notes:
       - subject to closed_reference shared budget cap

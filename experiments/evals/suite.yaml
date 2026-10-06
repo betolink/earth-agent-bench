@@ -1,0 +1,78 @@
+# Correctness eval suite — single source of truth for the 10 earthaccess tasks.
+#
+# Each task is a "single clean value" question. The judge is a deterministic
+# typed-equality grader (never an LLM): the agent writes one line to
+# ./output/answer.txt and it is compared against `answer` using `answer_type`.
+#
+# `pinned: false` marks a gold whose value must be pinned at build time (live
+# CMR counts), mirroring the benchmark's `concept_id: null` / `confirm_at_pilot`
+# convention. The grader refuses to score a task whose gold is unpinned.
+
+version: 1
+suite: correctness
+description: >
+  Access-pattern micro-decisions on NASA Earthdata: search the right window with
+  the right parameters, then choose open / download / virtualize. Outcomes are
+  correctness of a single answer, not process quality.
+answer_sink: ./output/answer.txt
+
+scoring:
+  grader: earth_agent_bench.evals.grade
+  bonus: "0.1 * 15 / (15 + tool_calls)"   # FineEnvs tool-efficiency bonus
+  bonus_applies: "only when tool_calls > 0 and instrumented; else reward = correctness"
+  uncovered: excluded                     # infra failure / no answer -> not scored wrong
+
+tasks:
+  - task_id: 01_hls_open_vs_download
+    answer_type: label
+    answer: open
+    note: "HLS is cloud COG; read in-memory with no disk writes"
+
+  - task_id: 02_atl06_download_vs_open
+    answer_type: label
+    answer: download
+    note: "point HDF5 needed on local disk for a CLI tool"
+
+  - task_id: 03_emit_virtualize
+    answer_type: label
+    answer: virtualize
+    note: "many NetCDF granules -> one logical dataset, no download"
+
+  - task_id: 04_mur_concat_dim
+    answer_type: label
+    answer: time
+    note: "stack daily MUR granules along their shared temporal coordinate"
+
+  - task_id: 05_emit_default_parser
+    answer_type: label
+    answer: DMRPPParser
+    note: "EMITL2ARFL ships DMR++ sidecars; default VirtualiZarr parser"
+
+  - task_id: 06_fallback_parser
+    answer_type: label
+    answer: HDFParser
+    note: "automatic fallback when DMR++ sidecars are absent"
+
+  - task_id: 07_datalinks_access
+    answer_type: label
+    answer: direct
+    note: "S3 object URLs usable only in AWS us-west-2"
+
+  - task_id: 08_mur_cloud_hosted
+    answer_type: boolean
+    answer: true
+    note: "MUR-JPL-L4-GLOB-v4.1 is in the Earthdata Cloud with direct S3"
+
+  - task_id: 09_atl06_search_count
+    answer_type: integer
+    answer: null
+    pinned: false
+    note: >
+      live CMR count for search_data(short_name=ATL06,
+      temporal=("2019-07-01","2019-07-31"),
+      bounding_box=(160.0,-78.0,164.0,-76.0), count=-1). Pin the integer at build time.
+
+  - task_id: 10_hlss30_concept_id
+    answer_type: string
+    answer: C2021957295-LPCLOUD
+    note: "HLSS30 collection concept-id (from CMR / earthaccess.search_datasets)"

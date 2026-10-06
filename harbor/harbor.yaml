@@ -1,24 +1,48 @@
+# Harbor integration config.
+#
+# Real Harbor: https://harborframework.com  (`pip install harbor` / `uv tool install harbor`).
+# It ships the agent adapters we use directly (`harbor agent list`), so the
+# benchmark does not install or configure any harness itself.
+#
+# `eab harbor run` renders a JobConfig (see harbor_adapter.write_job_config) and
+# invokes:
+#
+#     harbor run --config <task>/job.yaml --jobs-dir <runs>/harbor --yes
+#
+# Model ids are the LiteLLM gateway ids from experiments/models.yaml, prefixed
+# with the provider this adapter expects. Agents talk to the gateway through the
+# OpenAI-compatible (or Anthropic-compatible) base URL injected via agent env.
+
 cli: harbor
 
-run_command_template: "run --task-path {task_path} --agent {agent} --model {model} --environment-tag {condition}"
-
+# earth-agent-bench harness id -> Harbor `--agent` name.
 agents:
-  opencode: opencode
-  codex: codex
-  claude-code: claude-code
   pi: pi
+  opencode: opencode
+  codex-cli: codex
+  claude-code: claude-code
 
-pass_through_env:
-  - LITELLM_BASE_URL
-  - LITELLM_API_KEY
-  - OPENAI_BASE_URL
-  - OPENAI_API_KEY
-  - ANTHROPIC_BASE_URL
-  - ANTHROPIC_AUTH_TOKEN
-  - EARTHDATA_USERNAME
-  - EARTHDATA_PASSWORD
+# Provider prefix applied to the gateway model id for each harness.
+#   openai/...    -> OPENAI_BASE_URL / OPENAI_API_KEY
+#   anthropic/... -> ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY
+model_provider:
+  pi: openai
+  opencode: openai
+  codex-cli: openai
+  claude-code: anthropic
+
+# Extra `--agent-kwarg` options some adapters need against a custom endpoint.
+# pi requires an API style when it builds a custom provider entry; the value is
+# one of pi's provider API ids (openai-completions | openai-responses |
+# anthropic-messages | google-generative-ai). LiteLLM is OpenAI Chat Completions.
+agent_kwargs:
+  pi:
+    model_api: openai-completions
+
+# Where Harbor copies injected skills inside the environment (absolute path).
+skills_dir: /harbor/skills
 
 note: >
-  The exact harbor CLI flags are pinned at pilot burn-in against the harbor
-  release we adopt; edit run_command_template here if flags differ. Nothing
-  else in the repo hard-codes the harbor command line.
+  The `agents` map is 1:1 with Harbor's built-in adapters. `codex-cli` is the
+  benchmark's name for Harbor's `codex`. Harness versions are pinned by Harbor;
+  record `harbor --version` output in the run manifest at pilot burn-in.
