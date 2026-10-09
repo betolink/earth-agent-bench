@@ -30,6 +30,15 @@ models:
     quantization: MAX-Q6_K
     context: 131072
     vram_estimate_gb: 2.5
+    serving:  # how it is actually served (from clusterfunk/intelligence-index)
+      served_context: 180000
+      kv: q8_0
+      gpu: single
+      mtp: false
+      thinking: none        # served template has no enable/effort toggle
+    findings:
+      - 5/6 base and 5/5 hard agentic pass; fastest model (138->103 tok/s)
+      - reasoning channel can consume the token budget; give JSON probes headroom
     notes:
       - pin exactly one reasoning mode for the whole experiment (template ships 14; default 'high')
 
@@ -41,6 +50,15 @@ models:
     quantization: Q6_K
     context: null
     vram_estimate_gb: 8.0
+    serving:
+      served_context: 180000
+      kv: q8_0
+      gpu: single
+      mtp: false
+      thinking: enable        # enable_thinking, effort medium
+    findings:
+      - 6/6 base with thinking ON; 4/6 OFF (thinking OFF hurts T1/T2)
+      - 55->46 tok/s; passes tool + JSON probes
     notes:
       - confirm context length from model card at pilot
 

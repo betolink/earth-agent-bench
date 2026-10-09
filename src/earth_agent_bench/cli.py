@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .evals import EvalResult, grade, load_suite, summarize
-from .models import discover_models, reconcile_models
+from .models import discover_models, doctor_models, reconcile_models
 from .oracles.cmr import fetch_services
 from .oracles.service_matrix import build_matrix
 from .oracles.services import ServiceCatalog
@@ -18,14 +18,18 @@ from .scoring import score_run
 from .schemas import RunObservation
 from .sweep import SweepSpec, run_sweep
 from .tasks import DEFAULT_TASKS_DIR, load_all, load_task, render_instruction
+from . import report as report_mod
+from . import mcp as mcp_mod
 
 app = typer.Typer(help="earth-agent-bench: access-pattern selection benchmark tooling")
 harbor_app = typer.Typer(help="Generate Harbor task packages and run them")
 eval_app = typer.Typer(help="Grade the single-clean-value correctness eval suite")
 models_app = typer.Typer(help="Query and reconcile the LiteLLM model roster")
+mcp_app = typer.Typer(help="Probe the MCP servers declared for the mcp conditions")
 app.add_typer(harbor_app, name="harbor")
 app.add_typer(eval_app, name="eval")
 app.add_typer(models_app, name="models")
+app.add_typer(mcp_app, name="mcp")
 console = Console()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -296,6 +300,79 @@ def models_reconcile() -> None:
             table.add_row(model_id, f"[green]{gateway_model}[/green]")
         else:
             table.add_row(model_id, "[red]MISSING[/red]")
+    console.print(table)
+
+
+@models_app.command("doctor")
+def models_doctor(
+    models: str = typer.Option("all", "--models", "-m", help="Comma list of roster ids or 'all'."),
+    timeout: int = typer.Option(180, "--timeout", help="Per-probe timeout (s)."),
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Preflight roster models: served on the gateway + can do a tool call + valid JSON.
+
+    Run this before any Harbor/benchmark run so a model that cannot serve (wrong
+    context, no tool calling, empty turns) is caught up front instead of silently
+    scoring 0.
+    """
+    try:
+        rows = doctor_models(models, timeout=timeout)
+    except SystemExit as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1)
+    if as_json:
+        console.print_json(json.dumps(rows))
+        return
+    table = Table(title=f"Model doctor ({len(rows)})")
+    for col in ("model", "served", "tool", "json", "latency_s", "note"):
+        table.add_column(col)
+    for r in rows:
+        mark = lambda ok: "[green]ok[/green]" if ok else "[red]FAIL[/red]"  # noqa: E731
+        table.add_row(r["model"], mark(r["served"]), mark(r["tool_ok"]),
+                      mark(r["json_ok"]), str(r["latency_s"] or "-"), r["note"])
+    console.print(table)
+    failed = [r["model"] for r in rows if not (r["served"] and r["tool_ok"] and r["json_ok"])]
+    if failed:
+        console.print(f"[red]not ready:[/red] {', '.join(failed)}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def report(
+    root: Path = typer.Option(report_mod.DEFAULT_HARBOR_RUNS, "--root", help="Harbor runs dir."),
+    by: str = typer.Option("model", "--by", help="Comma group-by keys: model,condition,harness,task."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+    out: Optional[Path] = typer.Option(None, "--out", help="Write the markdown table here."),
+) -> None:
+    """Aggregate Harbor runs into a per-model reward + token report."""
+    rows = report_mod.collect(Path(root))
+    keys = tuple(k.strip() for k in by.split(",") if k.strip())
+    if as_json:
+        console.print_json(json.dumps(report_mod.summarize(rows, by=keys)))
+        return
+    markdown = report_mod.to_markdown(rows, by=keys)
+    if out:
+        Path(out).write_text(markdown + "\n")
+        console.print(f"wrote {out}")
+    console.print(markdown)
+
+
+@mcp_app.command("doctor")
+def mcp_doctor(
+    timeout: int = typer.Option(20, "--timeout", help="Per-server timeout (s)."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Probe the MCP servers declared in mcp/manifest.yaml (mcp conditions)."""
+    rows = mcp_mod.doctor_servers(timeout=timeout)
+    if as_json:
+        console.print_json(json.dumps(rows))
+        return
+    table = Table(title=f"MCP doctor ({len(rows)})")
+    for col in ("server", "declared", "reachable", "http", "note"):
+        table.add_column(col)
+    for r in rows:
+        mark = "[green]ok[/green]" if r["reachable"] else "[yellow]not reachable[/yellow]"
+        table.add_row(r["server"], r["declared"], mark, str(r["http"] or "-"), r["note"])
     console.print(table)
 
 
