@@ -94,11 +94,8 @@ def write_job_config(
             f"harness '{harness}' has no Harbor agent mapping in {HARBOR_CONFIG}; "
             f"known: {', '.join(sorted(known))}"
         )
-    if harness == "claude-code" and model_id not in CLAUDE_LANE_MODELS:
-        raise SystemExit(
-            "claude-code is a restricted lane: only "
-            f"{', '.join(sorted(CLAUDE_LANE_MODELS))} (see experiments/harnesses.yaml)"
-        )
+    # claude-code is allowed on any roster model when ANTHROPIC_BASE_URL
+    # points at the LiteLLM gateway (anthropic-compatible /v1/messages).
 
     package = out_root / task_path.stem
     agent: dict = {

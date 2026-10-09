@@ -27,7 +27,7 @@ agents:
 #   anthropic/... -> ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY
 model_provider:
   pi: openai
-  opencode: openai
+  opencode: litellm
   codex-cli: openai
   claude-code: anthropic
 
@@ -38,6 +38,29 @@ model_provider:
 agent_kwargs:
   pi:
     model_api: openai-completions
+  # opencode needs the openai-compatible provider (npm) registered and a valid
+  # small_model, otherwise local gateway models produce empty turns (no tool
+  # calls / no answer artifact). Mirrors the sbx-kits opencode.json.
+  opencode:
+    opencode_config:
+      small_model: "litellm/local/LFM2.5-2.6B"
+      provider:
+        litellm:
+          npm: "@ai-sdk/openai-compatible"
+          options:
+            baseURL: "https://llm.betolink.cloud/v1"
+            apiKey: "{env:OPENAI_API_KEY}"
+  # codex defaults to the OpenAI Responses API; force chat completions via a
+  # custom provider so the LiteLLM gateway (and local models) work.
+  codex-cli:
+    config:
+      model_provider: "litellm"
+      model_providers:
+        litellm:
+          name: "BetoLink"
+          base_url: "https://llm.betolink.cloud/v1"
+          env_key: "OPENAI_API_KEY"
+          wire_api: "responses"
 
 # Where Harbor copies injected skills inside the environment (absolute path).
 skills_dir: /harbor/skills
