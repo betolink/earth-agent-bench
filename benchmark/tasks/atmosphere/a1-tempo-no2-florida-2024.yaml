@@ -21,7 +21,7 @@ collections:
     tier: preferred
     role: main
     services:
-      - {pattern: C1, available: true, grade: B, source: edvs-parquet}
+      - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "out-of-region: direct S3 unavailable"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
       - {pattern: S3, available: true, source: "edvs-parquet:dmrpp"}
       - {pattern: S5, available: true, source: "catalog; verify via CMR"}
@@ -32,8 +32,8 @@ collections:
     tier: discouraged
     reason: coarser resolution, different overpass sampling
 pattern_tiers:
-  best: [C1]
-  acceptable: [S1, S3, S2, S5]
+  best: [S1]
+  acceptable: [S3, S2, S5]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -41,8 +41,8 @@ validation:
   aggregation: monthly_mean
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C1]
-  acceptable_patterns: [S1, S3, S2, S5]
+  primary_patterns: [S1]
+  acceptable_patterns: [S3, S2, S5]
   reasoning: >
     EDVS grade B (blocker only performance-related: "P-md: median 51 blocks in
     46 runs, 4% leading"); earthaccess virtualization is the best available

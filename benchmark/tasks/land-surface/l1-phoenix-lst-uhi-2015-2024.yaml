@@ -20,14 +20,14 @@ collections:
     tier: preferred
     role: main
     services:
-      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "whole-array chunks pin cube shape; usable"}
+      - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "whole-array chunks pin cube shape; usable"}
       - {pattern: S1, available: true, source: "catalog: LP DAAC ESI; verify via CMR"}
       - {pattern: S3, available: true, source: "edvs-parquet:dmrpp"}
   - short_name: MOD11A2
     tier: acceptable
     reason: 8-day composite; smoother for UHI
 pattern_tiers:
-  best: [C1, S1]
+  best: [S1]
   acceptable: [S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
@@ -36,7 +36,7 @@ validation:
   aggregation: summer_composite
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C1, S1]
+  primary_patterns: [S1]
   acceptable_patterns: [S3, S2]
   reasoning: >
     EDVS grade B (whole-array chunks; HDF-EOS2) with DMR++ published. Harmony

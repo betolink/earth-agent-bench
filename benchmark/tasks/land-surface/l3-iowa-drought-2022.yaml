@@ -21,7 +21,7 @@ collections:
     tier: preferred
     role: primary
     services:
-      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "time var without time dim; cube-able via store build"}
+      - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "time var without time dim; cube-able via store build"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: MOD16A2
     tier: preferred
@@ -29,7 +29,7 @@ collections:
     services:
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
 pattern_tiers:
-  best: [C1, S1]
+  best: [S1]
   acceptable: [S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
@@ -38,7 +38,7 @@ validation:
   aggregation: zscore_anomaly
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C1, S1]
+  primary_patterns: [S1]
   acceptable_patterns: [S3, S2]
   reasoning: >
     Mixed availability: earthaccess virtualization for SPL4SMGP (grade B),

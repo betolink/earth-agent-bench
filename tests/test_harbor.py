@@ -220,8 +220,8 @@ def test_benchmark_verifier_uses_observed_events(tmp_path):
         {"function": "earthaccess.search_data", "short_name": "TEMPO_NO2_L3",
          "service": None, "pattern": None, "n_result": 30, "error": None,
          "duration_s": 1.0},
-        {"function": "earthaccess.virtualize", "service": "virtual_zarr",
-         "pattern": "C1", "n_result": 1, "error": None, "duration_s": 5.0},
+        {"function": "harmony.Submit", "service": "harmony",
+         "pattern": "S1", "n_result": 1, "error": None, "duration_s": 5.0},
     ]
     (workspace / "access_events.jsonl").write_text(
         "\n".join(json.dumps(event) for event in events) + "\n"
@@ -235,7 +235,7 @@ def test_benchmark_verifier_uses_observed_events(tmp_path):
     assert rewards["collection_selection"] == 1.0
     assert rewards["validation"] == 1.0
     assert rewards["representation"] == 1.0
-    assert details["access_pattern_details"]["observed_patterns"] == ["C1"]
+    assert details["access_pattern_details"]["observed_patterns"] == ["S1"]
 
 
 def test_instrumenter_patches_and_logs(tmp_path, monkeypatch):
@@ -307,9 +307,9 @@ def test_benchmark_verifier_scores_access_summary(tmp_path):
     (workspace / "output" / "artifact.nc").write_bytes(b"placeholder")
     (workspace / "output" / "access_summary.json").write_text(json.dumps({
         "collections": ["TEMPO_NO2_L3"],
-        "access_services_used": ["virtualization", "harmony"],
+        "access_services_used": ["harmony", "opendap"],
         "bytes_read_estimate": 45_000_000,
-        "pattern_notes": "virtualized the archive, lazy monthly means",
+        "pattern_notes": "Harmony server-side subset, lazy monthly means",
     }))
     logs = tmp_path / "logs"
 
@@ -318,7 +318,7 @@ def test_benchmark_verifier_scores_access_summary(tmp_path):
     rewards = json.loads((logs / "reward.json").read_text())
     assert rewards["access_pattern"] == 1.0
     assert rewards["collection_selection"] == 1.0
-    assert rewards["reward"] > 0.8
+    assert rewards["reward"] > 0.7
 
 
 # --- JobConfig + harbor invocation -----------------------------------------

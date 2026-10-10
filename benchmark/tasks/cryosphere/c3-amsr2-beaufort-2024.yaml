@@ -20,14 +20,14 @@ collections:
     tier: preferred
     role: main
     services:
-      - {pattern: C1, available: true, grade: B, source: edvs-parquet, reason: "T: no time dimension; time axis added at store build"}
+      - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "T: no time dimension; time axis added at store build"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: AU_SI6
     tier: acceptable
     reason: 6.25 km variant, higher volume
 pattern_tiers:
-  best: [C1]
-  acceptable: [S1]
+  best: [S1]
+  acceptable: []
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -35,8 +35,8 @@ validation:
   aggregation: daily_series
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C1]
-  acceptable_patterns: [S1]
+  primary_patterns: [S1]
+  acceptable_patterns: []
   reasoning: >
     EDVS grade B whose only blocker is a missing time dimension; earthaccess
     virtualization adds the concat axis, making C1 the best available pattern.

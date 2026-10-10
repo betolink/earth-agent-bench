@@ -47,9 +47,9 @@ def test_score_run_best_path():
     task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
-        observed_patterns=["C1"],
+        observed_patterns=["S1"],
         collection_short_names=["TEMPO_NO2_L3"],
-        discovered_services=["C1", "S1", "S3"],
+        discovered_services=["S1", "S3"],
         representation="lazy",
         validation_passed=True,
         metrics={"bytes_read": 45_000_000, "objects_read": 12, "runtime_seconds": 180},

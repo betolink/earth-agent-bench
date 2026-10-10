@@ -18,6 +18,11 @@ export LITELLM_API_KEY="$(cat ~/.lite-llm-key)"
 export EARTHDATA_TOKEN="$(tr -d '\n' < ~/.EDL_TOKEN)"
 EAB=".venv/bin/eab"
 
+# host-side loop watchdog: end trials early when the agent repeats an access attempt
+python3 scripts/loop_watchdog.py >>"$LOG" 2>&1 &
+WATCHDOG=$!
+trap 'kill "$WATCHDOG" 2>/dev/null' EXIT
+
 MAPFILE_TASKS=$(find benchmark/tasks -name '*.yaml' | sort)
 
 for m in tiel-coder-35b ornith-1.5-9b; do
