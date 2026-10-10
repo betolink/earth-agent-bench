@@ -34,6 +34,7 @@ for m in tiel-coder-35b ornith-1.5-9b; do
         "$EAB" harbor run "$task" --model "$m" --harness "$h" --condition "$c" \
           >>"$LOG" 2>&1 || echo "FAILED $m/$h/$c $task" | tee -a "$LOG"
       done <<< "$MAPFILE_TASKS"
+      bash scripts/fix-perms.sh runs >/dev/null 2>&1 || true
     done
   done
 done
