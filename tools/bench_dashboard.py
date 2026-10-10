@@ -268,6 +268,83 @@ def collect_eab() -> dict:
             "log": logs[-1] if logs else "(no log yet)", "recent": list(reversed(recent))}
 
 
+# ----------------------------------------------------------------- live view
+def _newest_agent_file() -> Path | None:
+    files = glob.glob(str(EAB / "runs" / "harbor" / "eab-*" / "*" / "agent" / "*.txt"))
+    if not files:
+        return None
+    return Path(max(files, key=lambda f: os.path.getmtime(f)))
+
+
+def _tail(path: Path, max_bytes: int = 300_000, max_lines: int = 120) -> list[str]:
+    size = path.stat().st_size
+    with path.open("rb") as fh:
+        if size > max_bytes:
+            fh.seek(size - max_bytes)
+            data = fh.read().decode("utf-8", "replace")
+            data = data.split("\n", 1)[1] if "\n" in data else data  # drop partial first line
+        else:
+            data = fh.read().decode("utf-8", "replace")
+    lines = data.splitlines()
+    # drop a trailing line that is an incomplete JSON record still being written
+    if lines and lines[-1].startswith("{") and not lines[-1].rstrip().endswith("}"):
+        lines = lines[:-1]
+    return lines[-max_lines:]
+
+
+def _condense(line: str, width: int = 150) -> str | None:
+    line = line.strip()
+    if not line:
+        return None
+    if not line.startswith("{"):
+        return line[:width]
+    try:
+        o = json.loads(line)
+    except Exception:
+        return None
+    t = o.get("type", "")
+    one = lambda s: " ".join(str(s).split())[:width]  # noqa: E731
+    if t == "tool_execution_start":
+        a = o.get("args") or {}
+        detail = a.get("command") or a.get("path") or a.get("query") or (json.dumps(a)[:80] if a else "")
+        return f"▶ {o.get('toolName')}: {one(detail)}"
+    if t == "tool_execution_end":
+        return f"✓ {o.get('toolName')}"
+    if t in ("message_end", "message_start"):
+        msg = o.get("message") or {}
+        if msg.get("role") == "assistant":
+            for c in msg.get("content") or []:
+                if isinstance(c, dict) and c.get("type") == "text" and c.get("text"):
+                    return f"✎ {one(c['text'])}"
+                if isinstance(c, dict) and c.get("type") == "thinking" and c.get("thinking"):
+                    return f"🧠 {one(c['thinking'])}"
+    return None
+
+
+def _header_for(job_dir: str) -> str:
+    for m in EAB_MODELS:
+        for h in EAB_HARNESSES:
+            for c in EAB_CONDITIONS:
+                marker = f"-{m}-{h}-{c}-"
+                if marker in job_dir:
+                    task = job_dir[len("eab-"):job_dir.index(marker)]
+                    return f"LIVE — {task} · {m} · {h} · {c}"
+    return "LIVE — current agent"
+
+
+def collect_live() -> dict:
+    path = _newest_agent_file()
+    if path is None:
+        return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent", "path": ""}
+    job_dir = path.parents[2].name if len(path.parents) > 2 else ""
+    try:
+        lines = [x for x in (_condense(l) for l in _tail(path)) if x][-22:]
+    except OSError as e:
+        return {"lines": [f"(read error: {e})"], "header": _header_for(job_dir), "path": str(path)}
+    return {"lines": lines or ["(waiting for output…)"],
+            "header": _header_for(job_dir), "path": str(path)}
+
+
 # ----------------------------------------------------------------- app
 class Dashboard(App):
     CSS = """
@@ -279,9 +356,10 @@ class Dashboard(App):
     .panel-title { text-style: bold; background: $panel; padding: 0 1; }
     DataTable { height: 1fr; }
     #coding { height: auto; max-height: 12; }
-    #eabcombo { height: 1fr; }
+    #eabcombo { height: 14; }
     #codingtasks { height: 1fr; }
     #eablog { height: 12; border: round $primary; }
+    #live { height: 1fr; border: round $accent; }
     """
     TITLE = "BetoLink · benchmark runs"
     SUB_TITLE = "coding suite + earth-agent-bench"
@@ -304,6 +382,7 @@ class Dashboard(App):
         self.edata: dict = {"combos": [], "total_done": 0, "done_combos": 0,
                             "total": 0, "recent": []}
         self.proc: dict = {"coding": False, "eab_driver": False, "harbor": 0, "current": ""}
+        self.ldata: dict = {"lines": [], "header": "LIVE — current agent"}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -315,6 +394,8 @@ class Dashboard(App):
                 yield Static("EAB — combos × 18 tasks   ✓pass · part=yellow · ✗fail · ⏱timeout · ·pending",
                              classes="panel-title")
                 yield DataTable(id="eabcombo")
+                yield Static("LIVE — current agent", id="live_title", classes="panel-title")
+                yield RichLog(id="live", highlight=False, markup=False, wrap=True)
             with Vertical(id="right"):
                 yield Static("CODING — per-task grid (latest)", classes="panel-title")
                 yield DataTable(id="codingtasks")
@@ -326,6 +407,7 @@ class Dashboard(App):
         log.info("dashboard start; interval=%ss log=%s", self.interval, LOG_PATH)
         self.refresh_data()
         self.set_interval(1.0, self._tick)
+        self.set_interval(4.0, self._tick_live)  # live agent view refreshes fast
 
     def _handle_exception(self, error: Exception) -> None:  # type: ignore[override]
         tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
@@ -355,6 +437,8 @@ class Dashboard(App):
         self._safe("render_coding_tasks", self._render_coding_tasks, None)
         self._safe("render_eab_combo", self._render_eab_combo, None)
         self._safe("render_log", self._render_eab_log, None)
+        self.ldata = self._safe("live_collect", collect_live, self.ldata)
+        self._safe("render_live", self._render_live, None)
         self.next_refresh = time.time() + self.interval
         self._update_status(time.time())
         summary = (self.pdata.get("n", 0), self.edata.get("total_done", 0),
@@ -366,6 +450,13 @@ class Dashboard(App):
             log.info("coding_cells=%d eab=%d/%d combos_done=%d runner=%s driver=%s current=%s%s",
                      *summary, err)
             self._last_summary = summary
+
+    def _tick_live(self) -> None:
+        # fast path: refresh only the live agent pane (and the current-job line)
+        self.ldata = self._safe("live_collect", collect_live, self.ldata)
+        self._safe("render_live", self._render_live, None)
+        self._safe("procs", lambda: self.proc.update(collect_processes()), None)
+        self._update_status(time.time())
 
     def _tick(self) -> None:
         now = time.time()
@@ -466,6 +557,22 @@ class Dashboard(App):
         log_w.clear()
         for ln in self.edata.get("recent", [])[-14:]:
             log_w.write(ln)
+
+    def _render_live(self) -> None:
+        self.query_one("#live_title", Static).update(self.ldata.get("header", "LIVE — current agent"))
+        live = self.query_one("#live", RichLog)
+        live.clear()
+        for ln in self.ldata.get("lines", []):
+            style = None
+            if ln.startswith("▶"):
+                style = "cyan3"
+            elif ln.startswith("✓"):
+                style = "green3"
+            elif ln.startswith("✎"):
+                style = "white"
+            elif ln.startswith("🧠"):
+                style = "grey58"
+            live.write(Text(ln, style=style) if style else ln)
 
     # ---- actions ----
     def action_refresh(self) -> None:
