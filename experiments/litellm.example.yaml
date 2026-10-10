@@ -11,6 +11,18 @@ model_list:
       api_base: os.environ/LOCAL_INFERENCE_BASE_URL
       api_key: dummy
 
+  - model_name: deepseek-qwen3.5-9b-mtp
+    litellm_params:
+      model: openai/deepseek-qwen3.5-9b-mtp
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
+  - model_name: muse-glimmer-30b
+    litellm_params:
+      model: openai/muse-glimmer-30b
+      api_base: os.environ/LOCAL_INFERENCE_BASE_URL
+      api_key: dummy
+
   - model_name: gpt-oss-20b
     litellm_params:
       model: openai/gpt-oss-20b

@@ -22,7 +22,7 @@ def test_resolve_harnesses_all_excludes_claude():
 
 
 def test_resolve_conditions_all_order():
-    assert resolve_conditions("all") == ["baseline", "mcp", "skills", "mcp-skills"]
+    assert resolve_conditions("all") == ["baseline", "mcp", "skills", "mcp-skills", "improve"]
     assert resolve_conditions(["baseline"]) == ["baseline"]
 
 

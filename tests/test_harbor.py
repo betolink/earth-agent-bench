@@ -86,7 +86,7 @@ def test_generate_eval_package(tmp_path):
 
     config = _toml(package)
     assert config["schema_version"] == "1.4"
-    assert config["agent"]["timeout_sec"] == 600.0
+    assert config["agent"]["timeout_sec"] == 900.0
     assert config["verifier"]["timeout_sec"] == 600.0
     assert config["environment"]["network_mode"] == "public"
     env = config["environment"]["env"]
@@ -329,7 +329,7 @@ def test_job_config_opencode_model_and_skills(tmp_path):
     job = yaml.safe_load(job_path.read_text())
     agent = job["agents"][0]
     assert agent["name"] == "opencode"
-    assert agent["model_name"] == "openai/local/Tiel-Coder-35B-A3B"
+    assert agent["model_name"] == "litellm/local/Tiel-Coder-35B-A3B"
     assert agent["env"]["OPENAI_API_KEY"] == "${LITELLM_API_KEY:-}"
     assert agent["env"]["OPENAI_BASE_URL"].endswith("/v1")
     assert agent["skills"]
@@ -365,8 +365,13 @@ def test_job_config_claude_lane(tmp_path):
     assert agent["model_name"] == "anthropic/copilot/claude-sonnet-5.5"
     assert "ANTHROPIC_API_KEY" in agent["env"]
 
-    with pytest.raises(SystemExit):
-        write_job_config(EVAL_TASK, "tiel-coder-35b", "claude-code", "baseline", tmp_path)
+    # claude-code is allowed on any roster model when ANTHROPIC_BASE_URL points
+    # at the LiteLLM gateway (anthropic-compatible /v1/messages).
+    job2 = yaml.safe_load(
+        write_job_config(EVAL_TASK, "tiel-coder-35b", "claude-code", "baseline", tmp_path).read_text()
+    )
+    assert job2["agents"][0]["name"] == "claude-code"
+    assert job2["agents"][0]["model_name"] == "anthropic/local/Tiel-Coder-35B-A3B"
 
 
 def test_unknown_harness_and_model_rejected(tmp_path):
@@ -381,7 +386,7 @@ def test_render_command_uses_real_harbor_flags(tmp_path):
     generate_package(EVAL_TASK, "baseline", tmp_path)
     job_path = write_job_config(EVAL_TASK, "tiel-coder-35b", "opencode", "baseline", tmp_path)
     command = render_harbor_command(job_path, tmp_path / "jobs")
-    assert command[0] == "harbor"
+    assert command[0].endswith("harbor")
     assert command[1] == "run"
     assert "--config" in command and "--jobs-dir" in command and "--yes" in command
     assert "--task-path" not in command

@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 from ..models import load_models
-from ..wiring import gateway_base, skills_mounted
+from ..wiring import gateway_base, skills_mounted, improvement_mounted, improvement_dir
 from .config import (
     DEFAULT_JOBS,
     DEFAULT_OUT,
@@ -116,7 +116,12 @@ def write_job_config(
     if kwargs:
         agent["kwargs"] = kwargs
     if skills_mounted(condition):
-        agent["skills"] = [str(SKILLS_DIR.resolve())]
+        skill_paths = [str(SKILLS_DIR.resolve())]
+        if improvement_mounted(condition):
+            imp = improvement_dir(model_id)
+            if imp is not None:
+                skill_paths.append(str(imp.resolve()))
+        agent["skills"] = skill_paths
 
     config = {
         "job_name": job_name or _job_name(task_path, model_id, harness, condition),

@@ -14,3 +14,7 @@ pyarrow
 matplotlib
 pydantic>=2.7
 pyyaml>=6.0
+# harness-side execution profilers (used by runtime/executor.py for the optional
+# post-correctness efficiency pass; see `eab exec --profile`)
+scalene>=1.5
+memray>=1.13

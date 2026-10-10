@@ -376,5 +376,72 @@ def mcp_doctor(
     console.print(table)
 
 
+@app.command("exec")
+def exec_cmd(
+    script: Path = typer.Argument(..., help="Python deliverable to execute."),
+    timeout: float = typer.Option(60.0, help="Wall-clock budget (seconds)."),
+    mem_mb: int = typer.Option(0, help="Memory budget in MB (0 = unlimited)."),
+    cpu_s: int = typer.Option(0, help="CPU-time budget in seconds (0 = unlimited)."),
+    profile: str = typer.Option("none", help="none | scalene | memray."),
+    out: Optional[Path] = typer.Option(None, "--out", help="Profile output path."),
+    as_json: bool = typer.Option(False, "--json", help="Emit the result as JSON."),
+) -> None:
+    """Run a deliverable under a hard budget; report ok/error/timeout/oom (+profile).
+
+    This is the harness-side execution layer: it makes 'timeout' and 'oom' explicit
+    outcomes instead of an ambiguous failure, and can profile the run for line-level
+    time/memory (best used on an already-correct artifact).
+    """
+    from .harbor.runtime.executor import run_script
+    from .harbor.runtime.profiler import ProfilerError
+
+    try:
+        res = run_script(
+            script, timeout_s=timeout, mem_mb=mem_mb or None, cpu_s=cpu_s or None,
+            profile=None if profile == "none" else profile, profile_out=out,
+        )
+    except ProfilerError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=2)
+
+    if as_json:
+        console.print_json(res.to_json())
+    else:
+        color = {"ok": "green", "error": "red", "timeout": "yellow", "oom": "magenta"}.get(res.status, "white")
+        table = Table(title=f"{script.name} — [{color}]{res.status}[/{color}]")
+        for col in ("status", "rc", "wall_s", "cpu_s", "peak_rss_mb", "profile"):
+            table.add_column(col)
+        table.add_row(res.status, str(res.returncode), f"{res.wall_s:.2f}",
+                      f"{res.cpu_s:.2f}", f"{res.peak_rss_mb:.1f}",
+                      res.profile["kind"] if res.profile else "-")
+        console.print(table)
+        if res.status in ("error", "oom") and res.stderr:
+            console.print(res.stderr.strip().splitlines()[-1][:400])
+
+    raise typer.Exit(code=0 if res.status == "ok" else 1)
+
+
+@app.command("postmortem")
+def postmortem(
+    model: str = typer.Argument(..., help="Roster model id, e.g. tiel-coder-35b."),
+    harness: str = typer.Option("pi", help="Harness whose runs to inspect."),
+    run_start: Optional[str] = typer.Option(None, "--run-start", help="Run stamp (YYYYMMDD-HHMMSS); default latest."),
+    out: Path = typer.Option(REPO_ROOT / "improvements", help="Improvements root."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print the skill instead of writing it."),
+) -> None:
+    """Generate a per-model self-improvement skill from its failure postmortem."""
+    from .postmortem import build_digest, render_skill, write_skill
+
+    digest = build_digest(model, harness=harness, run_start=run_start)
+    if dry_run:
+        console.print(render_skill(digest))
+        return
+    path = write_skill(digest, out)
+    console.print(
+        f"[green]wrote[/green] {path}  "
+        f"(timeouts={len(digest.timeouts)} wrong={len(digest.wrong)} solved={len(digest.solved)})"
+    )
+
+
 if __name__ == "__main__":
     app()

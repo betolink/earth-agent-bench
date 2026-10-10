@@ -62,6 +62,23 @@ models:
     notes:
       - confirm context length from model card at pilot
 
+  muse-glimmer-30b:
+    tier: local
+    display_name: Muse Glimmer 30B
+    litellm_model: local/Muse-Glimmer-30B
+    repo: local/Muse-Glimmer-30B
+    quantization: UD-Q4_K_XL
+    context: 180000
+    vram_estimate_gb: 20.0
+    serving:
+      served_context: 180000
+      kv: q8_0
+      gpu: dual
+      mtp: false
+      thinking: effort
+    findings:
+      - 6/6 base and 6/6 OFF in intelligence-index; 20->17 tok/s
+
   gpt-oss-20b:
     tier: local
     display_name: gpt-oss 20B
@@ -72,6 +89,26 @@ models:
     vram_estimate_gb: 13.0
     notes:
       - reasoning effort pinned (medium) across all runs
+
+  deepseek-qwen3.5-9b-mtp:
+    tier: local
+    display_name: DeepSeek Qwen3.5 9B (MTP)
+    litellm_model: local/DeepSeek-Qwen3.5-9B-MTP
+    repo: local merge (DeepSeek-V4-Pro-Qwen3.5-9B-MTP)
+    quantization: Q4_K_M
+    context: 180000
+    vram_estimate_gb: 6.0
+    serving:
+      served_context: 180000
+      kv: q8_0
+      gpu: single
+      mtp: true
+      thinking: effort   # reasoning_effort (medium)
+    findings:
+      - best small in intelligence-index: 6/6 base and 5/5 hard, BOTH thinking modes
+      - 76.9->52.5 tok/s single-GPU MTP; fits 180k/q8 on one GPU
+    notes:
+      - MTP spec-decode materially helps; dual-GPU split is slower at low depth
 
   qwen3.8-27b-gsq:
     tier: local

@@ -41,3 +41,11 @@ def agent_kwargs(harness: str) -> dict:
 
 def skills_env_dir() -> str:
     return load_harbor_config().get("skills_dir", "/harbor/skills")
+
+
+def agent_timeout_sec() -> float:
+    return float(load_harbor_config().get("agent_timeout_sec", 600.0))
+
+
+def verifier_timeout_sec() -> float:
+    return float(load_harbor_config().get("verifier_timeout_sec", 600.0))

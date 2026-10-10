@@ -5,6 +5,15 @@ description: Stream NASA Earthdata into memory with earthaccess.open() instead o
 
 # Streaming vs. Downloading NASA Earthdata
 
+> **Out-of-region execution — use HTTPS, never S3.** This benchmark runs **outside AWS**
+> (not in `us-west-2`). Direct **S3 access will never work here**: `s3://…` /
+> `*.s3.amazonaws.com` endpoints, `s3_credentials`, `fs.s3`/`s3fs`, and
+> `earthaccess.open()`-returned S3 URLs all hang or 403 out of region. Always resolve and
+> use the **HTTPS** URL (`https://…` object URL, or the value returned by
+> `open()`/`download()` out-of-region, which is HTTPS). If you see an S3 URL, do **not**
+> try to read it directly — re-resolve to HTTPS or fall back to `earthaccess.download()`
+> over HTTPS.
+
 Both paths start the same: `earthaccess.search_data()` (metadata only), URL resolution
 (S3 in-cloud or HTTPS out-of-cloud), authenticated connection. The difference is what
 happens after the connection opens:

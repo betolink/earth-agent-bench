@@ -18,9 +18,9 @@ def harnesses():
 
 def test_roster_size_and_tiers(models):
     roster = models["models"]
-    assert len(roster) == 9
+    assert len(roster) == 11
     tiers = [m["tier"] for m in roster.values()]
-    assert tiers.count("local") == 5
+    assert tiers.count("local") == 7
     assert tiers.count("frontier_open") == 2
     assert tiers.count("closed_reference") == 2
 
@@ -47,9 +47,10 @@ def test_crossing_rules(harnesses, models):
 
 def test_conditions_complete():
     conditions = yaml.safe_load((EXPERIMENTS / "conditions.yaml").read_text())["conditions"]
-    assert set(conditions) == {"baseline", "mcp", "skills", "mcp-skills"}
+    assert set(conditions) == {"baseline", "mcp", "skills", "mcp-skills", "improve"}
     assert conditions["mcp-skills"] == {"mcp": True, "skills": True,
                                         "description": "combined intervention"}
+    assert conditions["improve"]["improvement"] is True
 
 
 def test_pilot_references_valid_models(models):

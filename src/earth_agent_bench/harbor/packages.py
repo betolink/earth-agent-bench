@@ -9,7 +9,14 @@ from pathlib import Path
 from ..evals import EVAL_OUTPUT_NOTE, EvalGold, load_suite, render_eval_instruction
 from ..tasks import load_task, render_instruction
 from ..wiring import mcp_servers_for, ready_mcp_urls, skills_mounted
-from .config import DEFAULT_OUT, EVAL_SUITE, RUNTIME_DIR, skills_env_dir
+from .config import (
+    DEFAULT_OUT,
+    EVAL_SUITE,
+    RUNTIME_DIR,
+    agent_timeout_sec,
+    skills_env_dir,
+    verifier_timeout_sec,
+)
 
 VENDOR_INIT = '"""Vendored earth_agent_bench modules for the Harbor verifier."""\n'
 BENCHMARK_VENDOR = ("schemas.py", "patterns.py", "tasks.py")
@@ -63,10 +70,10 @@ def _render_task_toml(task_id: str, description: str, condition: str) -> str:
         f"description = {json.dumps(description)}",
         "",
         "[agent]",
-        "timeout_sec = 600.0",
+        f"timeout_sec = {agent_timeout_sec()}",
         "",
         "[verifier]",
-        "timeout_sec = 600.0",
+        f"timeout_sec = {verifier_timeout_sec()}",
         "",
         "[environment]",
         'network_mode = "public"',
@@ -94,12 +101,18 @@ def _render_task_toml(task_id: str, description: str, condition: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _vendor_runtime(dest: Path) -> None:
+    """Copy the shared runtime modules the verifiers import."""
+    for name in ("harbor_verify.py", "executor.py", "profiler.py"):
+        shutil.copy(RUNTIME_DIR / name, dest / name)
+
+
 def _vendor_benchmark(tests: Path) -> None:
     src = Path(__file__).resolve().parents[1]
     dest = tests / "earth_agent_bench"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "__init__.py").write_text(VENDOR_INIT)
-    shutil.copy(RUNTIME_DIR / "harbor_verify.py", dest / "harbor_verify.py")
+    _vendor_runtime(dest)
     for name in BENCHMARK_VENDOR:
         shutil.copy(src / name, dest / name)
     scoring = dest / "scoring"
@@ -113,7 +126,7 @@ def _vendor_eval(tests: Path) -> None:
     dest = tests / "earth_agent_bench"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "__init__.py").write_text(VENDOR_INIT)
-    shutil.copy(RUNTIME_DIR / "harbor_verify.py", dest / "harbor_verify.py")
+    _vendor_runtime(dest)
     shutil.copy(src / "evals.py", dest / "evals.py")
 
 

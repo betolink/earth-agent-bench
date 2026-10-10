@@ -17,8 +17,15 @@ conditions:
     mcp: true
     skills: true
     description: combined intervention
+  improve:
+    mcp: true
+    skills: true
+    improvement: true
+    description: >
+      skills + mcp + a model-specific "self-improvement" skill distilled from that
+      model's failure postmortem (see improvements/). The countermeasure condition.
 
-order: [baseline, mcp, skills, mcp-skills]
+order: [baseline, mcp, skills, mcp-skills, improve]
 
 invariants:
   - same model, harness, task, environment and execution limits across conditions
@@ -27,16 +34,27 @@ invariants:
 wiring:
   mcp_manifest: mcp/manifest.yaml
   skills_dir: skills/
+  improvements_dir: improvements/
   mcp_servers:
     baseline: []
     mcp: [cmr-mcp, earthaccess-mcp]
     skills: []
     mcp-skills: [cmr-mcp, earthaccess-mcp]
+    improve: [cmr-mcp, earthaccess-mcp]
   skills_mounted:
     baseline: false
     mcp: false
     skills: true
     mcp-skills: true
+    improve: true
+  improvement_mounted:
+    baseline: false
+    mcp: false
+    skills: false
+    mcp-skills: false
+    improve: true
   note: >
     earthaccess-mcp is pending deployment; until then MCP conditions run with
     cmr-mcp only and results are interpreted as discovery-level knowledge.
+    The `improve` condition additionally mounts the model's
+    improvements/<model>/self-improvement skill (generated from its postmortem).

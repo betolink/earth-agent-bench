@@ -12,6 +12,7 @@ MODELS_YAML = REPO_ROOT / "experiments" / "models.yaml"
 CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 MCP_MANIFEST = REPO_ROOT / "mcp" / "manifest.yaml"
 SKILLS_DIR = REPO_ROOT / "skills"
+IMPROVEMENTS_DIR = REPO_ROOT / "improvements"
 
 
 def load_yaml(path: str | Path) -> dict:
@@ -49,3 +50,15 @@ def ready_mcp_urls(server_ids: list[str]) -> dict[str, str]:
 def skills_mounted(condition: str) -> bool:
     wiring = load_yaml(CONDITIONS_YAML)["wiring"]
     return bool(wiring["skills_mounted"].get(condition, False))
+
+
+def improvement_mounted(condition: str) -> bool:
+    """True when the condition also mounts the model's self-improvement skill."""
+    wiring = load_yaml(CONDITIONS_YAML)["wiring"]
+    return bool(wiring.get("improvement_mounted", {}).get(condition, False))
+
+
+def improvement_dir(model_id: str) -> Path | None:
+    """The per-model skill dir to mount, or None if no improvement exists."""
+    d = IMPROVEMENTS_DIR / model_id
+    return d if d.is_dir() else None
