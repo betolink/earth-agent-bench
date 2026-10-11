@@ -26,19 +26,45 @@ Task ids accept aliases everywhere: `cryo-1`, `atmo-2`, `solid-3`, `o1`, `l1`
    uv sync                     # bench tooling + Harbor (dev group); or: pixi install -e dev
    uv run python scripts/build_virtualizability_parquet.py
    uv run eab validate         # 18 tasks should validate
-   cp .env.example .env        # fill EARTHDATA_USERNAME/PASSWORD (or EARTHDATA_TOKEN)
    ```
 
-3. **LiteLLM gateway** — all nine models (5 local, 2 frontier-open, 2 closed
-   refs) are served through one gateway:
+3. **LiteLLM gateway** — all models (local + API) are served through one gateway.
 
    ```bash
    cp experiments/litellm.example.yaml litellm.yaml   # adjust to your deployment
-   export LITELLM_BASE_URL=http://localhost:4000 LITELLM_API_KEY=...
    ```
 
-   Exact provider strings for the four API models are confirmed at pilot
-   burn-in (`confirm_at_pilot` entries in `experiments/models.yaml`).
+   Exact provider strings for the API models are confirmed at pilot burn-in
+   (`confirm_at_pilot` entries in `experiments/models.yaml`).
+
+### Environment contract
+
+Running EAB needs exactly three environment variables (plus whatever the `harbor`
+CLI and the agent harnesses need). Nothing is hard-coded to a path or host:
+
+| var | purpose |
+|---|---|
+| `EARTHDATA_TOKEN` | Earthdata Login token (or `EARTHDATA_USERNAME` + `EARTHDATA_PASSWORD`) |
+| `LITE_LLM_ENDPOINT` | LiteLLM gateway base URL, e.g. `https://llm.example.org` |
+| `LITE_LLM_API_KEY` | gateway bearer token used by the agent harnesses |
+
+Legacy names `LITELLM_BASE_URL` / `LITELLM_API_KEY` are still accepted as
+fallbacks. Validate before a run:
+
+```bash
+export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://... LITE_LLM_API_KEY=...
+uv run eab doctor
+```
+
+`eab doctor` checks the three vars, probes `/v1/models`, and reports whether the
+key may read LiteLLM **spend/logs**.
+
+> **Observability note.** Token/cost accounting that reads LiteLLM logs (spend
+> endpoints) needs a key with **log/admin scope**. Inference-only keys return
+> `401/403` on `/spend/logs`; `eab doctor` flags this so you can supply a
+> separate admin key for reporting. If you don't need LiteLLM-side accounting,
+> EAB's own reports use the per-trial token counts from Harbor run artifacts and
+> the gateway is used for inference only.
 4. **Harnesses** — install pi / opencode / codex cli / claude code; pin
    versions and record them in `RunManifest.harness_version`.
 5. **Harbor** — installed as a pinned dev dependency (`uv sync` / `pixi install
