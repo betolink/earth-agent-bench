@@ -330,7 +330,7 @@ def test_job_config_opencode_model_and_skills(tmp_path):
     agent = job["agents"][0]
     assert agent["name"] == "opencode"
     assert agent["model_name"] == "litellm/local/Tiel-Coder-35B-A3B"
-    assert agent["env"]["OPENAI_API_KEY"] == "${LITELLM_API_KEY:-}"
+    assert agent["env"]["OPENAI_API_KEY"] == "${LITE_LLM_API_KEY:-}"
     assert agent["env"]["OPENAI_BASE_URL"].endswith("/v1")
     assert agent["skills"]
     assert job["n_attempts"] == 1
@@ -403,7 +403,7 @@ def test_run_harbor_dry_run_does_not_execute(tmp_path, capsys):
 
 def test_run_harbor_requires_credentials(tmp_path, monkeypatch):
     for name in (
-        "LITELLM_API_KEY", "EARTHDATA_TOKEN",
+        "LITELLM_API_KEY", "LITE_LLM_API_KEY", "EARTHDATA_TOKEN",
         "EARTHDATA_USERNAME", "EARTHDATA_PASSWORD",
     ):
         monkeypatch.delenv(name, raising=False)

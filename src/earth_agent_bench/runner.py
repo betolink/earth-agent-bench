@@ -22,6 +22,7 @@ from .tasks import load_task, render_instruction
 from .wiring import (
     gateway_base as _gateway_base,
     litellm_model as _litellm_model,
+    llm_api_key_name as _key_name,
     load_yaml,
     mcp_servers_for as _mcp_servers_for,
     ready_mcp_urls as _ready_mcp_urls,
@@ -130,7 +131,7 @@ def _write_opencode_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
                 "npm": "@ai-sdk/openai-compatible",
                 "options": {
                     "baseURL": f"{_gateway_base()}/v1",
-                    "apiKey": "{env:LITELLM_API_KEY}",
+                    "apiKey": "{env:" + _key_name() + "}",
                 },
                 "models": {},
             }
@@ -152,7 +153,7 @@ def _write_codex_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
         'name = "litellm"',
         f'base_url = "{_gateway_base()}/v1"',
         'wire_api = "chat"',
-        'env_key = "LITELLM_API_KEY"',
+        f'env_key = "{_key_name()}"',
     ]
     for server, url in mcp_urls.items():
         lines += ["", f"[mcp_servers.{server}]", f'url = "{url}"']
@@ -248,14 +249,14 @@ def prepare_run(spec: RunSpec) -> Path:
 def build_env(spec: RunSpec) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items()
            if k in {"PATH", "HOME", "LANG", "TERM", "EARTHDATA_USERNAME",
-                    "EARTHDATA_PASSWORD", "LITELLM_API_KEY"}}
+                    "EARTHDATA_PASSWORD", "LITELLM_API_KEY", "LITE_LLM_API_KEY"}}
     gateway = _gateway_base()
     if spec.harness == "claude-code":
         env["ANTHROPIC_BASE_URL"] = gateway
-        env["ANTHROPIC_AUTH_TOKEN"] = os.environ.get("LITELLM_API_KEY", "")
+        env["ANTHROPIC_AUTH_TOKEN"] = os.environ.get(_key_name(), "")
     else:
         env["OPENAI_BASE_URL"] = f"{gateway}/v1"
-        env["OPENAI_API_KEY"] = os.environ.get("LITELLM_API_KEY", "")
+        env["OPENAI_API_KEY"] = os.environ.get(_key_name(), "")
     if spec.harness == "codex":
         env["CODEX_HOME"] = str(spec.run_dir.resolve())
     return env

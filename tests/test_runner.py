@@ -65,7 +65,7 @@ def test_mcp_condition_wires_cmr(tmp_path):
     run_dir = prepare_run(make_spec(tmp_path, condition="mcp"))
     config = json.loads(run_dir.joinpath("opencode.jsonc").read_text())
     assert config["mcp"]["cmr"]["url"] == "https://cmr.earthdata.nasa.gov/mcp/v1"
-    assert "{env:LITELLM_API_KEY}" in json.dumps(config)
+    assert "{env:LITE_LLM_API_KEY}" in json.dumps(config)
 
 
 def test_claude_lane_restriction(tmp_path):
