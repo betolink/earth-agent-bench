@@ -25,7 +25,9 @@ models: [tiel-coder-35b, ornith-1.5-9b]
 harnesses: [pi, opencode, codex-cli]
 
 # Knowledge conditions (defined in experiments/conditions.yaml).
-conditions: [baseline, improve, mcp, skills, mcp-skills]
+# Order matters: `improve` runs LAST so the model's self-improvement skill can be
+# generated (eab postmortem) from its baseline/mcp/skills/mcp-skills runs first.
+conditions: [baseline, mcp, skills, mcp-skills, improve]
 
 # Tasks: 'all' (18 grounded tasks) or a list of sphere/task ids.
 tasks: all

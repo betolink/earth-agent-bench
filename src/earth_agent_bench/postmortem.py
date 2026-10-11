@@ -23,6 +23,7 @@ IMPROVEMENTS_DIR = REPO_ROOT / "improvements"
 _STAMP = re.compile(r"-(\d{8}-\d{6})$")
 
 NEUTRAL_CONDITIONS = ("baseline", "mcp", "skills", "mcp-skills")
+HARNESSES = ["pi", "opencode", "codex-cli", "claude-code"]
 S3_PAT = re.compile(r"s3|amazonaws", re.IGNORECASE)
 
 
@@ -101,32 +102,40 @@ def _failure_signature(job_dir: Path) -> str:
 
 def _trajectory_tally(model: str, harness: str) -> dict:
     tally = {"curl": 0, "search_data": 0, "s3": 0, "http": 0, "steps": 0}
-    for f in glob.glob(str(RUNS_DIR / f"eab-*-{model}-{harness}-*" / "*" / "agent" / "*.txt")):
-        txt = Path(f).read_text(errors="replace")
-        tally["steps"] += txt.count('"type":"turn_start"') or txt.count('"type": "turn_start"')
-        for key, needle in (("curl", "curl "), ("search_data", "search_data"),
-                            ("s3", "s3"), ("http", "http")):
-            tally[key] += txt.lower().count(needle)
+    harnesses = HARNESSES if harness == "all" else [harness]
+    for h in harnesses:
+        for f in glob.glob(str(RUNS_DIR / f"eab-*-{model}-{h}-*" / "*" / "agent" / "*.txt")):
+            txt = Path(f).read_text(errors="replace")
+            tally["steps"] += txt.count('"type":"turn_start"') or txt.count('"type": "turn_start"')
+            for key, needle in (("curl", "curl "), ("search_data", "search_data"),
+                                ("s3", "s3"), ("http", "http")):
+                tally[key] += txt.lower().count(needle)
     return tally
 
 
 def build_digest(model: str, harness: str = "pi", run_start: str | None = None) -> Digest:
     run_start = run_start if run_start is not None else _latest_run_start()
+    harnesses = HARNESSES if harness == "all" else [harness]
     d = Digest(model=model, run_start=run_start, harness=harness)
-    seen: set[str] = set()
-    for result in sorted(glob.glob(str(RUNS_DIR / f"eab-*-{model}-{harness}-*" / "result.json"))):
-        dirname = Path(result).parent.name
-        m = _STAMP.search(dirname)
-        if run_start and (not m or m.group(1) < run_start):
-            continue
-        body = dirname[len("eab-"):dirname.index(f"-{model}-{harness}-")]
-        cond = dirname.split(f"-{model}-{harness}-", 1)[1].rsplit("-", 1)[0]
-        if cond in ("improve",) or body in seen:
-            continue
-        status, reward, note = _classify(Path(result))
-        sig = _failure_signature(Path(result).parent)
-        seen.add(body)
-        d.cells.append(Cell(body, cond, status, reward, note or sig))
+    seen: set[tuple[str, str]] = set()
+    for h in harnesses:
+        for result in sorted(glob.glob(str(RUNS_DIR / f"eab-*-{model}-{h}-*" / "result.json"))):
+            dirname = Path(result).parent.name
+            m = _STAMP.search(dirname)
+            if run_start and (not m or m.group(1) < run_start):
+                continue
+            marker = f"-{model}-{h}-"
+            if marker not in dirname:
+                continue
+            body = dirname[len("eab-"):dirname.index(marker)]
+            cond = dirname.split(marker, 1)[1].rsplit("-", 1)[0]
+            key = (h, body)
+            if cond in ("improve",) or key in seen:
+                continue
+            status, reward, note = _classify(Path(result))
+            sig = _failure_signature(Path(result).parent)
+            seen.add(key)
+            d.cells.append(Cell(body, cond, status, reward, note or sig))
     d.trajectory = _trajectory_tally(model, harness)
     return d
 

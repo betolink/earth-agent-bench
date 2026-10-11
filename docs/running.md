@@ -166,15 +166,22 @@ raw artifacts are under `runs/harbor/<job>/` (`result.json`, `*/verifier/details
   *uninformative about capability*, not a wrong answer.
 - **Time.** One cell is up to 600 s agent + verifier; the full grounded sweep
   (5 conditions) is ~540 jobs → many hours to a few days on a single GPU. Expect
-  the first `baseline`+`improve` pair per harness within a couple of hours.
-- **Conditions.** `baseline` (no help) → `skills` (mounted SKILL.md files) →
-  `mcp` (CMR/earthaccess MCP) → `mcp-skills` (both) → **`improve`** (skills + mcp +
-  a model-specific skill). The `improve` skill is generated per model:
+  the first `baseline` cells per harness within a couple of hours (`improve` is
+  last, after the model's skill is generated).
+- **Conditions.** `baseline` (no help) → `mcp` (CMR/earthaccess MCP) → `skills`
+  (mounted SKILL.md files) → `mcp-skills` (both) → **`improve`** (skills + mcp + a
+  model-specific self-improvement skill). `improve` runs **last**: the driver
+  auto-generates the skill from the model's earlier (non-improve) runs right
+  before it, so the improve cells actually mount it. Manually:
 
   ```bash
-  eab postmortem tiel-coder-35b          # writes improvements/<model>/self-improvement/SKILL.md
-  eab harbor run <task> --model tiel-coder-35b --harness pi --condition improve
+  eab postmortem <model> --harness all    # -> improvements/<model>/self-improvement/SKILL.md
+  eab harbor run <task> --model <model> --harness pi --condition improve
   ```
+
+  `--harness all` aggregates every harness's runs; the default (`pi`) uses only
+  that harness. A model with no `improvements/<model>/` dir runs `improve` as
+  `mcp-skills` (no model skill).
 
 - **Out-of-region.** Tasks must be winnable over **HTTPS** only (no S3 / `C1`); a
   task whose best pattern is unreachable is a task bug, not a model failure.

@@ -95,6 +95,14 @@ for m in $MODELS; do
     for c in $CONDITIONS; do
       echo "=== combo $m/$h/$c  $(date -u +%FT%TZ) ===" | tee -a "$LOG"
       pause_gate
+      # Before `improve`, (re)generate the model's self-improvement skill from its
+      # non-improve runs, so the improve cells actually mount it. Only regenerate
+      # once per model (when the first harness reaches improve).
+      if [ "$c" = "improve" ] && [ "$h" = "${HARNESSES%% *}" ]; then
+        echo "== postmortem $m (harness=all) $(date -u +%FT%TZ) ==" | tee -a "$LOG"
+        "$EAB" postmortem "$m" --harness all >>"$LOG" 2>&1 \
+          || echo "postmortem failed for $m" | tee -a "$LOG"
+      fi
       while read -r task; do
         [ -z "$task" ] && continue
         id="$(basename "$task" .yaml)"
