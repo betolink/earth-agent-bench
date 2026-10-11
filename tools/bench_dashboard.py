@@ -34,6 +34,7 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, RichLog, Static
 
 # ----------------------------------------------------------------- logging
@@ -345,21 +346,61 @@ def collect_live() -> dict:
             "header": _header_for(job_dir), "path": str(path)}
 
 
+# ----------------------------------------------------------------- log popup
+class LogScreen(ModalScreen):
+    """Pop-up showing the tail of the EAB run log (toggle with Ctrl+L)."""
+
+    BINDINGS = [
+        Binding("escape", "close", "Close"),
+        Binding("ctrl+l", "close", "Close"),
+        Binding("q", "close", "Close"),
+    ]
+    CSS = """
+    LogScreen { align: center middle; background: $background 60%; }
+    #logbox { width: 92%; height: 84%; border: round $primary; background: $surface; }
+    #logtitle { text-style: bold; background: $panel; padding: 0 1; }
+    #logview { height: 1fr; }
+    """
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = path
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="logbox"):
+            yield Static("EAB run log  —  Esc / Ctrl+L to close", id="logtitle")
+            yield RichLog(id="logview", highlight=False, markup=False, wrap=False)
+
+    def on_mount(self) -> None:
+        lv = self.query_one("#logview", RichLog)
+        lines: list[str] = []
+        try:
+            p = Path(self.path) if self.path else None
+            if p and p.exists():
+                lines = p.read_text(errors="replace").splitlines()[-300:]
+        except Exception:
+            lines = ["(could not read log)"]
+        for ln in lines or ["(empty)"]:
+            lv.write(ln)
+
+    def action_close(self) -> None:
+        self.app.pop_screen()
+
+
 # ----------------------------------------------------------------- app
 class Dashboard(App):
     CSS = """
     Screen { layout: vertical; }
     #status { height: 5; padding: 0 1; background: $boost; }
-    #body { height: 1fr; }
-    #left { width: 64%; }
-    #right { width: 36%; }
+    #top { height: 1fr; }
+    #left { width: 60%; }
+    #right { width: 40%; }
     .panel-title { text-style: bold; background: $panel; padding: 0 1; }
     DataTable { height: 1fr; }
     #coding { height: auto; max-height: 12; }
-    #eabcombo { height: 14; }
+    #eabcombo { height: 1fr; }
     #codingtasks { height: 1fr; }
-    #eablog { height: 12; border: round $primary; }
-    #live { height: 1fr; border: round $accent; }
+    #live { height: 20; border: round $accent; }
     """
     TITLE = "BetoLink · benchmark runs"
     SUB_TITLE = "coding suite + earth-agent-bench"
@@ -369,6 +410,7 @@ class Dashboard(App):
         Binding("+", "faster", "Interval +"),
         Binding("-", "slower", "Interval -"),
         Binding("s", "toggle_auto", "Auto-refresh"),
+        Binding("ctrl+l", "show_logs", "Logs"),
     ]
 
     def __init__(self) -> None:
@@ -387,20 +429,18 @@ class Dashboard(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Static("starting…", id="status")
-        with Horizontal(id="body"):
+        with Horizontal(id="top"):
             with Vertical(id="left"):
                 yield Static("CODING SUITE — mean reward (tasks scored)", classes="panel-title")
                 yield DataTable(id="coding")
                 yield Static("EAB — combos × 18 tasks   ✓pass · part=yellow · ✗fail · ⏱timeout · ·pending",
                              classes="panel-title")
                 yield DataTable(id="eabcombo")
-                yield Static("LIVE — current agent", id="live_title", classes="panel-title")
-                yield RichLog(id="live", highlight=False, markup=False, wrap=True)
             with Vertical(id="right"):
                 yield Static("CODING — per-task grid (latest)", classes="panel-title")
                 yield DataTable(id="codingtasks")
-                yield Static("EAB — recent log", classes="panel-title")
-                yield RichLog(id="eablog", highlight=False, markup=False, wrap=True)
+        yield Static("LIVE — current agent   (Ctrl+L: logs)", id="live_title", classes="panel-title")
+        yield RichLog(id="live", highlight=False, markup=False, wrap=True)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -436,7 +476,6 @@ class Dashboard(App):
         self._safe("render_coding", self._render_coding, None)
         self._safe("render_coding_tasks", self._render_coding_tasks, None)
         self._safe("render_eab_combo", self._render_eab_combo, None)
-        self._safe("render_log", self._render_eab_log, None)
         self.ldata = self._safe("live_collect", collect_live, self.ldata)
         self._safe("render_live", self._render_live, None)
         self.next_refresh = time.time() + self.interval
@@ -552,12 +591,6 @@ class Dashboard(App):
         t.cursor_type = "row"
         t.zebra_stripes = True
 
-    def _render_eab_log(self) -> None:
-        log_w = self.query_one("#eablog", RichLog)
-        log_w.clear()
-        for ln in self.edata.get("recent", [])[-14:]:
-            log_w.write(ln)
-
     def _render_live(self) -> None:
         self.query_one("#live_title", Static).update(self.ldata.get("header", "LIVE — current agent"))
         live = self.query_one("#live", RichLog)
@@ -575,6 +608,9 @@ class Dashboard(App):
             live.write(Text(ln, style=style) if style else ln)
 
     # ---- actions ----
+    def action_show_logs(self) -> None:
+        self.push_screen(LogScreen(self.edata.get("log", "")))
+
     def action_refresh(self) -> None:
         log.info("manual refresh")
         self.refresh_data()
