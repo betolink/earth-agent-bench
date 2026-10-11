@@ -159,6 +159,17 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
   a profile artifact is recorded per *correct* cell; efficiency is reported
   separately from correctness.
 
+### 16. FineEnvs multi-harness RL — FUTURE (assessment)
+- **What/why:** train a small model with GRPO where the tool loop is run by a
+  real harness through Harbor, with OpenEnv capturing the agent's tokens/logprobs
+  for policy gradient. EAB is the *environment/eval* half (~60% there); the
+  *RL/training* half (OpenEnv, token-capturing vLLM, TRL/GRPO, trainable weights,
+  training GPUs) is ~0%.
+- **Where:** `docs/rl-fineenvs-assessment.md` (full gap analysis + path).
+- **Acceptance (if pursued):** OpenEnv + Harbor env server deployed; a trainable
+  HF model served on capturing vLLM; EAB reward ported to a scalar fn; a 2-update
+  smoke passing before any long run.
+
 ---
 
 ## Map of scattered markers → this list
@@ -175,3 +186,4 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 | "still to be built" batch note | `docs/quickstart.md` §6 | #12 |
 | verifier fidelity note | `docs/consolidated-plan.md` §5.2 | #6/#7 |
 | "not yet wired — FUTURE" note | `docs/executor.md`, `harbor/runtime/*` | #15 |
+| RL gap assessment | `docs/rl-fineenvs-assessment.md` | #16 |
