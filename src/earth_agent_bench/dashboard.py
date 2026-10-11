@@ -321,6 +321,20 @@ def _condense(line: str, width: int = 150) -> str | None:
                     return f"✎ {one(c['text'])}"
                 if isinstance(c, dict) and c.get("type") == "thinking" and c.get("thinking"):
                     return f"🧠 {one(c['thinking'])}"
+    # opencode-family events: {"type": ..., "part": {...}}
+    part = o.get("part")
+    if isinstance(part, dict):
+        if t == "text" and part.get("text"):
+            return f"✎ {one(part['text'])}"
+        if t == "reasoning" and part.get("text"):
+            return f"🧠 {one(part['text'])}"
+        if t == "tool_use":
+            st = part.get("state") or {}
+            inp = st.get("input") or {}
+            detail = (inp.get("command") or inp.get("filePath") or inp.get("path")
+                      or inp.get("query") or part.get("title") or "")
+            mark = "✓" if st.get("status") == "completed" else "▶"
+            return f"{mark} {part.get('tool')}: {one(detail)}"
     return None
 
 
