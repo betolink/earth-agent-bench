@@ -36,12 +36,14 @@ def load_run_config() -> dict:
              or list(conditions_all))
     tasks = os.environ.get("EAB_TASKS") or cfg.get("tasks", "all")
     trials = int(os.environ.get("EAB_TRIALS", cfg.get("trials", 1)))
+    concurrency = int(os.environ.get("EAB_CONCURRENCY", cfg.get("concurrency", 1)))
     return {
         "models": models,
         "harnesses": harnesses,
         "conditions": conds,
         "tasks": tasks,
         "trials": trials,
+        "concurrency": concurrency,
         "roster": sorted(roster),
         "available_conditions": list(conditions_all),
         "unknown_models": [m for m in models if m not in roster],

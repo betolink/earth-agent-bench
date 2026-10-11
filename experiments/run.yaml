@@ -27,3 +27,11 @@ tasks: all
 
 # Trials per cell.
 trials: 1
+
+# How many cells to run at once.
+#   1  = sequential — correct for a single local GPU (the model server is
+#        single-slot; parallel agents would just queue/contend).
+#   >1 = parallel — for models served remotely through the gateway (API
+#        providers) where the endpoint handles concurrent requests.
+# Override with EAB_CONCURRENCY. (Within a cell, Harbor runs one trial at a time.)
+concurrency: 1

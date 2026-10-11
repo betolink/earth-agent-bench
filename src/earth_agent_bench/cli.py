@@ -546,6 +546,7 @@ def config(
         print(f'MODELS="{" ".join(c["models"])}"')
         print(f'HARNESSES="{" ".join(c["harnesses"])}"')
         print(f'CONDITIONS="{" ".join(c["conditions"])}"')
+        print(f'CONCURRENCY={c["concurrency"]}')
         return
     n_tasks = len(resolve_tasks(c["tasks"]))
     cells = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"]) * n_tasks * c["trials"]
@@ -557,6 +558,9 @@ def config(
     table.add_row("conditions", ", ".join(c["conditions"]))
     table.add_row("tasks", f"{n_tasks}  ({c['tasks']})")
     table.add_row("trials", str(c["trials"]))
+    table.add_row("concurrency", f"{c['concurrency']}"
+                  + ("  (sequential — right for a single local GPU)" if c["concurrency"] <= 1
+                     else "  (parallel — for gateway/API models)"))
     table.add_row("cells", str(cells))
     console.print(table)
     console.print("[dim]add models in experiments/models.yaml; select them in "

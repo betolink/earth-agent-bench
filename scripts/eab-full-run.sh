@@ -36,7 +36,11 @@ if [ -z "${LITE_LLM_ENDPOINT}" ] || [ -z "${LITE_LLM_API_KEY}" ] \
 fi
 EAB=".venv/bin/eab"
 
-# 3) preflight: prove the gateway the agents will actually use is reachable
+# 3) run matrix from experiments/run.yaml (override with EAB_MODELS/HARNESSES/CONDITIONS/TASKS)
+eval "$(.venv/bin/eab config --shell)"
+echo "matrix: models=[$MODELS] harnesses=[$HARNESSES] conditions=[$CONDITIONS] concurrency=${CONCURRENCY:-1}" | tee -a "$LOG"
+
+# 4) preflight: prove the gateway the agents will actually use is reachable
 echo "resolved LITE_LLM_ENDPOINT: $LITE_LLM_ENDPOINT" | tee -a "$LOG"
 code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "${LITE_LLM_ENDPOINT}/v1/models" \
   -H "Authorization: Bearer ${LITE_LLM_API_KEY}" -H "User-Agent: earth-agent-bench/0.1")
@@ -46,22 +50,28 @@ if [ "$code" != "200" ]; then
 fi
 echo "gateway ok (200) at $(date -u +%FT%TZ)" | tee -a "$LOG"
 
-# 4) host-side loop watchdog
-python3 scripts/loop_watchdog.py >>"$LOG" 2>&1 &
-WATCHDOG=$!
-trap 'kill "$WATCHDOG" 2>/dev/null' EXIT
+# 5) host-side loop watchdog (single-trial; only meaningful when sequential)
+if [ "${CONCURRENCY:-1}" -le 1 ]; then
+  python3 scripts/loop_watchdog.py >>"$LOG" 2>&1 &
+  WATCHDOG=$!
+  trap 'kill "$WATCHDOG" 2>/dev/null' EXIT
+else
+  echo "concurrency=${CONCURRENCY}: loop watchdog disabled (parallel run)" | tee -a "$LOG"
+fi
 
-# 5) resume: skip cells already completed in this run
+# 6) resume: skip cells already completed in this run
 declare -A DONE
 while IFS= read -r k; do [ -n "$k" ] && DONE["$k"]=1; done \
   < <(python3 scripts/done_cells.py "$RUN_START")
 echo "resume: ${#DONE[@]} cells already done" | tee -a "$LOG"
 
 MAPFILE_TASKS=$(find benchmark/tasks -name '*.yaml' | sort)
+CONC="${CONCURRENCY:-1}"
 
-# run matrix from experiments/run.yaml (override with EAB_MODELS/HARNESSES/CONDITIONS/TASKS)
-eval "$(.venv/bin/eab config --shell)"
-echo "matrix: models=[$MODELS] harnesses=[$HARNESSES] conditions=[$CONDITIONS]" | tee -a "$LOG"
+run_cell() {  # $1=task $2=model $3=harness $4=condition
+  "$EAB" harbor run "$1" --model "$2" --harness "$3" --condition "$4" \
+    >>"$LOG" 2>&1 || echo "FAILED $2/$3/$4 $1" | tee -a "$LOG"
+}
 
 for m in $MODELS; do
   for h in $HARNESSES; do
@@ -74,9 +84,10 @@ for m in $MODELS; do
           echo "== skip $m/$h/$c $id (done)" | tee -a "$LOG"
           continue
         fi
-        "$EAB" harbor run "$task" --model "$m" --harness "$h" --condition "$c" \
-          >>"$LOG" 2>&1 || echo "FAILED $m/$h/$c $task" | tee -a "$LOG"
+        run_cell "$task" "$m" "$h" "$c" &
+        while [ "$(jobs -rp | wc -l)" -ge "$CONC" ]; do wait -n; done
       done <<< "$MAPFILE_TASKS"
+      wait
       bash scripts/fix-perms.sh runs >/dev/null 2>&1 || true
     done
   done

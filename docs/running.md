@@ -46,6 +46,13 @@ Two files:
   tasks: all
   ```
 
+- **Parallelism (`concurrency`)** — how many cells run at once: **`1` = sequential**
+  (correct for a single local GPU / single-slot model server), **`>1` = parallel**
+  (for models served remotely through the gateway, where the endpoint handles
+  concurrent requests). Override with `EAB_CONCURRENCY`. (Within a cell, Harbor
+  still runs one trial at a time, and the loop watchdog auto-disables when
+  `concurrency > 1` since it's a single-trial helper.)
+
 Everything is **env-overridable**: `EAB_MODELS`, `EAB_HARNESSES`,
 `EAB_CONDITIONS`, `EAB_TASKS`, `EAB_TRIALS` (comma-separated), and
 `EAB_ENV_FILE`. Preview + validate (rejects ids not in the roster):
