@@ -71,6 +71,7 @@ echo "gateway ok (200) at $(date -u +%FT%TZ)" | tee -a "$LOG"
 if [ "${CONCURRENCY:-1}" -le 1 ]; then
   python3 scripts/loop_watchdog.py >>"$LOG" 2>&1 &
   WATCHDOG=$!
+  disown "$WATCHDOG" 2>/dev/null || true   # keep it out of the run_cell job pool / bare `wait`
   trap 'kill "$WATCHDOG" 2>/dev/null' EXIT
 else
   echo "concurrency=${CONCURRENCY}: loop watchdog disabled (parallel run)" | tee -a "$LOG"
