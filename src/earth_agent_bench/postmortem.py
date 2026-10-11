@@ -128,7 +128,7 @@ def build_digest(model: str, harness: str = "pi", run_start: str | None = None) 
             if marker not in dirname:
                 continue
             body = dirname[len("eab-"):dirname.index(marker)]
-            cond = dirname.split(marker, 1)[1].rsplit("-", 1)[0]
+            cond = _STAMP.sub("", dirname.split(marker, 1)[1])
             key = (h, body)
             if cond in ("improve",) or key in seen:
                 continue
