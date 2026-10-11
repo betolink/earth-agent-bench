@@ -322,28 +322,46 @@ def _condense(line: str, width: int = 150) -> str | None:
     return None
 
 
-def _header_for(job_dir: str) -> str:
+def _job_info(job_dir: str) -> dict:
+    info = {"job_dir": job_dir, "task": "", "model": "", "harness": "", "condition": ""}
     for m in EAB_MODELS:
         for h in EAB_HARNESSES:
             for c in EAB_CONDITIONS:
                 marker = f"-{m}-{h}-{c}-"
                 if marker in job_dir:
-                    task = job_dir[len("eab-"):job_dir.index(marker)]
-                    return f"LIVE — {task} · {m} · {h} · {c}"
-    return "LIVE — current agent"
+                    info.update(task=job_dir[len("eab-"):job_dir.index(marker)],
+                                model=m, harness=h, condition=c)
+                    return info
+    return info
 
 
 def collect_live() -> dict:
     path = _newest_agent_file()
     if path is None:
-        return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent", "path": ""}
+        return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent", "path": "", "task": ""}
     job_dir = path.parents[2].name if len(path.parents) > 2 else ""
+    info = _job_info(job_dir)
+    header = (f"LIVE — {info['task']} · {info['model']} · {info['harness']} · {info['condition']}"
+              if info["task"] else "LIVE — current agent")
     try:
-        lines = [x for x in (_condense(l) for l in _tail(path)) if x][-22:]
+        lines = [x for x in (_condense(l) for l in _tail(path)) if x][-40:]
     except OSError as e:
-        return {"lines": [f"(read error: {e})"], "header": _header_for(job_dir), "path": str(path)}
-    return {"lines": lines or ["(waiting for output…)"],
-            "header": _header_for(job_dir), "path": str(path)}
+        return {"lines": [f"(read error: {e})"], "header": header, "path": str(path), "task": info["task"]}
+    return {"lines": lines or ["(waiting for output…)"], "header": header,
+            "path": str(path), "task": info["task"]}
+
+
+def collect_task(task: str) -> dict:
+    """The instruction (what the agent must solve) for the current task."""
+    if not task:
+        return {"header": "CURRENT TASK", "lines": ["(no active task)"]}
+    p = EAB / "harbor" / "generated" / task / "instruction.md"
+    try:
+        lines = (p.read_text(errors="replace").splitlines() if p.exists()
+                 else [f"(no instruction found for {task})"])
+    except OSError as e:
+        lines = [f"(read error: {e})"]
+    return {"header": f"CURRENT TASK — {task}", "lines": lines}
 
 
 # ----------------------------------------------------------------- log popup
@@ -393,14 +411,18 @@ class Dashboard(App):
     Screen { layout: vertical; }
     #status { height: 5; padding: 0 1; background: $boost; }
     #top { height: 1fr; }
+    #bottom { height: 1fr; }
     #left { width: 60%; }
     #right { width: 40%; }
+    #livebox { width: 70%; }
+    #taskbox { width: 30%; }
     .panel-title { text-style: bold; background: $panel; padding: 0 1; }
     DataTable { height: 1fr; }
     #coding { height: auto; max-height: 12; }
     #eabcombo { height: 1fr; }
     #codingtasks { height: 1fr; }
-    #live { height: 20; border: round $accent; }
+    #live { height: 1fr; border: round $accent; }
+    #task { height: 1fr; border: round $secondary; }
     """
     TITLE = "BetoLink · benchmark runs"
     SUB_TITLE = "coding suite + earth-agent-bench"
@@ -424,7 +446,9 @@ class Dashboard(App):
         self.edata: dict = {"combos": [], "total_done": 0, "done_combos": 0,
                             "total": 0, "recent": []}
         self.proc: dict = {"coding": False, "eab_driver": False, "harbor": 0, "current": ""}
-        self.ldata: dict = {"lines": [], "header": "LIVE — current agent"}
+        self.ldata: dict = {"lines": [], "header": "LIVE — current agent", "task": ""}
+        self.tdata: dict = {"lines": [], "header": "CURRENT TASK"}
+        self._task_name: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -439,8 +463,13 @@ class Dashboard(App):
             with Vertical(id="right"):
                 yield Static("CODING — per-task grid (latest)", classes="panel-title")
                 yield DataTable(id="codingtasks")
-        yield Static("LIVE — current agent   (Ctrl+L: logs)", id="live_title", classes="panel-title")
-        yield RichLog(id="live", highlight=False, markup=False, wrap=True)
+        with Horizontal(id="bottom"):
+            with Vertical(id="livebox"):
+                yield Static("LIVE — current agent   (Ctrl+L: logs)", id="live_title", classes="panel-title")
+                yield RichLog(id="live", highlight=False, markup=False, wrap=True)
+            with Vertical(id="taskbox"):
+                yield Static("CURRENT TASK", id="task_title", classes="panel-title")
+                yield RichLog(id="task", highlight=False, markup=False, wrap=True)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -478,6 +507,7 @@ class Dashboard(App):
         self._safe("render_eab_combo", self._render_eab_combo, None)
         self.ldata = self._safe("live_collect", collect_live, self.ldata)
         self._safe("render_live", self._render_live, None)
+        self._safe("render_task", self._maybe_task, None)
         self.next_refresh = time.time() + self.interval
         self._update_status(time.time())
         summary = (self.pdata.get("n", 0), self.edata.get("total_done", 0),
@@ -494,6 +524,7 @@ class Dashboard(App):
         # fast path: refresh only the live agent pane (and the current-job line)
         self.ldata = self._safe("live_collect", collect_live, self.ldata)
         self._safe("render_live", self._render_live, None)
+        self._safe("task", self._maybe_task, None)
         self._safe("procs", lambda: self.proc.update(collect_processes()), None)
         self._update_status(time.time())
 
@@ -606,6 +637,21 @@ class Dashboard(App):
             elif ln.startswith("🧠"):
                 style = "grey58"
             live.write(Text(ln, style=style) if style else ln)
+
+    def _maybe_task(self) -> None:
+        task = self.ldata.get("task", "")
+        if task == self._task_name:
+            return
+        self._task_name = task
+        self.tdata = collect_task(task)
+        self._render_task()
+
+    def _render_task(self) -> None:
+        self.query_one("#task_title", Static).update(self.tdata.get("header", "CURRENT TASK"))
+        tv = self.query_one("#task", RichLog)
+        tv.clear()
+        for ln in self.tdata.get("lines", []):
+            tv.write(ln)
 
     # ---- actions ----
     def action_show_logs(self) -> None:
