@@ -295,6 +295,30 @@ def _tail(path: Path, max_bytes: int = 300_000, max_lines: int = 120) -> list[st
     return lines[-max_lines:]
 
 
+def _tool_detail(inp) -> str:
+    if isinstance(inp, str):
+        return inp
+    if not isinstance(inp, dict):
+        return ""
+    for k in ("command", "cmd", "file_path", "filePath", "path", "query",
+              "pattern", "url", "description", "prompt"):
+        v = inp.get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+    return ""
+
+
+def _first_text(holder) -> str:
+    if not isinstance(holder, dict):
+        return ""
+    for k in ("text", "thinking", "reasoning", "content", "aggregate_output",
+              "aggregated_output", "output", "result", "message"):
+        v = holder.get(k)
+        if isinstance(v, str) and v.strip():
+            return v
+    return ""
+
+
 def _condense(line: str, width: int = 150) -> str | None:
     line = line.strip()
     if not line:
@@ -305,8 +329,11 @@ def _condense(line: str, width: int = 150) -> str | None:
         o = json.loads(line)
     except Exception:
         return None
+    if not isinstance(o, dict):
+        return None
     t = o.get("type", "")
     one = lambda s: " ".join(str(s).split())[:width]  # noqa: E731
+    # pi (pi-mono) events
     if t == "tool_execution_start":
         a = o.get("args") or {}
         detail = a.get("command") or a.get("path") or a.get("query") or (json.dumps(a)[:80] if a else "")
@@ -335,6 +362,44 @@ def _condense(line: str, width: int = 150) -> str | None:
                       or inp.get("query") or part.get("title") or "")
             mark = "✓" if st.get("status") == "completed" else "▶"
             return f"{mark} {part.get('tool')}: {one(detail)}"
+    # codex (`codex exec --json`): {"type":"item.*","item":{...}}
+    item = o.get("item")
+    if isinstance(item, dict):
+        it = item.get("type", "")
+        if it in ("agent_message", "assistant_message") and item.get("text"):
+            return f"✎ {one(item['text'])}"
+        if it in ("reasoning", "reasoning_summary") and item.get("text"):
+            return f"🧠 {one(item['text'])}"
+        if it in ("command_execution", "local_shell_call", "exec", "shell"):
+            cmd = item.get("command") or _tool_detail(item) or _tool_detail(item.get("arguments"))
+            mark = "✓" if str(o.get("type", "")).endswith("completed") else "▶"
+            return f"{mark} $ {one(cmd)}"
+        if it in ("file_change", "patch", "apply_patch"):
+            return f"▶ edit: {one(item.get('path') or item.get('changes') or '')}"
+    # claude-code stream-json: {"type":"assistant"|"user","message":{"content":[...]}}
+    if t in ("assistant", "user") and isinstance(o.get("message"), dict):
+        for c in o["message"].get("content") or []:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") == "text" and c.get("text"):
+                return f"✎ {one(c['text'])}"
+            if c.get("type") == "thinking" and c.get("thinking"):
+                return f"🧠 {one(c['thinking'])}"
+            if c.get("type") == "tool_use":
+                return f"▶ {c.get('name')}: {one(_tool_detail(c.get('input') or {}))}"
+            if c.get("type") == "tool_result":
+                return None
+    # generic fallback for any other harness schema
+    for holder in (o, part or {}, item or {}):
+        if not isinstance(holder, dict):
+            continue
+        tool = holder.get("tool") or holder.get("tool_name") or holder.get("name")
+        inp = holder.get("arguments") or holder.get("input") or holder.get("args")
+        if tool and inp:
+            return f"▶ {tool}: {one(_tool_detail(inp))}"
+    txt = _first_text(part or o) or _first_text(item or {})
+    if txt:
+        return f"✎ {one(txt)}"
     return None
 
 
