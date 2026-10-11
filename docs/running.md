@@ -111,6 +111,7 @@ agent cap or fixing the root cause over aggressive killing.
 
 ## 2. Observe — the dashboard
 
+
 ```bash
 eab dashboard                 # refresh every 300s
 eab dashboard --interval 60
@@ -165,3 +166,43 @@ raw artifacts are under `runs/harbor/<job>/` (`result.json`, `*/verifier/details
   `scripts/fix-perms.sh` (no sudo needed) — the driver already calls it per combo.
 - Observability that reads **LiteLLM spend/logs** needs a log/admin-scoped key
   (`eab doctor` flags inference-only keys).
+
+## 5. Inspect a cell (trajectory + metadata)
+
+Harbor records everything per trial. Resolve any `(model, harness, task,
+condition)` cell without hunting through timestamped dirs:
+
+```bash
+# full bundle: metadata + the trajectory  -> traj.json
+eab trajectory -t a3 -m tiel-coder-35b -H pi > traj.json
+eab trajectory -t a3 -m tiel-coder-35b -H pi -c improve > improve.json
+
+# what exists for this cell (all conditions/runs, newest last)
+eab trajectory -t a3 -m tiel-coder-35b -H pi --list
+
+# just the raw ATIF trajectory (no wrapper)
+eab trajectory -t a3 -m tiel-coder-35b -H pi -f atif > t.json
+# other single artifacts: -f result|reward|details|stdout|raw|session
+```
+
+`--task` accepts a unique prefix (`a3`). `--latest` (default) picks the newest
+run; `--all` emits a JSON array of every match.
+
+The **bundle** contains:
+
+| key | what |
+| --- | --- |
+| `run` | task, model, harness, condition, trial, stamp, times, exception |
+| `agent` | harness name/version, `model_name`, provider, **`params`** (agent kwargs / sampling), `env` (gateway base URL), mounted skills |
+| `condition` | condition semantics (mcp / skills / improvement + description) |
+| `environment` | mcp servers, skills/improvement mounted, agent timeout, task env vars |
+| `task` | id, name, description, **`instruction`** (the exact prompt) |
+| `metrics` | reward + component scores, input/output/cache tokens, cost |
+| `verifier` | `details.json` (observed patterns, best-available, gap reason) |
+| `trajectory` | the **ATIF v1.7** trajectory (`steps[]`, `final_metrics`) |
+
+Raw artifacts are also on disk under
+`runs/harbor/eab-<task>-<model>-<harness>-<cond>-<stamp>/<trial>/`:
+`agent/trajectory.json`, `agent/<harness>.txt`, `agent/<harness>/sessions/*.jsonl`,
+`verifier/*`, `result.json`.
+

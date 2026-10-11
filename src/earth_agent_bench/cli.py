@@ -443,6 +443,88 @@ def postmortem(
     )
 
 
+@app.command("trajectory")
+def trajectory(
+    task: str = typer.Option(..., "--task", "-t", help="Task id or unique prefix (e.g. a3)."),
+    model: str = typer.Option(..., "--model", "-m", help="Roster model id."),
+    harness: str = typer.Option("pi", "--harness", "-H", help="Harness name."),
+    condition: Optional[str] = typer.Option(None, "--condition", "-c", help="Condition filter."),
+    fmt: Optional[str] = typer.Option(
+        None, "--format", "-f",
+        help="Single-artifact passthrough: atif|result|reward|details|stdout|raw|session. "
+             "Default: full bundle (metadata + trajectory)."),
+    latest: bool = typer.Option(True, "--latest/--all", help="Newest trial, or every match."),
+    list_only: bool = typer.Option(False, "--list", help="List matching trials."),
+    out: Optional[Path] = typer.Option(None, "--out", "-o", help="Write to a file."),
+) -> None:
+    """Dump a cell's trajectory + metadata (model params, task, environment).
+
+    \b
+      eab trajectory -t a3 -m tiel-coder-35b -H pi            > traj.json   (bundle)
+      eab trajectory -t a3 -m tiel-coder-35b -H pi -f atif    > t.json      (ATIF only)
+      eab trajectory -t a3 -m tiel-coder-35b -H pi --list                   (what exists)
+    """
+    from .trajectory import (resolve_task_id, find_trials, artifact, read_artifact,
+                             reward_of, exception_of, build_bundle)
+
+    try:
+        task_id = resolve_task_id(task)
+    except LookupError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1)
+
+    trials = find_trials(task_id, model, harness, condition)
+    if not trials:
+        where = f"{task_id} / {model} / {harness}" + (f" / {condition}" if condition else "")
+        console.print(f"[red]no trials[/red] for {where}")
+        raise typer.Exit(code=1)
+
+    if list_only:
+        table = Table(title=f"{task_id} · {model} · {harness}")
+        for col in ("stamp", "condition", "reward", "exception", "path"):
+            table.add_column(col)
+        for t in trials:
+            r = reward_of(t)
+            table.add_row(t.stamp, t.condition, f"{r:.2f}" if r is not None else "-",
+                          exception_of(t) or "-",
+                          str(t.dir.relative_to(REPO_ROOT)))
+        console.print(table)
+        return
+
+    chosen = [trials[-1]] if latest else trials
+    records: list = []
+    for t in chosen:
+        if fmt:
+            try:
+                path = artifact(t, fmt, harness)
+            except ValueError as error:
+                console.print(f"[red]{error}[/red]")
+                raise typer.Exit(code=2)
+            if path is None:
+                console.print(f"[yellow]missing '{fmt}' in {t.dir.name}[/yellow]", err=True)
+                continue
+            records.append({"stamp": t.stamp, "condition": t.condition, "trial": t.name,
+                            "artifact": str(path.relative_to(REPO_ROOT)),
+                            "data": read_artifact(path)})
+        else:
+            records.append(build_bundle(t, task_id, model, harness))
+
+    if not records:
+        raise typer.Exit(code=1)
+    if latest:
+        rec = records[0]
+        data = rec["data"] if fmt else rec
+    else:
+        data = records
+
+    text = data if isinstance(data, str) else json.dumps(data, indent=2, default=str)
+    if out:
+        Path(out).write_text(text if text.endswith("\n") else text + "\n")
+        console.print(f"[green]wrote[/green] {out}")
+    else:
+        print(text)
+
+
 @app.command("dashboard")
 def dashboard(
     interval: int = typer.Option(300, help="Refresh interval in seconds."),
