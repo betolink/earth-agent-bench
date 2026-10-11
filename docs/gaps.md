@@ -140,6 +140,25 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **Acceptance:** failure classification + a reproducible (cached/snapshot)
   mode exist.
 
+### 15. Executor & profiler wiring — FUTURE (built, not yet used)
+- **What/why:** `harbor/runtime/executor.py` (run a deliverable under a
+  wall/CPU/memory budget and classify `ok|error|timeout|oom`) and
+  `harbor/runtime/profiler.py` (scalene/memray) plus the `verify_exec.py`
+  verifier exist, are unit-tested, and are reachable via `eab exec` — but
+  **nothing in the live pipeline uses them**: no task verifier invokes
+  `verify_exec`, `scoring/` grades observed access behavior only, and the agent
+  is unaware of them (not in `instruction.md`/`skills/`).
+- **Potential (once we have answers):** after the first full sweep, turn this on
+  for the **Python-deliverable** tasks (SCI, EAB eval, cobol-style) as a second,
+  post-correctness pass — explicit `timeout`/`oom` outcomes and line-level
+  efficiency attribution. Follow the two-pass rule (never grade from the
+  instrumented run; profiling perturbs timing 2–10×).
+- **Where:** `harbor/runtime/{executor,profiler,verify_exec}.py`,
+  `docs/executor.md`, `tests/test_executor.py`.
+- **Acceptance (when promoted):** code-deliverable verifiers call `verify_exec`;
+  a profile artifact is recorded per *correct* cell; efficiency is reported
+  separately from correctness.
+
 ---
 
 ## Map of scattered markers → this list
@@ -155,3 +174,4 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 | scaffold skills note | `skills/`, `docs/quickstart.md` §7 | #11 |
 | "still to be built" batch note | `docs/quickstart.md` §6 | #12 |
 | verifier fidelity note | `docs/consolidated-plan.md` §5.2 | #6/#7 |
+| "not yet wired — FUTURE" note | `docs/executor.md`, `harbor/runtime/*` | #15 |

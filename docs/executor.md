@@ -1,5 +1,13 @@
 # Executor & profiler (harness-side code execution)
 
+> **Status: not yet wired — FUTURE / analysis layer.** The modules below exist,
+> are unit-tested (`tests/test_executor.py`) and usable by hand (`eab exec`), but
+> **no task verifier or the EAB scoring pipeline calls them yet**, and the agent
+> is not aware of them (absent from `instruction.md` and `skills/`). Think of
+> this as a capability to switch on **once we have answers** — e.g. after the
+> first full sweep, to attribute efficiency (line-level CPU/memory) for the
+> code-deliverable tasks. Tracked as `docs/gaps.md` §15.
+
 Gives every agent run an **explicit outcome** instead of an ambiguous 0/1:
 
 | status | meaning |
