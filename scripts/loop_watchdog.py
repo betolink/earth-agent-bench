@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Loop/stall watchdog: end a trial early only when the agent is truly stuck.
+"""Loop/stall watchdog: end a trial early only when *that* trial is stuck.
 
-The agent has no way to be interrupted from inside Harbor, so this host-side
-monitor tails the current trial's agent stream and kills its container when:
+Harbor can't interrupt an agent mid-run, so this host-side monitor watches the
+agent output of the **currently running container** and kills it when:
 
-  * STALL  — the agent output hasn't grown for > WATCH_STALL seconds (default 180),
-             i.e. it is doing nothing; or
-  * LOOP   — the *same* command (URLs/tokens/timestamps normalized away) has been
-             issued >= WATCH_EXACT times (default 5).
+  * STALL  — its output hasn't grown for > WATCH_STALL seconds (default 180), or
+  * LOOP   — the same command (URLs/tokens/timestamps normalized) has been issued
+             >= WATCH_EXACT times (default 6).
 
-Otherwise the trial runs to the normal 10-minute agent cap. This is a uniform
-environment policy (applied to every model x condition), not a treatment.
+Crucially it maps container -> its own trial dir, so during a new trial's *setup*
+phase (no agent output yet) it does nothing — a previous trial's looping file can
+never get a fresh trial killed. Otherwise the trial runs to the 600s agent cap.
 
-Env: WATCH_POLL (s, 10), WATCH_STALL (s, 180), WATCH_EXACT (5), WATCH_WINDOW (40).
+Env: WATCH_POLL (s, 10), WATCH_STALL (s, 180), WATCH_EXACT (6), WATCH_WINDOW (40).
 """
 from __future__ import annotations
 
@@ -31,8 +31,9 @@ LOG = EAB / "runs" / "loop-watchdog.log"
 
 POLL = int(os.environ.get("WATCH_POLL", "10"))
 STALL = int(os.environ.get("WATCH_STALL", "180"))
-EXACT = int(os.environ.get("WATCH_EXACT", "5"))
+EXACT = int(os.environ.get("WATCH_EXACT", "6"))
 WINDOW = int(os.environ.get("WATCH_WINDOW", "40"))
+_TRIAL = re.compile(r"^(.*?)__(?:env-main|main)")
 
 
 def _log(msg: str) -> None:
@@ -42,9 +43,23 @@ def _log(msg: str) -> None:
         fh.write(line + "\n")
 
 
-def _newest_agent() -> Path | None:
-    files = glob.glob(str(RUNS / "eab-*" / "*" / "agent" / "*.txt"))
-    return Path(max(files, key=os.path.getmtime)) if files else None
+def _running_container() -> str | None:
+    out = subprocess.run(["docker", "ps", "--format", "{{.Names}}"],
+                         capture_output=True, text=True).stdout
+    for name in out.splitlines():
+        if "__env-main" in name or "__main" in name:
+            return name
+    return None
+
+
+def _agent_for_container(name: str) -> Path | None:
+    m = _TRIAL.match(name)
+    if not m:
+        return None
+    key = m.group(1)                      # "<task>__<hash>"
+    for f in glob.glob(str(RUNS / "eab-*" / key / "agent" / "*.txt")):
+        return Path(f)
+    return None
 
 
 def _tail(path: Path, max_bytes: int = 200_000) -> list[str]:
@@ -61,8 +76,8 @@ def _tail(path: Path, max_bytes: int = 200_000) -> list[str]:
 
 def _norm(cmd: str) -> str:
     s = re.sub(r"https?://\S+", "<url>", cmd)
-    s = re.sub(r"[A-Za-z0-9._%+-]{16,}", "<tok>", s)   # tokens / long ids
-    s = re.sub(r"\d{4}-\d{2}-\d{2}[T\d:]*", "<ts>", s)  # timestamps
+    s = re.sub(r"[A-Za-z0-9._%+-]{16,}", "<tok>", s)
+    s = re.sub(r"\d{4}-\d{2}-\d{2}[T\d:]*", "<ts>", s)
     return re.sub(r"\s+", " ", s).strip()[:140]
 
 
@@ -81,49 +96,35 @@ def _commands(path: Path) -> list[str]:
     return cmds[-WINDOW:]
 
 
-def _running_container() -> str | None:
-    out = subprocess.run(["docker", "ps", "--format", "{{.Names}}"],
-                         capture_output=True, text=True).stdout
-    for name in out.splitlines():
-        if "env-main" in name or "__main" in name:
-            return name
-    return None
-
-
-def _kill(reason: str, job: str) -> None:
-    name = _running_container()
-    if name:
-        subprocess.run(["docker", "kill", name], capture_output=True)
-        _log(f"{reason} -> killed {name} for {job}")
-    else:
-        _log(f"{reason} -> no container found")
-
-
 def main() -> int:
     _log(f"watchdog start poll={POLL}s stall>{STALL}s exact>={EXACT} window={WINDOW}")
     current: Path | None = None
     last_size = -1
     last_grow = time.time()
     while True:
-        path = _newest_agent()
-        if path is None:
+        name = _running_container()
+        if name is None:                  # no trial running
+            current = None
+            time.sleep(POLL)
+            continue
+        path = _agent_for_container(name)
+        if path is None:                  # setup phase, no agent output yet
+            current = None
             time.sleep(POLL)
             continue
         now = time.time()
-        if path != current:                 # new trial -> reset tracking
+        if path != current:               # new trial's file -> reset tracking
             current, last_size, last_grow = path, path.stat().st_size, now
             time.sleep(POLL)
             continue
         size = path.stat().st_size
         if size > last_size:
             last_size, last_grow = size, now
-        else:
-            last_grow = last_grow or now
-        job = path.parents[2].name if len(path.parents) > 2 else str(path)
 
         # 1) stall: no output for STALL seconds
         if now - last_grow > STALL:
-            _kill(f"STALL (no output for {int(now - last_grow)}s)", job)
+            subprocess.run(["docker", "kill", name], capture_output=True)
+            _log(f"STALL (no output for {int(now - last_grow)}s) -> killed {name}")
             current = None
             time.sleep(POLL)
             continue
@@ -132,7 +133,8 @@ def main() -> int:
         cmds = _commands(path)
         worst, n = (Counter(cmds).most_common(1)[0] if cmds else ("", 0))
         if n >= EXACT:
-            _kill(f"LOOP (same command x{n}: {worst[:70]})", job)
+            subprocess.run(["docker", "kill", name], capture_output=True)
+            _log(f"LOOP (same command x{n}: {worst[:70]}) -> killed {name}")
             current = None
         time.sleep(POLL)
 
