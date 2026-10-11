@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Loop watchdog: end a trial early when the agent repeats the same access attempt.
+"""Loop/stall watchdog: end a trial early only when the agent is truly stuck.
 
 The agent has no way to be interrupted from inside Harbor, so this host-side
-monitor tails the current trial's agent stream and kills its container when it
-detects a loop — turning a 15-minute stall into a fast, analyzable `stuck` cell.
+monitor tails the current trial's agent stream and kills its container when:
 
-Triggers (either):
-  * the same normalized tool command appears >= WATCH_EXACT times, or
-  * the same access service (opendap/harmony/s3/dmrpp/giovanni/...) appears in
-    >= WATCH_SERVICE tool calls.
+  * STALL  — the agent output hasn't grown for > WATCH_STALL seconds (default 180),
+             i.e. it is doing nothing; or
+  * LOOP   — the *same* command (URLs/tokens/timestamps normalized away) has been
+             issued >= WATCH_EXACT times (default 5).
 
-This is a uniform environment policy (applied to every model x condition), not a
-treatment. Env: WATCH_POLL, WATCH_EXACT, WATCH_SERVICE, WATCH_WINDOW.
+Otherwise the trial runs to the normal 10-minute agent cap. This is a uniform
+environment policy (applied to every model x condition), not a treatment.
+
+Env: WATCH_POLL (s, 10), WATCH_STALL (s, 180), WATCH_EXACT (5), WATCH_WINDOW (40).
 """
 from __future__ import annotations
 
@@ -28,12 +29,10 @@ EAB = Path(__file__).resolve().parents[1]
 RUNS = EAB / "runs" / "harbor"
 LOG = EAB / "runs" / "loop-watchdog.log"
 
-POLL = int(os.environ.get("WATCH_POLL", "8"))
-EXACT = int(os.environ.get("WATCH_EXACT", "3"))
-SERVICE = int(os.environ.get("WATCH_SERVICE", "5"))
+POLL = int(os.environ.get("WATCH_POLL", "10"))
+STALL = int(os.environ.get("WATCH_STALL", "180"))
+EXACT = int(os.environ.get("WATCH_EXACT", "5"))
 WINDOW = int(os.environ.get("WATCH_WINDOW", "40"))
-SERVICES = ("opendap", "harmony", "dmrpp", "giovanni", "appeears",
-            "virtualize", "earthaccess.open", "earthaccess.download", "s3")
 
 
 def _log(msg: str) -> None:
@@ -60,8 +59,15 @@ def _tail(path: Path, max_bytes: int = 200_000) -> list[str]:
     return data.splitlines()
 
 
-def _signatures(path: Path) -> list[tuple[str, str | None]]:
-    sigs: list[tuple[str, str | None]] = []
+def _norm(cmd: str) -> str:
+    s = re.sub(r"https?://\S+", "<url>", cmd)
+    s = re.sub(r"[A-Za-z0-9._%+-]{16,}", "<tok>", s)   # tokens / long ids
+    s = re.sub(r"\d{4}-\d{2}-\d{2}[T\d:]*", "<ts>", s)  # timestamps
+    return re.sub(r"\s+", " ", s).strip()[:140]
+
+
+def _commands(path: Path) -> list[str]:
+    cmds: list[str] = []
     for line in _tail(path):
         if '"tool_execution_start"' not in line:
             continue
@@ -70,13 +76,9 @@ def _signatures(path: Path) -> list[tuple[str, str | None]]:
         except Exception:
             continue
         cmd = str((o.get("args") or {}).get("command") or "")
-        if not cmd:
-            continue
-        norm = re.sub(r"\s+", " ", cmd)[:140]
-        low = cmd.lower()
-        svc = next((s for s in SERVICES if s in low), None)
-        sigs.append((norm, svc))
-    return sigs[-WINDOW:]
+        if cmd:
+            cmds.append(_norm(cmd))
+    return cmds[-WINDOW:]
 
 
 def _running_container() -> str | None:
@@ -88,34 +90,50 @@ def _running_container() -> str | None:
     return None
 
 
+def _kill(reason: str, job: str) -> None:
+    name = _running_container()
+    if name:
+        subprocess.run(["docker", "kill", name], capture_output=True)
+        _log(f"{reason} -> killed {name} for {job}")
+    else:
+        _log(f"{reason} -> no container found")
+
+
 def main() -> int:
-    _log(f"watchdog start poll={POLL}s exact>={EXACT} service>={SERVICE} window={WINDOW}")
-    last = None
+    _log(f"watchdog start poll={POLL}s stall>{STALL}s exact>={EXACT} window={WINDOW}")
+    current: Path | None = None
+    last_size = -1
+    last_grow = time.time()
     while True:
         path = _newest_agent()
         if path is None:
             time.sleep(POLL)
             continue
-        # only act on a fresh file (an active trial) and once per file
-        age = time.time() - path.stat().st_mtime
-        if age > 180 or path == last:
+        now = time.time()
+        if path != current:                 # new trial -> reset tracking
+            current, last_size, last_grow = path, path.stat().st_size, now
             time.sleep(POLL)
             continue
-        sigs = _signatures(path)
-        exact = Counter(s for s, _ in sigs)
-        svc = Counter(s for _, s in sigs if s)
-        worst_exact, n_exact = exact.most_common(1)[0] if exact else ("", 0)
-        worst_svc, n_svc = svc.most_common(1)[0] if svc else ("", 0)
-        if n_exact >= EXACT or n_svc >= SERVICE:
-            name = _running_container()
-            reason = (f"exact x{n_exact}: {worst_exact[:80]}" if n_exact >= EXACT
-                      else f"service '{worst_svc}' x{n_svc}")
-            if name:
-                subprocess.run(["docker", "kill", name], capture_output=True)
-                _log(f"LOOP detected ({reason}) -> killed {name} for {path.parents[2].name}")
-                last = path
-            else:
-                _log(f"LOOP detected ({reason}) but no container found")
+        size = path.stat().st_size
+        if size > last_size:
+            last_size, last_grow = size, now
+        else:
+            last_grow = last_grow or now
+        job = path.parents[2].name if len(path.parents) > 2 else str(path)
+
+        # 1) stall: no output for STALL seconds
+        if now - last_grow > STALL:
+            _kill(f"STALL (no output for {int(now - last_grow)}s)", job)
+            current = None
+            time.sleep(POLL)
+            continue
+
+        # 2) loop: the same normalized command repeated >= EXACT times
+        cmds = _commands(path)
+        worst, n = (Counter(cmds).most_common(1)[0] if cmds else ("", 0))
+        if n >= EXACT:
+            _kill(f"LOOP (same command x{n}: {worst[:70]})", job)
+            current = None
         time.sleep(POLL)
 
 
