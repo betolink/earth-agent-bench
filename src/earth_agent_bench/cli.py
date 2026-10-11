@@ -529,5 +529,39 @@ def doctor(
         raise typer.Exit(code=1)
 
 
+@app.command("config")
+def config(
+    as_shell: bool = typer.Option(False, "--shell", help="Emit shell var assignments (for scripts)."),
+) -> None:
+    """Show/validate the benchmark run config (experiments/run.yaml + env + roster)."""
+    from .runconfig import load_run_config, resolve_tasks
+
+    c = load_run_config()
+    if c["unknown_models"]:
+        console.print(f"[red]unknown model ids (not in experiments/models.yaml): "
+                      f"{c['unknown_models']}[/red]")
+        console.print(f"[dim]roster: {', '.join(c['roster'])}[/dim]")
+        raise typer.Exit(code=1)
+    if as_shell:
+        print(f'MODELS="{" ".join(c["models"])}"')
+        print(f'HARNESSES="{" ".join(c["harnesses"])}"')
+        print(f'CONDITIONS="{" ".join(c["conditions"])}"')
+        return
+    n_tasks = len(resolve_tasks(c["tasks"]))
+    cells = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"]) * n_tasks * c["trials"]
+    table = Table(title="EAB run config (experiments/run.yaml, env-overridable)")
+    table.add_column("field")
+    table.add_column("value")
+    table.add_row("models", ", ".join(c["models"]))
+    table.add_row("harnesses", ", ".join(c["harnesses"]))
+    table.add_row("conditions", ", ".join(c["conditions"]))
+    table.add_row("tasks", f"{n_tasks}  ({c['tasks']})")
+    table.add_row("trials", str(c["trials"]))
+    table.add_row("cells", str(cells))
+    console.print(table)
+    console.print("[dim]add models in experiments/models.yaml; select them in "
+                  "experiments/run.yaml (or EAB_MODELS=…)[/dim]")
+
+
 if __name__ == "__main__":
     app()

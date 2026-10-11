@@ -18,10 +18,22 @@ echo "EAB full run log: $LOG  (run_start=$RUN_START)" | tee -a "$LOG"
 # 1) wait for the coding-suite runner to release the GPU (single-slot)
 while pgrep -f 'runner/run.py' >/dev/null 2>&1; do sleep 60; done
 
-# 2) env contract (prefer caller env; local-file fallback for the maintainer)
-export LITE_LLM_ENDPOINT="${LITE_LLM_ENDPOINT:-${LITELLM_BASE_URL:-https://llm.betolink.cloud}}"
-export LITE_LLM_API_KEY="${LITE_LLM_API_KEY:-${LITELLM_API_KEY:-$(cat ~/.lite-llm-key 2>/dev/null || true)}}"
-export EARTHDATA_TOKEN="${EARTHDATA_TOKEN:-$(tr -d '\n' < ~/.EDL_TOKEN 2>/dev/null || true)}"
+# 2) secrets: env vars, or an env-file (EAB_ENV_FILE, else ./.env). No loose files.
+ENV_FILE="${EAB_ENV_FILE:-}"
+[ -z "$ENV_FILE" ] && [ -f .env ] && ENV_FILE=".env"
+if [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ]; then
+  echo "loading env from ${ENV_FILE}" | tee -a "$LOG"
+  set -a; . "$ENV_FILE"; set +a
+fi
+# accept legacy alias names
+export LITE_LLM_ENDPOINT="${LITE_LLM_ENDPOINT:-${LITELLM_BASE_URL:-}}"
+export LITE_LLM_API_KEY="${LITE_LLM_API_KEY:-${LITELLM_API_KEY:-}}"
+if [ -z "${LITE_LLM_ENDPOINT}" ] || [ -z "${LITE_LLM_API_KEY}" ] \
+   || { [ -z "${EARTHDATA_TOKEN:-}" ] && [ -z "${EARTHDATA_USERNAME:-}" ]; }; then
+  echo "ABORT: missing secrets. Set EARTHDATA_TOKEN, LITE_LLM_ENDPOINT, LITE_LLM_API_KEY" | tee -a "$LOG"
+  echo "       (as env vars, or an env-file via EAB_ENV_FILE; copy .env.example -> .env)" | tee -a "$LOG"
+  exit 1
+fi
 EAB=".venv/bin/eab"
 
 # 3) preflight: prove the gateway the agents will actually use is reachable
@@ -47,9 +59,13 @@ echo "resume: ${#DONE[@]} cells already done" | tee -a "$LOG"
 
 MAPFILE_TASKS=$(find benchmark/tasks -name '*.yaml' | sort)
 
-for m in tiel-coder-35b ornith-1.5-9b; do
-  for h in pi opencode codex-cli; do
-    for c in baseline improve mcp skills mcp-skills; do
+# run matrix from experiments/run.yaml (override with EAB_MODELS/HARNESSES/CONDITIONS/TASKS)
+eval "$(.venv/bin/eab config --shell)"
+echo "matrix: models=[$MODELS] harnesses=[$HARNESSES] conditions=[$CONDITIONS]" | tee -a "$LOG"
+
+for m in $MODELS; do
+  for h in $HARNESSES; do
+    for c in $CONDITIONS; do
       echo "=== combo $m/$h/$c  $(date -u +%FT%TZ) ===" | tee -a "$LOG"
       while read -r task; do
         [ -z "$task" ] && continue

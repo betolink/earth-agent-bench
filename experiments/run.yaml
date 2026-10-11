@@ -1,0 +1,29 @@
+version: 1
+# Master run config — WHAT to benchmark.
+#
+# How to configure the benchmark for your own models:
+#   1. Set the environment contract (see docs/quickstart.md):
+#        EARTHDATA_TOKEN, LITE_LLM_ENDPOINT, LITE_LLM_API_KEY
+#   2. Describe your models in experiments/models.yaml (the roster): for each
+#      model add  <id>:  { tier: local, litellm_model: "<gateway model name>" , ... }
+#      The `litellm_model` must be a model your gateway serves (eab models discover).
+#   3. List the <id>s (and harnesses/conditions) to run below.
+#   4. Run it:   bash scripts/eab-full-run.sh      (or: eab config to preview)
+#
+# Everything here is overridable by env: EAB_MODELS, EAB_HARNESSES,
+# EAB_CONDITIONS, EAB_TASKS (comma-separated).
+
+# Roster ids from experiments/models.yaml to benchmark.
+models: [tiel-coder-35b, ornith-1.5-9b]
+
+# Harness CLIs crossed with every model.
+harnesses: [pi, opencode, codex-cli]
+
+# Knowledge conditions (defined in experiments/conditions.yaml).
+conditions: [baseline, improve, mcp, skills, mcp-skills]
+
+# Tasks: 'all' (18 grounded tasks) or a list of sphere/task ids.
+tasks: all
+
+# Trials per cell.
+trials: 1

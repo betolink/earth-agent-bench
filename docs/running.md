@@ -2,16 +2,67 @@
 
 ## 0. Prerequisites
 
-Set the environment contract (see [quickstart](quickstart.md#environment-contract))
-and validate it:
+Provide the environment contract as **env vars or a secrets file** (never in the
+repo — `.env` is gitignored). Either export them:
 
 ```bash
 export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://your-gateway LITE_LLM_API_KEY=...
+```
+
+or keep them in an env-file and point the driver at it:
+
+```bash
+cp .env.example .env    # fill it in; gitignored
+EAB_ENV_FILE=.env bash scripts/eab-full-run.sh
+```
+
+Validate before a run:
+
+```bash
 eab doctor          # checks the 3 vars, probes /v1/models, reports log-scope
 ```
 
 You also need the `harbor` CLI and the agent harnesses (`pi` / `opencode` /
-`codex` / `claude`) available. Nothing is hard-coded to a host or path.
+`codex` / `claude`). Nothing is hard-coded to a host or path.
+
+## 0.1 Configure which models to benchmark
+
+Two files:
+
+- **`experiments/models.yaml`** — the **roster**: every available model, keyed by
+  id, with the name your gateway serves and its tier:
+  ```yaml
+  models:
+    my-model-id:
+      tier: local
+      litellm_model: local/My-Model   # must be served by LITE_LLM_ENDPOINT
+  ```
+- **`experiments/run.yaml`** — the **run selection**: which roster ids,
+  harnesses, conditions and tasks to run:
+  ```yaml
+  models: [my-model-id, another-id]
+  harnesses: [pi, opencode, codex-cli]
+  conditions: [baseline, improve, mcp, skills, mcp-skills]
+  tasks: all
+  ```
+
+Everything is **env-overridable**: `EAB_MODELS`, `EAB_HARNESSES`,
+`EAB_CONDITIONS`, `EAB_TASKS`, `EAB_TRIALS` (comma-separated), and
+`EAB_ENV_FILE`. Preview + validate (rejects ids not in the roster):
+
+```bash
+eab config                 # show the resolved matrix + cell count
+eab config --shell         # the driver reads this
+eab models discover        # list what your gateway actually serves
+```
+
+Then run:
+
+```bash
+bash scripts/eab-full-run.sh                 # honors run.yaml
+# or ad hoc:
+EAB_MODELS=my-model-id EAB_CONDITIONS=baseline,improve bash scripts/eab-full-run.sh
+```
 
 ## 1. Run
 
