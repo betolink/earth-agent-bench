@@ -2,8 +2,9 @@ version: 1
 
 gateway:
   type: litellm
-  base_url: https://llm.betolink.cloud
-  api_key_env: LITELLM_API_KEY
+  # Default endpoint; override with LITE_LLM_ENDPOINT (preferred) or LITELLM_BASE_URL.
+  base_url: http://localhost:4000
+  api_key_env: LITE_LLM_API_KEY
   note: >
     Single LiteLLM gateway serving all models (local and API). Local models are
     namespaced `local/...`, API models under their provider prefix (zai/, copilot/,

@@ -56,6 +56,18 @@ def _harbor_model(model_id: str, harness: str) -> str:
     return f"{provider}/{litellm}" if provider else litellm
 
 
+def _subst_gateway(obj, base: str | None = None):
+    """Replace ``{GATEWAY}`` placeholders in agent kwargs with the resolved endpoint."""
+    base = base or gateway_base()
+    if isinstance(obj, str):
+        return obj.replace("{GATEWAY}", base)
+    if isinstance(obj, dict):
+        return {k: _subst_gateway(v, base) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_subst_gateway(v, base) for v in obj]
+    return obj
+
+
 def _agent_env(provider: str | None) -> dict[str, str]:
     base = gateway_base()
     key_ref = llm_api_key_ref()
@@ -122,7 +134,7 @@ def write_job_config(
                 f"{', '.join(sorted(PI_MODEL_APIS))} (see {HARBOR_CONFIG})"
             )
     if kwargs:
-        agent["kwargs"] = kwargs
+        agent["kwargs"] = _subst_gateway(kwargs)
     if skills_mounted(condition):
         skill_paths = [str(SKILLS_DIR.resolve())]
         if improvement_mounted(condition):
