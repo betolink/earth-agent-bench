@@ -206,3 +206,23 @@ Raw artifacts are also on disk under
 `agent/trajectory.json`, `agent/<harness>.txt`, `agent/<harness>/sessions/*.jsonl`,
 `verifier/*`, `result.json`.
 
+## 6. Query across cells (index)
+
+The filesystem is the source of truth; for cross-cell queries build the derived
+**JSONL** index (one object per trial) — rebuild it any time, it's not authoritative:
+
+```bash
+eab index                    # -> runs/index.jsonl
+eab index -f csv             # -> runs/index.csv (flattened, for spreadsheets)
+
+jq 'select(.condition=="improve") | {task,reward}' runs/index.jsonl
+jq -s 'group_by(.model) | map({model: .[0].model, mean: (map(.reward)|add/length)})' runs/index.jsonl
+```
+
+Each record: `task, model, harness, condition, stamp, trial, status
+(solved|partial|fail|timeout|error), reward, components{...}, tokens, cost_usd,
+steps, times, duration_sec` + paths (`run_dir`, `trajectory`, `reward_path`,
+`details_path`, `result_path`). JSONL keeps the nested `components` intact; use
+`-f csv` when you want a single flat table.
+
+

@@ -53,6 +53,7 @@ export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://... LITE_LLM_API_KEY=...
 uv run eab doctor                            # validate the contract + probe the gateway
 uv run eab config                            # preview the run matrix: models × harnesses × conditions
 uv run eab trajectory -t a3 -m tiel-coder-35b -H pi   # dump a cell's trajectory + metadata
+uv run eab index                             # build runs/index.jsonl (per-trial metadata)
 uv run eab dashboard                         # live TUI (runs · live agent · current task; Ctrl+L logs)
 
 uv run eab validate                          # validate all 18 task YAMLs

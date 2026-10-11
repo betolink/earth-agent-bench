@@ -525,6 +525,36 @@ def trajectory(
         print(text)
 
 
+@app.command("index")
+def index(
+    out: Optional[Path] = typer.Option(None, "--out", "-o",
+                                       help="Output path (default runs/index.jsonl)."),
+    fmt: str = typer.Option("jsonl", "--format", "-f", help="jsonl | csv | json."),
+    runs_dir: Optional[Path] = typer.Option(None, "--runs-dir", help="Harbor runs tree."),
+) -> None:
+    """Build a rebuildable per-trial metadata index (JSONL by default) from runs/.
+
+    \b
+      eab index                 # -> runs/index.jsonl  (one object per trial)
+      eab index -f csv          # -> runs/index.csv    (flattened, for spreadsheets)
+      jq 'select(.condition=="improve")' runs/index.jsonl
+    """
+    from .index import index_records, write_index, load_sampling
+
+    records = index_records(runs_dir)
+    if out is None:
+        out = REPO_ROOT / "runs" / ("index." + ("jsonl" if fmt == "jsonl" else fmt))
+    write_index(records, out, fmt)
+    by_status: dict[str, int] = {}
+    for r in records:
+        by_status[r["status"]] = by_status.get(r["status"], 0) + 1
+    summary = " · ".join(f"{k}={v}" for k, v in sorted(by_status.items()))
+    sampling = load_sampling()
+    console.print(f"[green]wrote[/green] {out}  ({len(records)} trials · {summary})")
+    if sampling:
+        console.print(f"[dim]sampling defaults: {sampling} (from models.yaml)[/dim]")
+
+
 @app.command("dashboard")
 def dashboard(
     interval: int = typer.Option(300, help="Refresh interval in seconds."),
