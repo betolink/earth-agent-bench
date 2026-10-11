@@ -21,10 +21,38 @@ def load_yaml(path: str | Path) -> dict:
 
 
 def gateway_base() -> str:
-    if os.environ.get("LITELLM_BASE_URL"):
-        return os.environ["LITELLM_BASE_URL"]
+    """LiteLLM endpoint: LITE_LLM_ENDPOINT (preferred) or LITELLM_BASE_URL, else models.yaml."""
+    env = os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
+    if env:
+        return env.rstrip("/")
     gateway = load_yaml(MODELS_YAML).get("gateway", {})
-    return gateway.get("base_url", "http://localhost:4000")
+    return str(gateway.get("base_url", "http://localhost:4000")).rstrip("/")
+
+
+def llm_api_key_name() -> str:
+    """Name of the gateway key env var to reference (new name preferred)."""
+    if os.environ.get("LITE_LLM_API_KEY") or not os.environ.get("LITELLM_API_KEY"):
+        return "LITE_LLM_API_KEY"
+    return "LITELLM_API_KEY"
+
+
+def llm_api_key_ref() -> str:
+    """Harbor-resolved reference to the gateway key, e.g. ``${LITE_LLM_API_KEY:-}``."""
+    return "${" + llm_api_key_name() + ":-}"
+
+
+def missing_credentials() -> list[str]:
+    """The env contract to run EAB: EARTHDATA_TOKEN, LITE_LLM_ENDPOINT, LITE_LLM_API_KEY."""
+    missing = []
+    if not (os.environ.get("LITE_LLM_API_KEY") or os.environ.get("LITELLM_API_KEY")):
+        missing.append("LITE_LLM_API_KEY")
+    if not (os.environ.get("EARTHDATA_TOKEN")
+            or (os.environ.get("EARTHDATA_USERNAME") and os.environ.get("EARTHDATA_PASSWORD"))):
+        missing.append("EARTHDATA_TOKEN (or EARTHDATA_USERNAME+EARTHDATA_PASSWORD)")
+    if not (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
+            or load_yaml(MODELS_YAML).get("gateway", {}).get("base_url")):
+        missing.append("LITE_LLM_ENDPOINT")
+    return missing
 
 
 def litellm_model(model_id: str) -> str:

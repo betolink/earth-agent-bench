@@ -79,7 +79,8 @@ def resolve_conditions(selection: list[str] | str) -> list[str]:
 def discover_models() -> list[dict]:
     """Query the LiteLLM gateway /v1/models and return the raw model records."""
     g = gateway()
-    base = os.environ.get("LITELLM_BASE_URL", g["base_url"]).rstrip("/")
+    base = (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
+            or g["base_url"]).rstrip("/")
     key = os.environ.get("LITELLM_API_KEY", "")
     url = f"{base}{g.get('discover_endpoint', '/v1/models')}"
     headers = {"User-Agent": "earth-agent-bench/0.1"}
@@ -122,7 +123,8 @@ _PING_TOOL = [{
 def gateway_chat(model: str, messages: list[dict], tools: list[dict] | None = None,
                  max_tokens: int = 256, timeout: int = 180) -> dict:
     g = gateway()
-    base = os.environ.get("LITELLM_BASE_URL", g["base_url"]).rstrip("/")
+    base = (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
+            or g["base_url"]).rstrip("/")
     key = os.environ.get("LITELLM_API_KEY", "")
     body: dict = {"model": model, "messages": messages, "max_tokens": max_tokens,
                   "temperature": 0}

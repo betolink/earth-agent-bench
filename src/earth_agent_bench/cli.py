@@ -459,5 +459,75 @@ def dashboard(
     dash_main(interval=interval)
 
 
+@app.command("doctor")
+def doctor(
+    check_logs: bool = typer.Option(True, "--check-logs/--no-check-logs",
+                                    help="Also probe LiteLLM spend/log endpoints."),
+) -> None:
+    """Validate the environment contract to run EAB.
+
+    Required: EARTHDATA_TOKEN, LITE_LLM_ENDPOINT, LITE_LLM_API_KEY. Also probes the
+    gateway and, optionally, whether the key may read LiteLLM logs (needed for
+    token observability) — some keys are inference-only and get 401/403 there.
+    """
+    import os
+    import urllib.error
+    import urllib.request
+
+    from .wiring import gateway_base, llm_api_key_name, missing_credentials
+
+    endpoint = gateway_base()
+    key_name = llm_api_key_name()
+    key = os.environ.get("LITE_LLM_API_KEY") or os.environ.get("LITELLM_API_KEY") or ""
+
+    def probe(path: str) -> str:
+        req = urllib.request.Request(
+            f"{endpoint}{path}",
+            headers={"Authorization": f"Bearer {key}",
+                     "User-Agent": "earth-agent-bench/0.1"})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return str(resp.status)
+        except urllib.error.HTTPError as err:
+            return f"{err.code}"
+        except Exception as err:  # noqa: BLE001
+            return f"error: {err}"
+
+    earthdata = "set" if os.environ.get("EARTHDATA_TOKEN") else (
+        "set (user/pass)" if os.environ.get("EARTHDATA_USERNAME") else "MISSING")
+    rows = [
+        ("EARTHDATA_TOKEN", earthdata),
+        ("LITE_LLM_ENDPOINT", endpoint or "MISSING"),
+        (f"LITE_LLM_API_KEY ({key_name})", "set" if key else "MISSING"),
+        ("gateway /v1/models", probe("/v1/models")),
+    ]
+    log_row = None
+    if check_logs:
+        statuses = {p: probe(p) for p in ("/spend/logs", "/global/spend/logs")}
+        ok = any(s == "200" for s in statuses.values())
+        log_row = ("gateway spend/logs", "200 (readable)" if ok else
+                   "not readable — " + ", ".join(f"{p}->{s}" for p, s in statuses.items()))
+
+    table = Table(title="EAB doctor")
+    table.add_column("check")
+    table.add_column("result")
+    for name, val in rows + ([log_row] if log_row else []):
+        color = "green" if val in ("set", "200 (readable)", "set (user/pass)") else (
+            "red" if val == "MISSING" else "yellow")
+        table.add_row(name, f"[{color}]{val}[/{color}]")
+    console.print(table)
+
+    if log_row and "not readable" in log_row[1]:
+        console.print(
+            "[yellow]note:[/yellow] token/spend observability needs a LiteLLM key with "
+            "log/admin scope; an inference-only key returns 401/403 above. Use an admin "
+            "key or set a separate one for reporting."
+        )
+    missing = missing_credentials()
+    if missing:
+        console.print(f"[red]missing: {', '.join(missing)}[/red]")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

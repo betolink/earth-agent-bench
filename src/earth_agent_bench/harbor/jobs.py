@@ -13,7 +13,14 @@ from pathlib import Path
 import yaml
 
 from ..models import load_models
-from ..wiring import gateway_base, skills_mounted, improvement_mounted, improvement_dir
+from ..wiring import (
+    gateway_base,
+    improvement_dir,
+    improvement_mounted,
+    llm_api_key_ref,
+    missing_credentials,
+    skills_mounted,
+)
 from .config import (
     DEFAULT_JOBS,
     DEFAULT_OUT,
@@ -51,15 +58,16 @@ def _harbor_model(model_id: str, harness: str) -> str:
 
 def _agent_env(provider: str | None) -> dict[str, str]:
     base = gateway_base()
+    key_ref = llm_api_key_ref()
     if provider == "anthropic":
         return {
             "ANTHROPIC_BASE_URL": base,
-            "ANTHROPIC_API_KEY": "${LITELLM_API_KEY:-}",
+            "ANTHROPIC_API_KEY": key_ref,
         }
     if provider:
         return {
             "OPENAI_BASE_URL": f"{base}/v1",
-            "OPENAI_API_KEY": "${LITELLM_API_KEY:-}",
+            "OPENAI_API_KEY": key_ref,
         }
     return {}
 
@@ -162,16 +170,13 @@ def render_harbor_command(
 
 
 def _check_credentials() -> None:
-    """Fail fast when a real run is missing gateway or Earthdata credentials."""
-    missing = []
-    if not os.environ.get("LITELLM_API_KEY"):
-        missing.append("LITELLM_API_KEY (LiteLLM gateway bearer token)")
-    if not os.environ.get("EARTHDATA_TOKEN") and not (
-        os.environ.get("EARTHDATA_USERNAME") and os.environ.get("EARTHDATA_PASSWORD")
-    ):
-        missing.append("EARTHDATA_TOKEN, or EARTHDATA_USERNAME + EARTHDATA_PASSWORD")
+    """Fail fast when a real run is missing the EAB env contract."""
+    missing = missing_credentials()
     if missing:
-        raise SystemExit("missing credentials for a real run: " + "; ".join(missing))
+        raise SystemExit(
+            "missing credentials for a real run: " + ", ".join(missing)
+            + " (set LITE_LLM_ENDPOINT, LITE_LLM_API_KEY, EARTHDATA_TOKEN)"
+        )
 
 
 def run_harbor(

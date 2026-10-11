@@ -14,8 +14,11 @@ echo "EAB full run log: $LOG" | tee -a "$LOG"
 while pgrep -f 'runner/run.py' >/dev/null 2>&1; do sleep 60; done
 echo "GPU free at $(date -u +%FT%TZ)" | tee -a "$LOG"
 
-export LITELLM_API_KEY="$(cat ~/.lite-llm-key)"
-export EARTHDATA_TOKEN="$(tr -d '\n' < ~/.EDL_TOKEN)"
+# Env contract: EARTHDATA_TOKEN, LITE_LLM_ENDPOINT, LITE_LLM_API_KEY.
+# Prefer the caller's environment; fall back to local files for the maintainer.
+export LITE_LLM_ENDPOINT="${LITE_LLM_ENDPOINT:-${LITELLM_BASE_URL:-}}"
+export LITE_LLM_API_KEY="${LITE_LLM_API_KEY:-${LITELLM_API_KEY:-$(cat ~/.lite-llm-key 2>/dev/null || true)}}"
+export EARTHDATA_TOKEN="${EARTHDATA_TOKEN:-$(tr -d '\n' < ~/.EDL_TOKEN 2>/dev/null || true)}"
 EAB=".venv/bin/eab"
 
 # host-side loop watchdog: end trials early when the agent repeats an access attempt
