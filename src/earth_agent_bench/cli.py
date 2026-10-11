@@ -443,5 +443,21 @@ def postmortem(
     )
 
 
+@app.command("dashboard")
+def dashboard(
+    interval: int = typer.Option(300, help="Refresh interval in seconds."),
+) -> None:
+    """Launch the live Textual dashboard (coding suite + earth-agent-bench runs)."""
+    try:
+        from .dashboard import main as dash_main
+    except Exception as error:  # textual not installed
+        console.print(
+            f"[red]dashboard unavailable:[/red] {error}\n"
+            "Install the UI extra:  [bold]pip install 'textual>=0.80'[/bold]"
+        )
+        raise typer.Exit(code=2)
+    dash_main(interval=interval)
+
+
 if __name__ == "__main__":
     app()
