@@ -43,10 +43,12 @@ _COLUMN_ALIASES: dict[str, set[str]] = {
 
 
 def _norm(column: str) -> str:
+    """Normalise a string for matching."""
     return "".join(ch for ch in column.strip().lower() if ch.isalnum() or ch == "_").strip("_")
 
 
 def normalize_grade(raw) -> Optional[str]:
+    """Map a raw grade label to the canonical grade."""
     if raw is None or (isinstance(raw, float) and pd.isna(raw)):
         return None
     text = str(raw).strip().upper()
@@ -57,6 +59,7 @@ def normalize_grade(raw) -> Optional[str]:
 
 
 def _as_bool(raw) -> Optional[bool]:
+    """Coerce a value to bool."""
     if raw is None or (isinstance(raw, float) and pd.isna(raw)):
         return None
     if isinstance(raw, bool):
@@ -71,6 +74,7 @@ def _as_bool(raw) -> Optional[bool]:
 
 @dataclass(frozen=True)
 class VirtualizabilityRecord:
+    """One collection's virtualizability verdict."""
     short_name: str
     grade: Optional[str]
     sensor: Optional[str] = None
@@ -99,6 +103,7 @@ class VirtualizabilityRecord:
 
 
 class VirtualizabilityOracle:
+    """Lookup interface over the virtualizability parquet."""
     def __init__(self, parquet_path: str | Path):
         self.path = Path(parquet_path)
         if not self.path.exists():

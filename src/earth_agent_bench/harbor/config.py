@@ -19,10 +19,12 @@ SKILLS_DIR = REPO_ROOT / "skills"
 
 
 def load_harbor_config() -> dict:
+    """Load and cache harbor/harbor.yaml."""
     return yaml.safe_load(HARBOR_CONFIG.read_text()) or {}
 
 
 def cli() -> str:
+    """Return a top-level value from the harbor config."""
     return load_harbor_config().get("cli", "harbor")
 
 
@@ -32,20 +34,25 @@ def agents() -> dict[str, str]:
 
 
 def model_provider(harness: str) -> str | None:
+    """Provider prefix Harbor expects for the gateway (e.g. 'openai')."""
     return load_harbor_config().get("model_provider", {}).get(harness)
 
 
 def agent_kwargs(harness: str) -> dict:
+    """Default agent kwargs from the harbor config."""
     return dict(load_harbor_config().get("agent_kwargs", {}).get(harness, {}))
 
 
 def skills_env_dir() -> str:
+    """In-container directory where skills are mounted."""
     return load_harbor_config().get("skills_dir", "/harbor/skills")
 
 
 def agent_timeout_sec() -> float:
+    """Agent execution cap in seconds."""
     return float(load_harbor_config().get("agent_timeout_sec", 600.0))
 
 
 def verifier_timeout_sec() -> float:
+    """Verifier execution cap in seconds."""
     return float(load_harbor_config().get("verifier_timeout_sec", 600.0))

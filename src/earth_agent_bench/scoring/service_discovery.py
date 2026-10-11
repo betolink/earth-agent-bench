@@ -17,6 +17,7 @@ SERVICE_ALIASES = {
 
 
 def _canonical(name: str) -> str | None:
+    """Canonicalise a service name for matching."""
     token = name.strip().lower()
     for canonical, aliases in SERVICE_ALIASES.items():
         if token in aliases:
@@ -25,6 +26,7 @@ def _canonical(name: str) -> str | None:
 
 
 def score_service_discovery(discovered: Iterable[str], available: Iterable[str]) -> float:
+    """Score discovered services against the gold set."""
     discovered_canonical = {_canonical(d) for d in discovered if _canonical(d)}
     available_canonical = {_canonical(a) for a in available if _canonical(a)}
     if not available_canonical:

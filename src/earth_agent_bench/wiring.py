@@ -16,6 +16,7 @@ IMPROVEMENTS_DIR = REPO_ROOT / "improvements"
 
 
 def load_yaml(path: str | Path) -> dict:
+    """Load a YAML file into a dict."""
     with Path(path).open() as handle:
         return yaml.safe_load(handle) or {}
 
@@ -56,16 +57,19 @@ def missing_credentials() -> list[str]:
 
 
 def litellm_model(model_id: str) -> str:
+    """The gateway model name for a roster model id."""
     roster = load_yaml(MODELS_YAML).get("models", {})
     return roster.get(model_id, {}).get("litellm_model", model_id)
 
 
 def mcp_servers_for(condition: str) -> list[str]:
+    """MCP server ids wired for a condition."""
     wiring = load_yaml(CONDITIONS_YAML)["wiring"]
     return list(wiring["mcp_servers"].get(condition, []))
 
 
 def ready_mcp_urls(server_ids: list[str]) -> dict[str, str]:
+    """URLs of ready MCP servers for a set of ids (name -> url)."""
     manifest = load_yaml(MCP_MANIFEST)["servers"]
     urls = {}
     for server_id in server_ids:
@@ -76,6 +80,7 @@ def ready_mcp_urls(server_ids: list[str]) -> dict[str, str]:
 
 
 def skills_mounted(condition: str) -> bool:
+    """Whether a condition mounts the skills dir."""
     wiring = load_yaml(CONDITIONS_YAML)["wiring"]
     return bool(wiring["skills_mounted"].get(condition, False))
 

@@ -8,18 +8,18 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from . import mcp as mcp_mod
+from . import report as report_mod
 from .evals import EvalResult, grade, load_suite, summarize
 from .models import discover_models, doctor_models, reconcile_models
 from .oracles.cmr import fetch_services
 from .oracles.service_matrix import build_matrix
 from .oracles.services import ServiceCatalog
 from .oracles.virtualizability import VirtualizabilityOracle
-from .scoring import score_run
 from .schemas import RunObservation
+from .scoring import score_run
 from .sweep import SweepSpec, run_sweep
 from .tasks import DEFAULT_TASKS_DIR, load_all, load_task, render_instruction
-from . import report as report_mod
-from . import mcp as mcp_mod
 
 app = typer.Typer(help="earth-agent-bench: access-pattern selection benchmark tooling")
 harbor_app = typer.Typer(help="Generate Harbor task packages and run them")
@@ -39,11 +39,12 @@ DEFAULT_EVAL_SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
 
 
 def _oracle(parquet: Path) -> VirtualizabilityOracle:
+    """Build a VirtualizabilityOracle from the parquet path (exits on missing file)."""
     try:
         return VirtualizabilityOracle(parquet)
     except FileNotFoundError as error:
         console.print(f"[red]{error}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from error
 
 
 @app.command()
@@ -225,6 +226,7 @@ def score(
 
 
 def _find_task(task_id: str, tasks_dir: Path):
+    """Locate a task YAML by id under the tasks directory."""
     for task in load_all(tasks_dir):
         if task.task_id == task_id:
             return task
@@ -262,6 +264,7 @@ def eval_report(
 
 
 def _find_gold(task_id: str, suite: Path):
+    """Locate a task's gold-standard entry within an eval suite."""
     for gold in load_suite(suite):
         if gold.task_id == task_id:
             return gold
@@ -276,7 +279,7 @@ def models_discover() -> None:
         records = discover_models()
     except Exception as error:  # noqa: BLE001
         console.print(f"[red]gateway query failed: {error}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from error
     table = Table(title=f"Gateway models ({len(records)})")
     table.add_column("id")
     for record in sorted(records, key=lambda r: r["id"]):
@@ -291,7 +294,7 @@ def models_reconcile() -> None:
         reconciled = reconcile_models()
     except Exception as error:  # noqa: BLE001
         console.print(f"[red]gateway query failed: {error}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from error
     table = Table(title="Roster -> gateway reconciliation")
     table.add_column("roster id")
     table.add_column("gateway model")
@@ -319,7 +322,7 @@ def models_doctor(
         rows = doctor_models(models, timeout=timeout)
     except SystemExit as error:
         console.print(f"[red]{error}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from error
     if as_json:
         console.print_json(json.dumps(rows))
         return
@@ -402,7 +405,7 @@ def exec_cmd(
         )
     except ProfilerError as error:
         console.print(f"[red]{error}[/red]")
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from error
 
     if as_json:
         console.print_json(res.to_json())
@@ -464,14 +467,21 @@ def trajectory(
       eab trajectory -t a3 -m tiel-coder-35b -H pi -f atif    > t.json      (ATIF only)
       eab trajectory -t a3 -m tiel-coder-35b -H pi --list                   (what exists)
     """
-    from .trajectory import (resolve_task_id, find_trials, artifact, read_artifact,
-                             reward_of, exception_of, build_bundle)
+    from .trajectory import (
+        artifact,
+        build_bundle,
+        exception_of,
+        find_trials,
+        read_artifact,
+        resolve_task_id,
+        reward_of,
+    )
 
     try:
         task_id = resolve_task_id(task)
     except LookupError as error:
         console.print(f"[red]{error}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from error
 
     trials = find_trials(task_id, model, harness, condition)
     if not trials:
@@ -499,7 +509,7 @@ def trajectory(
                 path = artifact(t, fmt, harness)
             except ValueError as error:
                 console.print(f"[red]{error}[/red]")
-                raise typer.Exit(code=2)
+                raise typer.Exit(code=2) from error
             if path is None:
                 console.print(f"[yellow]missing '{fmt}' in {t.dir.name}[/yellow]", err=True)
                 continue
@@ -539,7 +549,7 @@ def index(
       eab index -f csv          # -> runs/index.csv    (flattened, for spreadsheets)
       jq 'select(.condition=="improve")' runs/index.jsonl
     """
-    from .index import index_records, write_index, load_sampling
+    from .index import index_records, load_sampling, write_index
 
     records = index_records(runs_dir)
     if out is None:
@@ -567,7 +577,7 @@ def dashboard(
             f"[red]dashboard unavailable:[/red] {error}\n"
             "Install the UI extra:  [bold]pip install 'textual>=0.80'[/bold]"
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from error
     dash_main(interval=interval)
 
 

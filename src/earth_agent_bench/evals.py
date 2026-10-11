@@ -32,6 +32,7 @@ EVAL_OUTPUT_NOTE = "\n\nWrite the final value to `/app/output/answer.txt` (absol
 
 
 class EvalGold(BaseModel):
+    """Gold answer for one eval task (typed value + label)."""
     task_id: str
     answer_type: AnswerType
     answer: Optional[str | bool | int | float] = None  # native type; parsed per answer_type
@@ -41,6 +42,7 @@ class EvalGold(BaseModel):
 
 
 class EvalResult(BaseModel):
+    """Outcome of grading one eval task (matched, detail, latency)."""
     task_id: str
     correct: bool
     covered: bool
@@ -56,14 +58,17 @@ NOT_APPLICABLE = "not applicable"
 
 
 def _strip(value: str) -> str:
+    """Normalise a value to a comparable string."""
     return value.strip()
 
 
 def _label(value: str) -> str:
+    """Type label of a value (bool/int/float/str/other)."""
     return " ".join(value.strip().lower().split())
 
 
 def _boolean(value: str) -> Optional[bool]:
+    """Coerce to bool if it looks boolean, else None."""
     token = value.strip().lower()
     if token in TRUE:
         return True
@@ -73,6 +78,7 @@ def _boolean(value: str) -> Optional[bool]:
 
 
 def _integer(value: str) -> Optional[int]:
+    """Coerce to int if it looks integral, else None."""
     token = value.strip().replace(",", "").replace("_", "")
     try:
         return int(float(token)) if "." in token else int(token)
@@ -81,6 +87,7 @@ def _integer(value: str) -> Optional[int]:
 
 
 def _string(value: str) -> str:
+    """Coerce to a stripped string, else None."""
     return value.strip()
 
 
@@ -98,6 +105,7 @@ def _parse(gold: EvalGold, produced: str) -> Optional[object]:
 
 
 def _gold_value(gold: EvalGold) -> object:
+    """Extract the expected value from a gold entry."""
     if gold.answer_type == "boolean":
         return str(gold.answer).strip().lower() in TRUE
     if gold.answer_type == "integer":
@@ -108,6 +116,7 @@ def _gold_value(gold: EvalGold) -> object:
 
 
 def _match(gold: EvalGold, parsed: object, gold_value: object) -> bool:
+    """Compare a produced value to the gold value with typed equality."""
     if gold.answer_type == "integer":
         return abs(parsed - gold_value) <= gold.tolerance
     return parsed == gold_value

@@ -17,6 +17,7 @@ def build_matrix(
     catalog: Optional[ServiceCatalog] = None,
     live_cmr_patterns: Optional[dict[str, dict]] = None,
 ) -> dict:
+    """Build the service-availability matrix for a set of collections."""
     record: Optional[VirtualizabilityRecord] = virt.get(short_name)
     matrix: dict[str, dict] = {}
 
@@ -72,6 +73,7 @@ def build_matrix(
 
 
 class ServiceAvailabilityMatrix:
+    """Per-collection available services/patterns (lookup helper)."""
     def __init__(self, virt: VirtualizabilityOracle, catalog: Optional[ServiceCatalog] = None):
         self.virt = virt
         self.catalog = catalog

@@ -27,6 +27,7 @@ DEFAULT_ENVELOPES: dict[str, Envelope] = {
 
 
 def score_against_envelope(value: float, limit: float) -> float:
+    """Score bytes/objects/runtime against the envelope."""
     if value <= limit:
         return 1.0
     falloff = 1.0 - (value / limit - 1.0) / 3.0
@@ -34,6 +35,7 @@ def score_against_envelope(value: float, limit: float) -> float:
 
 
 def envelope_for(task: Task, pattern_id: str) -> Envelope:
+    """Efficiency envelope for a task."""
     override = task.efficiency_envelopes.get(pattern_id)
     if override is not None:
         return override
@@ -43,6 +45,7 @@ def envelope_for(task: Task, pattern_id: str) -> Envelope:
 
 def score_efficiency(task: Task, metrics: EfficiencyMetrics,
                      observed_patterns: list[str]) -> float:
+    """Overall efficiency score for a run."""
     if not observed_patterns:
         return 0.0
     # Only score metrics that were actually observed; reporting nothing earns no

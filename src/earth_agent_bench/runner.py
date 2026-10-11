@@ -17,15 +17,28 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .runconfig import condition_ids, harness_ids, restricted_models
 from .schemas import RunManifest
 from .tasks import load_task, render_instruction
 from .wiring import (
     gateway_base as _gateway_base,
+)
+from .wiring import (
     litellm_model as _litellm_model,
+)
+from .wiring import (
     llm_api_key_name as _key_name,
+)
+from .wiring import (
     load_yaml,
+)
+from .wiring import (
     mcp_servers_for as _mcp_servers_for,
+)
+from .wiring import (
     ready_mcp_urls as _ready_mcp_urls,
+)
+from .wiring import (
     skills_mounted as _skills_mounted,
 )
 
@@ -35,8 +48,8 @@ CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 MCP_MANIFEST = REPO_ROOT / "mcp" / "manifest.yaml"
 SKILLS_DIR = REPO_ROOT / "skills"
 
-HARNESS_IDS = ("pi", "opencode", "codex-cli", "claude-code")
-CLAUDE_LANE_MODELS = {"claude-sonnet-5-5"}
+HARNESS_IDS = tuple(harness_ids())
+CLAUDE_LANE_MODELS = restricted_models("claude-code")
 
 EVAL_OUTPUT_CONTRACT = """
 
@@ -87,6 +100,7 @@ Before starting, read the skill guides in `./skills/` (start with
 
 @dataclass
 class RunSpec:
+    """A single run request (task/model/harness/condition + limits)."""
     task_path: Path
     model_id: str
     harness: str
@@ -105,6 +119,7 @@ class RunSpec:
 
 
 def validate_spec(spec: RunSpec) -> None:
+    """Validate a RunSpec against the config; exit on error."""
     roster = load_yaml(MODELS_YAML)["models"]
     if spec.model_id not in roster:
         raise SystemExit(
@@ -119,11 +134,13 @@ def validate_spec(spec: RunSpec) -> None:
             "claude-code is a restricted lane: only "
             f"{', '.join(sorted(CLAUDE_LANE_MODELS))} (see experiments/harnesses.yaml)"
         )
-    if spec.condition not in ("baseline", "mcp", "skills", "mcp-skills"):
-        raise SystemExit(f"unknown condition '{spec.condition}'")
+    if spec.condition not in condition_ids():
+        raise SystemExit(f"unknown condition '{spec.condition}'; conditions: "
+                         f"{', '.join(condition_ids())}")
 
 
 def _write_opencode_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
+    """Write the opencode config for the gateway."""
     config = {
         "$schema": "https://opencode.ai/config.json",
         "provider": {
@@ -146,6 +163,7 @@ def _write_opencode_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
 
 
 def _write_codex_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
+    """Write the codex config for the gateway."""
     lines = [
         'model_provider = "litellm"',
         "",
@@ -161,6 +179,7 @@ def _write_codex_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
 
 
 def _write_claude_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
+    """Write the claude-code config (restricted lane)."""
     config = {"mcpServers": {}}
     for server, url in mcp_urls.items():
         config["mcpServers"][server] = {"type": "http", "url": url}
@@ -168,6 +187,7 @@ def _write_claude_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
 
 
 def _write_pi_config(run_dir: Path, mcp_urls: dict[str, str]) -> None:
+    """Write the pi config for the gateway."""
     config = {"mcpServers": {}}
     for server, url in mcp_urls.items():
         config["mcpServers"][server] = {"type": "url", "url": url}
@@ -183,6 +203,7 @@ HARNESS_CONFIG_WRITERS = {
 
 
 def prepare_run(spec: RunSpec) -> Path:
+    """Create the run workspace, wire the harness and write the manifest."""
     validate_spec(spec)
     run_dir = spec.run_dir
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -247,6 +268,7 @@ def prepare_run(spec: RunSpec) -> Path:
 
 
 def build_env(spec: RunSpec) -> dict[str, str]:
+    """Environment variables for the harness process."""
     env = {k: v for k, v in os.environ.items()
            if k in {"PATH", "HOME", "LANG", "TERM", "EARTHDATA_USERNAME",
                     "EARTHDATA_PASSWORD", "LITELLM_API_KEY", "LITE_LLM_API_KEY"}}
@@ -263,6 +285,7 @@ def build_env(spec: RunSpec) -> dict[str, str]:
 
 
 def build_command(spec: RunSpec) -> list[str]:
+    """The harness command line for a run."""
     prompt = "$(cat instruction.md)"
     model = _litellm_model(spec.model_id)
     if spec.harness == "opencode":
@@ -280,6 +303,7 @@ def build_command(spec: RunSpec) -> list[str]:
 
 
 def execute(spec: RunSpec, dry_run: bool = False) -> int:
+    """Run the harness for a spec and return its exit code."""
     run_dir = prepare_run(spec)
     env = build_env(spec)
     command = build_command(spec)

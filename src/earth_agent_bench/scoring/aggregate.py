@@ -16,10 +16,12 @@ WEIGHTS = {
 
 
 def _normalize_name(value: str) -> str:
+    """Normalise a service/collection name for matching."""
     return "".join(char for char in str(value).lower() if char.isalnum())
 
 
 def score_collection_selection(task: Task, observed_collections: list[str]) -> float:
+    """Score selected vs gold collections."""
     if not observed_collections:
         return 0.0
     tiers = {"preferred": 1.0, "acceptable": 0.7, "discouraged": 0.2, "unacceptable": 0.0}
@@ -40,6 +42,7 @@ def score_collection_selection(task: Task, observed_collections: list[str]) -> f
 
 
 def score_representation(task: Task, representation: str) -> float:
+    """Score the observed representation (lazy/materialized)."""
     primary_lazy = any(p.startswith("C") or p.startswith(("S", "T")) for p in task.gold.primary_patterns)
     if representation == "lazy":
         return 1.0
@@ -51,6 +54,7 @@ def score_representation(task: Task, representation: str) -> float:
 
 
 def available_service_names(task: Task) -> list[str]:
+    """Names of services available to the task."""
     names = set()
     for collection in task.collections:
         if collection.tier in {"preferred", "acceptable"}:
@@ -61,6 +65,7 @@ def available_service_names(task: Task) -> list[str]:
 
 
 def score_run(task: Task, observation: RunObservation) -> VerifierResult:
+    """Compute the full weighted score for a RunObservation."""
     access = score_patterns_for_collections(observation.observed_patterns, task.pattern_tiers)
     collection = score_collection_selection(task, observation.collection_short_names)
     discovery = score_service_discovery(observation.discovered_services, available_service_names(task))

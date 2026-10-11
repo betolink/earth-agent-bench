@@ -1,8 +1,8 @@
 import pytest
 
-from earth_agent_bench.oracles.virtualizability import VirtualizabilityOracle
-from earth_agent_bench.oracles.services import ServiceCatalog
 from earth_agent_bench.oracles.service_matrix import build_matrix
+from earth_agent_bench.oracles.services import ServiceCatalog
+from earth_agent_bench.oracles.virtualizability import VirtualizabilityOracle
 
 PARQUET = "benchmark/data/virtualizability.parquet"
 SERVICES = "benchmark/oracles/services.yaml"

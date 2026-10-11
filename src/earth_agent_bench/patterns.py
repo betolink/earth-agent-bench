@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Pattern:
+    """An access-pattern code (S1..S5, C1..) with its description."""
     id: str
     name: str
     family: str
@@ -47,4 +48,5 @@ SELECTION_LADDER = ["C1", "C2", "S3", "S2", "S1", "S4", "S5", "T1", "T2", "T3",
 
 
 def validate_pattern(pattern_id: str) -> bool:
+    """Validate a pattern code against the known set."""
     return pattern_id in PATTERNS

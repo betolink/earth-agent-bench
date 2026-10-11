@@ -16,23 +16,28 @@ CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 
 
 def load_yaml(path: Path) -> dict:
+    """Load a YAML file into a dict."""
     with path.open() as f:
         return yaml.safe_load(f) or {}
 
 
 def load_models() -> dict:
+    """The models section of experiments/models.yaml."""
     return load_yaml(MODELS_YAML)
 
 
 def model_ids() -> list[str]:
+    """Roster model ids."""
     return list(load_models()["models"].keys())
 
 
 def gateway() -> dict:
+    """The gateway section of models.yaml."""
     return load_models()["gateway"]
 
 
 def _split(selection: list[str] | str) -> list[str]:
+    """Split a 'provider/model' string into (provider, model)."""
     if isinstance(selection, str):
         return [s.strip() for s in selection.split(",") if s.strip()]
     return [s.strip() for s in selection if s.strip()]
@@ -51,10 +56,12 @@ def resolve_models(selection: list[str] | str) -> list[str]:
 
 
 def default_harnesses() -> list[str]:
+    """Default harness list from harnesses.yaml."""
     return list(load_yaml(HARNESSES_YAML)["crossing"]["default_harnesses"])
 
 
 def resolve_harnesses(selection: list[str] | str) -> list[str]:
+    """Resolve a harness selection to concrete ids."""
     known = list(load_yaml(HARNESSES_YAML)["harnesses"].keys())
     chosen = _split(selection)
     if chosen == ["all"]:
@@ -66,6 +73,7 @@ def resolve_harnesses(selection: list[str] | str) -> list[str]:
 
 
 def resolve_conditions(selection: list[str] | str) -> list[str]:
+    """Resolve a condition selection to concrete ids."""
     order = list(load_yaml(CONDITIONS_YAML)["order"])
     chosen = _split(selection)
     if chosen == ["all"]:
@@ -122,6 +130,7 @@ _PING_TOOL = [{
 
 def gateway_chat(model: str, messages: list[dict], tools: list[dict] | None = None,
                  max_tokens: int = 256, timeout: int = 180) -> dict:
+    """POST a chat completion to the gateway and return the parsed response."""
     g = gateway()
     base = (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
             or g["base_url"]).rstrip("/")
@@ -200,4 +209,5 @@ def doctor_model(model_id: str, timeout: int = 180) -> dict:
 
 
 def doctor_models(selection: list[str] | str = "all", timeout: int = 180) -> list[dict]:
+    """Check each roster model is served by the gateway; return rows."""
     return [doctor_model(m, timeout=timeout) for m in resolve_models(selection)]

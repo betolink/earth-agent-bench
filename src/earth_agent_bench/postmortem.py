@@ -17,18 +17,18 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .runconfig import harness_ids
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNS_DIR = REPO_ROOT / "runs" / "harbor"
 IMPROVEMENTS_DIR = REPO_ROOT / "improvements"
 _STAMP = re.compile(r"-(\d{8}-\d{6})$")
-
-NEUTRAL_CONDITIONS = ("baseline", "mcp", "skills", "mcp-skills")
-HARNESSES = ["pi", "opencode", "codex-cli", "claude-code"]
 S3_PAT = re.compile(r"s3|amazonaws", re.IGNORECASE)
 
 
 @dataclass
 class Cell:
+    """One evaluated cell (task/condition/status/reward/note)."""
     task: str
     condition: str
     status: str        # solved | partial | timeout | fail | error
@@ -38,6 +38,7 @@ class Cell:
 
 @dataclass
 class Digest:
+    """Aggregated postmortem for a model: cells + trajectory tallies."""
     model: str
     run_start: str = ""
     harness: str = "pi"
@@ -58,6 +59,7 @@ class Digest:
 
 
 def _latest_run_start() -> str:
+    """Stamp of the most recent runs/eab-full-*.log, or ''."""
     logs = sorted(glob.glob(str(REPO_ROOT / "runs" / "eab-full-*.log")))
     if not logs:
         return ""
@@ -66,6 +68,7 @@ def _latest_run_start() -> str:
 
 
 def _classify(result_path: Path) -> tuple[str, float | None, str]:
+    """Classify a job result.json into solved|partial|fail|timeout|error."""
     try:
         j = json.loads(result_path.read_text())
     except Exception:
@@ -93,16 +96,18 @@ def _failure_signature(job_dir: Path) -> str:
     """First meaningful error line from the verifier stdout, if any."""
     for pat in ("**/verifier/test-stdout.txt", "**/verifier/test_output.txt"):
         for f in glob.glob(str(job_dir / pat), recursive=True):
-            lines = [l.strip() for l in Path(f).read_text(errors="replace").splitlines() if l.strip()]
-            for l in reversed(lines):
-                if re.search(r"Error|assert|KeyError|ValueError|mismatch|::.*FAIL", l):
-                    return l[:160]
+            lines = [ln.strip() for ln in Path(f).read_text(errors="replace").splitlines()
+                     if ln.strip()]
+            for ln in reversed(lines):
+                if re.search(r"Error|assert|KeyError|ValueError|mismatch|::.*FAIL", ln):
+                    return ln[:160]
     return ""
 
 
 def _trajectory_tally(model: str, harness: str) -> dict:
+    """Count curl/search_data/s3/http + steps across a model's transcripts."""
     tally = {"curl": 0, "search_data": 0, "s3": 0, "http": 0, "steps": 0}
-    harnesses = HARNESSES if harness == "all" else [harness]
+    harnesses = (harness_ids() or ["pi"]) if harness == "all" else [harness]
     for h in harnesses:
         for f in glob.glob(str(RUNS_DIR / f"eab-*-{model}-{h}-*" / "*" / "agent" / "*.txt")):
             txt = Path(f).read_text(errors="replace")
@@ -114,8 +119,9 @@ def _trajectory_tally(model: str, harness: str) -> dict:
 
 
 def build_digest(model: str, harness: str = "pi", run_start: str | None = None) -> Digest:
+    """Assemble a model's Digest from its Harbor runs (harness or 'all')."""
     run_start = run_start if run_start is not None else _latest_run_start()
-    harnesses = HARNESSES if harness == "all" else [harness]
+    harnesses = (harness_ids() or ["pi"]) if harness == "all" else [harness]
     d = Digest(model=model, run_start=run_start, harness=harness)
     seen: set[tuple[str, str]] = set()
     for h in harnesses:
@@ -141,6 +147,7 @@ def build_digest(model: str, harness: str = "pi", run_start: str | None = None) 
 
 
 def render_skill(d: Digest) -> str:
+    """Render the Digest as a self-improvement SKILL.md."""
     lines = [
         "---",
         "name: self-improvement",
@@ -202,6 +209,7 @@ def render_skill(d: Digest) -> str:
 
 
 def write_skill(d: Digest, out_dir: Path = IMPROVEMENTS_DIR) -> Path:
+    """Write the rendered skill under improvements/<model>/."""
     dest = out_dir / d.model / "self-improvement" / "SKILL.md"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(render_skill(d))

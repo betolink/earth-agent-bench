@@ -12,7 +12,7 @@ change, plus errors). Every refresh step is wrapped so a transient error is
 surfaced in the status bar instead of crashing the app.
 
 Keys: r refresh now · +/- interval ±30s · s toggle auto · q quit
-Run:  python3 bench-dashboard/dashboard.py
+Run:  eab dashboard   (or: python -m earth_agent_bench.dashboard)
 Env:  DASH_INTERVAL (seconds, default 300) · DASH_LOG (log path)
 """
 from __future__ import annotations
@@ -37,6 +37,9 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, RichLog, Static
 
+from .runconfig import condition_ids, load_run_config, task_ids
+from .runs import parse_job_dir
+
 # ----------------------------------------------------------------- logging
 LOG_PATH = Path(os.environ.get(
     "DASH_LOG", Path(__file__).resolve().parents[2] / "runs" / "dashboard.log"))
@@ -51,66 +54,75 @@ if not log.handlers:
 
 
 def _excepthook(exc_type, exc, tb):
+    """Log uncaught exceptions to the dashboard log instead of crashing."""
     log.error("UNCAUGHT: %s", "".join(traceback.format_exception(exc_type, exc, tb)))
 
 
 sys.excepthook = _excepthook
 
 # ----------------------------------------------------------------- constants
-# earth-agent-bench repo root (this file is src/earth_agent_bench/dashboard.py)
+# Repo roots. earth-agent-bench root (this file is src/earth_agent_bench/dashboard.py).
 EAB = Path(os.environ.get("EAB_REPO_DIR", Path(__file__).resolve().parents[2]))
 ROOT = EAB.parent
 MB = Path(os.environ.get("EAB_MB_DIR", ROOT / "mini-benchmarks"))
-
-MODELS = ["tiel-coder-35b", "qwen3.8-27b-gsq", "ornith-1.5-9b", "muse-glimmer-30b",
-          "gpt-oss-20b", "deepseek-qwen3.5-9b-mtp", "lfm2.5-2.6b"]
-HARNESSES = ["claude-code", "codex-cli", "opencode", "pi"]
-TASK_ORDER = ["TERM-01", "TERM-02", "TERM-03", "SCI-01", "SCI-02", "SCI-03",
-              "SWE-01", "SWE-02", "SWE-03", "SWE-04"]
-
-EAB_MODELS = ["tiel-coder-35b", "ornith-1.5-9b"]
-EAB_HARNESSES = ["pi", "opencode", "codex-cli"]
-EAB_CONDITIONS = ["baseline", "improve", "mcp", "skills", "mcp-skills"]
-EAB_TASKS = 18
 
 INTERVAL = int(os.environ.get("DASH_INTERVAL", "300"))
 _STAMP = re.compile(r"-(\d{8}-\d{6})$")
 
 
-def _eab_task_map() -> list[tuple[str, str]]:
-    """[(full_task_name, short_code), ...] from benchmark/tasks/*/*.yaml."""
-    out = []
-    for f in sorted(glob.glob(str(EAB / "benchmark" / "tasks" / "*" / "*.yaml"))):
-        name = Path(f).stem
-        out.append((name, name.split("-")[0]))
-    return out
+def _load_yaml(path: Path) -> dict:
+    """Best-effort YAML load; returns {} (and logs) when missing/unreadable."""
+    try:
+        import yaml
+        return yaml.safe_load(path.read_text()) or {}
+    except Exception as error:
+        log.warning("could not load %s: %s", path, error)
+        return {}
 
 
-EAB_CODE_MAP = _eab_task_map()
-FULL2SHORT = {full: short for full, short in EAB_CODE_MAP}
+# Coding suite (mini-benchmarks): its own manifest is the source of truth.
+_MB = _load_yaml(MB / "manifest.yaml")
+MODELS = list(_MB.get("models", []))
+HARNESSES = list(_MB.get("harnesses", []))
+TASK_ORDER = [t["id"] for t in _MB.get("tasks", []) if isinstance(t, dict)]
+
+# Earth-agent-bench: the run matrix comes from the master config (run.yaml).
+_CFG = load_run_config()
+EAB_MODELS = list(_CFG["models"])
+EAB_HARNESSES = list(_CFG["harnesses"])
+EAB_CONDITIONS = list(_CFG["conditions"])
+EAB_TASKS = len(task_ids())
+EAB_CODE_MAP = [(t, t.split("-")[0]) for t in task_ids()]
+FULL2SHORT = dict(EAB_CODE_MAP)
 
 # colour helpers -----------------------------------------------------------
 GREEN, YELLOW, RED, NONE, RUN, IDLE = "green3", "yellow3", "red3", "grey37", "bold green", "grey50"
-COND_STYLE = {"baseline": "grey58", "mcp": "cyan3", "skills": "magenta3", "mcp-skills": "bold green3"}
+_PALETTE = ["grey58", "cyan3", "magenta3", "bold green3", "yellow3", "blue3", "red3"]
+COND_STYLE = {c: _PALETTE[i % len(_PALETTE)]
+              for i, c in enumerate(condition_ids() or EAB_CONDITIONS)}
 
 
 def _rw_style(v: float) -> str:
+    """Colour for a reward (green >=0.8, yellow >=0.5, red >0, grey ==0)."""
     return GREEN if v >= 0.8 else (YELLOW if v >= 0.5 else (RED if v > 0 else NONE))
 
 
 def reward_text(v: float | None) -> Text:
+    """Render a reward as coloured text ('-' when unknown)."""
     if v is None:
         return Text("—", style=NONE, justify="right")
     return Text(f"{v:.2f}", style=_rw_style(v), justify="right")
 
 
 def reward_count_text(avg: float, n: int) -> Text:
+    """Render an 'n/total' count coloured by pass rate."""
     t = reward_text(avg)
     t.append(f" ({n})", style=NONE)
     return t
 
 
 def task_text(v: float | None) -> Text:
+    """Render a coding task cell (green when solved)."""
     if v is None:
         return Text("·", style=NONE)
     if v >= 1.0:
@@ -121,6 +133,7 @@ def task_text(v: float | None) -> Text:
 
 
 def eab_task_text(status: str | None, reward: float | None) -> Text:
+    """Render an EAB task cell coloured by reward."""
     if status is None:
         return Text("·", style=NONE)
     if status == "x":
@@ -133,22 +146,27 @@ def eab_task_text(status: str | None, reward: float | None) -> Text:
 
 
 def bar_text(frac: float) -> Text:
+    """Render a unicode progress bar for done/total."""
     filled = int(round(frac * 10))
     style = GREEN if frac >= 0.999 else (YELLOW if frac > 0 else NONE)
     return Text("█" * filled, style=style) + Text("░" * (10 - filled), style=NONE)
 
 
 def cond_text(c: str) -> Text:
+    """Render a condition name with its colour."""
     return Text(c, style=COND_STYLE.get(c, "white"))
 
 
 # ----------------------------------------------------------------- collectors
 def _pgrep(pattern: str) -> list[str]:
+    """Return pgrep -af lines matching a pattern (excluding this dashboard)."""
     out = subprocess.run(["pgrep", "-af", pattern], capture_output=True, text=True, timeout=10).stdout
-    return [l for l in out.splitlines() if "pgrep" not in l and "dashboard.py" not in l]
+    return [line for line in out.splitlines()
+            if "pgrep" not in line and "dashboard.py" not in line]
 
 
 def collect_processes() -> dict:
+    """Snapshot running benchmark processes + the current job."""
     runner = _pgrep("runner/run.py")
     driver = _pgrep("scripts/eab-full-run.sh")
     harbor = _pgrep("harbor run")
@@ -164,6 +182,7 @@ def collect_processes() -> dict:
 
 
 def collect_coding() -> dict:
+    """Latest coding-suite result per (task, model, harness) + rankings."""
     path = MB / "reports" / "results.jsonl"
     rows = []
     if path.exists():
@@ -183,7 +202,7 @@ def collect_coding() -> dict:
     models += sorted({k[1] for k in latest if k[1] not in models})
     # mean reward per (model, harness) so views can rank best -> worst
     buckets: dict[tuple, list] = {}
-    for (task, mo, hh), r in latest.items():
+    for (_task, mo, hh), r in latest.items():
         if r.get("reward") is not None:
             buckets.setdefault((mo, hh), []).append(r["reward"])
     score_avg = {k: sum(v) / len(v) for k, v in buckets.items()}
@@ -273,6 +292,7 @@ def collect_eab() -> dict:
 
 # ----------------------------------------------------------------- live view
 def _newest_agent_file() -> Path | None:
+    """Path to the most recently modified agent transcript, or None."""
     files = glob.glob(str(EAB / "runs" / "harbor" / "eab-*" / "*" / "agent" / "*.txt"))
     if not files:
         return None
@@ -280,6 +300,7 @@ def _newest_agent_file() -> Path | None:
 
 
 def _tail(path: Path, max_bytes: int = 300_000, max_lines: int = 120) -> list[str]:
+    """Last N lines of a (possibly large) text file, dropping a partial tail line."""
     size = path.stat().st_size
     with path.open("rb") as fh:
         if size > max_bytes:
@@ -296,6 +317,7 @@ def _tail(path: Path, max_bytes: int = 300_000, max_lines: int = 120) -> list[st
 
 
 def _tool_detail(inp) -> str:
+    """Short human detail (command/path/query) from a tool-call dict."""
     if isinstance(inp, str):
         return inp
     if not isinstance(inp, dict):
@@ -309,6 +331,7 @@ def _tool_detail(inp) -> str:
 
 
 def _first_text(holder) -> str:
+    """First non-empty text-ish field of an event dict ('' if none)."""
     if not isinstance(holder, dict):
         return ""
     for k in ("text", "thinking", "reasoning", "content", "aggregate_output",
@@ -320,6 +343,7 @@ def _first_text(holder) -> str:
 
 
 def _condense(line: str, width: int = 150) -> str | None:
+    """Condense one harness stream line into a short brain/tool/done line."""
     line = line.strip()
     if not line:
         return None
@@ -404,19 +428,14 @@ def _condense(line: str, width: int = 150) -> str | None:
 
 
 def _job_info(job_dir: str) -> dict:
-    info = {"job_dir": job_dir, "task": "", "model": "", "harness": "", "condition": ""}
-    for m in EAB_MODELS:
-        for h in EAB_HARNESSES:
-            for c in EAB_CONDITIONS:
-                marker = f"-{m}-{h}-{c}-"
-                if marker in job_dir:
-                    info.update(task=job_dir[len("eab-"):job_dir.index(marker)],
-                                model=m, harness=h, condition=c)
-                    return info
-    return info
+    """Parse a job dir name into task/model/harness/condition (blank if unknown)."""
+    ref = parse_job_dir(job_dir)
+    return {"job_dir": job_dir, "task": ref.task, "model": ref.model,
+            "harness": ref.harness, "condition": ref.condition}
 
 
 def collect_live() -> dict:
+    """Tail the newest agent transcript and condense it for the LIVE view."""
     path = _newest_agent_file()
     if path is None:
         return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent", "path": "", "task": ""}
@@ -425,7 +444,7 @@ def collect_live() -> dict:
     header = (f"LIVE — {info['task']} · {info['model']} · {info['harness']} · {info['condition']}"
               if info["task"] else "LIVE — current agent")
     try:
-        lines = [x for x in (_condense(l) for l in _tail(path)) if x][-40:]
+        lines = [x for x in (_condense(line) for line in _tail(path)) if x][-40:]
     except OSError as e:
         return {"lines": [f"(read error: {e})"], "header": header, "path": str(path), "task": info["task"]}
     return {"lines": lines or ["(waiting for output…)"], "header": header,
@@ -488,6 +507,7 @@ class LogScreen(ModalScreen):
 
 # ----------------------------------------------------------------- app
 class Dashboard(App):
+    """The Textual app: coding matrix, EAB combos, live agent, current task."""
     CSS = """
     Screen { layout: vertical; }
     #status { height: 5; padding: 0 1; background: $boost; }

@@ -48,6 +48,7 @@ EVAL_ABS_NOTE = EVAL_OUTPUT_NOTE
 
 
 def find_gold(task_id: str) -> EvalGold:
+    """Find the gold-standard file for a task, if present."""
     for gold in load_suite(EVAL_SUITE):
         if gold.task_id == task_id:
             return gold
@@ -55,12 +56,14 @@ def find_gold(task_id: str) -> EvalGold:
 
 
 def _describe(task_path: Path, is_eval: bool) -> str:
+    """Human description for a task package (eval vs grounded)."""
     if is_eval:
         return f"Correctness eval: {task_path.stem}"
     return load_task(task_path).title
 
 
 def _render_task_toml(task_id: str, description: str, condition: str) -> str:
+    """Render the generated task.toml (timeouts, skills_dir, MCP, env)."""
     lines = [
         'schema_version = "1.4"',
         "",
@@ -108,6 +111,7 @@ def _vendor_runtime(dest: Path) -> None:
 
 
 def _vendor_benchmark(tests: Path) -> None:
+    """Copy the benchmark package + runtime modules into the task's tests dir."""
     src = Path(__file__).resolve().parents[1]
     dest = tests / "earth_agent_bench"
     dest.mkdir(parents=True, exist_ok=True)
@@ -122,6 +126,7 @@ def _vendor_benchmark(tests: Path) -> None:
 
 
 def _vendor_eval(tests: Path) -> None:
+    """Vendor the eval suite into the task package."""
     src = Path(__file__).resolve().parents[1]
     dest = tests / "earth_agent_bench"
     dest.mkdir(parents=True, exist_ok=True)

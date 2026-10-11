@@ -23,11 +23,13 @@ _INIT = {
 
 
 def load_servers() -> dict:
+    """MCP server entries from mcp/manifest.yaml."""
     with MCP_MANIFEST.open() as f:
         return (yaml.safe_load(f) or {}).get("servers", {})
 
 
 def probe_server(name: str, entry: dict, timeout: int = 20) -> dict:
+    """Probe one MCP server endpoint; return its status dict."""
     url = entry.get("url")
     result = {"server": name, "url": url, "declared": entry.get("status", "?"),
               "reachable": False, "http": None, "note": ""}
@@ -52,4 +54,5 @@ def probe_server(name: str, entry: dict, timeout: int = 20) -> dict:
 
 
 def doctor_servers(timeout: int = 20) -> list[dict]:
+    """Probe all MCP servers and return (id, status, detail) rows."""
     return [probe_server(name, entry, timeout) for name, entry in load_servers().items()]

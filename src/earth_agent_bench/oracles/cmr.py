@@ -31,12 +31,14 @@ _URL_RULES: list[tuple[str, str]] = [
 
 
 def _cmr_get(url: str, accept: str, timeout: float = 30.0) -> bytes:
+    """GET a CMR URL with the EDL token, returning parsed JSON."""
     request = urllib.request.Request(url, headers={"Accept": accept})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
 
 
 def find_collections(short_name: str, timeout: float = 30.0) -> list[dict]:
+    """Search CMR collections by free text; return hits."""
     url = f"{CMR_BASE}/collections?" + urllib.parse.urlencode({"short_name": short_name})
     payload = json.loads(_cmr_get(url, "application/json", timeout=timeout))
     return (payload.get("feed") or {}).get("entry") or []
@@ -44,6 +46,7 @@ def find_collections(short_name: str, timeout: float = 30.0) -> list[dict]:
 
 def find_concept_id(short_name: str, provider: Optional[str] = None,
                     timeout: float = 30.0) -> Optional[str]:
+    """Resolve a collection concept-id from a short name."""
     entries = find_collections(short_name, timeout=timeout)
     if provider:
         entries = [e for e in entries if e.get("id", "").endswith(f"-{provider}")]
@@ -57,6 +60,7 @@ _SERVICE_SUBTYPES = {"APPEEARS", "GIOVANNI", "OPENDAP", "HARMONY", "ESI", "SUBSE
 
 
 def services_from_related_urls(umm_c: dict) -> dict[str, dict]:
+    """Infer access services from a collection's related URLs."""
     found: dict[str, dict] = {}
     for url_entry in umm_c.get("RelatedUrls", []):
         url = url_entry.get("URL", "")
@@ -94,6 +98,7 @@ def services_from_related_urls(umm_c: dict) -> dict[str, dict]:
 
 def fetch_services(short_name: str, provider: Optional[str] = None,
                    timeout: float = 30.0) -> dict:
+    """Fetch the service associations for a collection."""
     entries = find_collections(short_name, timeout=timeout)
     if provider:
         entries = [e for e in entries if e.get("id", "").endswith(f"-{provider}")]

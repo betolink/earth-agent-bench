@@ -15,18 +15,61 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_YAML = REPO_ROOT / "experiments" / "run.yaml"
 MODELS_YAML = REPO_ROOT / "experiments" / "models.yaml"
 CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
+HARNESSES_YAML = REPO_ROOT / "experiments" / "harnesses.yaml"
 TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
 
 
 def _csv(value: str) -> list[str]:
+    """Split a comma-separated string into a trimmed, non-empty list."""
     return [x.strip() for x in (value or "").split(",") if x.strip()]
 
 
 def _load(path: Path) -> dict:
+    """Load a YAML file; return ``{}`` when it is missing."""
     return yaml.safe_load(path.read_text()) if path.exists() else {}
 
 
+# --- shared accessors: the single source of truth for the benchmark matrix ---
+
+def harness_ids() -> list[str]:
+    """Harness ids from experiments/harnesses.yaml."""
+    return list((_load(HARNESSES_YAML).get("harnesses") or {}).keys())
+
+
+def condition_ids() -> list[str]:
+    """Condition ids (in order) from experiments/conditions.yaml."""
+    return list(_load(CONDITIONS_YAML).get("order", []))
+
+
+def roster_ids() -> list[str]:
+    """Model ids from experiments/models.yaml (the roster)."""
+    return list(_load(MODELS_YAML).get("models", {}).keys())
+
+
+def restricted_models(harness: str) -> set[str]:
+    """Models a restricted harness is limited to (harnesses.yaml crossing.restricted)."""
+    crossing = _load(HARNESSES_YAML).get("crossing") or {}
+    entry = (crossing.get("restricted") or {}).get(harness) or {}
+    return set(entry.get("models", []))
+
+
+def task_ids() -> list[str]:
+    """Task ids (yaml stems) from benchmark/tasks/."""
+    return sorted(p.stem for p in TASKS_DIR.rglob("*.yaml"))
+
+
 def load_run_config() -> dict:
+    """Resolve the run matrix: env overrides > ``experiments/run.yaml`` > defaults.
+
+    Returns a dict with ``name``, ``models``, ``harnesses``, ``conditions``,
+    ``tasks``, ``trials``, ``concurrency``, the ``roster`` and any
+    ``unknown_models`` (ids not present in ``experiments/models.yaml``).
+
+    Example::
+
+        cfg = load_run_config()          # honours EAB_MODELS / EAB_CONCURRENCY / …
+        cfg["models"], cfg["conditions"]
+    """
     cfg = _load(RUN_YAML)
     roster = _load(MODELS_YAML).get("models", {})
     conditions_all = _load(CONDITIONS_YAML).get("order", [])
@@ -103,6 +146,11 @@ def load_manifest_names() -> dict[str, str]:
 
 
 def resolve_tasks(sel) -> list[Path]:
+    """Resolve a task selection into task YAML paths.
+
+    ``sel`` may be ``"all"``/``None``, a comma-separated string, or a list of task
+    ids (matched by exact stem or substring).
+    """
     all_tasks = sorted(TASKS_DIR.rglob("*.yaml"))
     if sel in ("all", None, ""):
         return all_tasks

@@ -8,18 +8,17 @@ comparison is reproducible without hand-tallying run directories.
 from __future__ import annotations
 
 import json
-import re
 from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HARBOR_RUNS = REPO_ROOT / "runs" / "harbor"
-_COND = re.compile(r"-(baseline|mcp-skills|mcp|skills)-\d{8}-")
 
 
 def _condition(job_name: str) -> str:
-    match = _COND.search(job_name or "")
-    return match.group(1) if match else "?"
+    """Condition parsed from a Harbor job dir name ('' if not a run dir)."""
+    from .runs import parse_job_dir
+    return parse_job_dir(job_name or "").condition or "?"
 
 
 def collect(root: Path = DEFAULT_HARBOR_RUNS) -> list[dict]:
@@ -60,6 +59,7 @@ def collect(root: Path = DEFAULT_HARBOR_RUNS) -> list[dict]:
 
 
 def summarize(rows: list[dict], by: tuple[str, ...] = ("model",)) -> list[dict]:
+    """Aggregate collected runs into per-(model,condition) stats."""
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for row in rows:
         groups[tuple(row[b] for b in by)].append(row)
@@ -67,7 +67,7 @@ def summarize(rows: list[dict], by: tuple[str, ...] = ("model",)) -> list[dict]:
     for key, items in sorted(groups.items()):
         scored = [r for r in items if r["reward"] is not None]
         rewards = [r["reward"] for r in scored]
-        record = dict(zip(by, key))
+        record = dict(zip(by, key, strict=False))
         record.update({
             "n": len(items),
             "n_scored": len(scored),
@@ -82,6 +82,7 @@ def summarize(rows: list[dict], by: tuple[str, ...] = ("model",)) -> list[dict]:
 
 
 def to_markdown(rows: list[dict], by: tuple[str, ...] = ("model",)) -> str:
+    """Render the summary as a Markdown table."""
     summary = summarize(rows, by=by)
     cols = list(by) + ["n", "n_scored", "n_errored", "mean_reward", "pass_rate", "in_tokens", "out_tokens"]
     lines = ["| " + " | ".join(cols) + " |", "|" + "|".join(["---"] * len(cols)) + "|"]
@@ -91,4 +92,5 @@ def to_markdown(rows: list[dict], by: tuple[str, ...] = ("model",)) -> str:
 
 
 def main(root: Path = DEFAULT_HARBOR_RUNS, by: tuple[str, ...] = ("model",)) -> str:
+    """CLI entry: print a report for the runs tree."""
     return to_markdown(collect(root), by=by)

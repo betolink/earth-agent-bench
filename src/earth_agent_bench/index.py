@@ -21,8 +21,8 @@ from datetime import datetime
 from pathlib import Path
 
 from . import trajectory as tj
+from .runs import parse_job_dir, read_json
 
-_STAMP = tj._STAMP
 COMPONENTS = ("access_pattern", "service_discovery", "representation",
               "efficiency", "collection_selection", "validation")
 
@@ -40,6 +40,7 @@ def load_roster() -> dict[str, str]:
 
 
 def load_sampling() -> dict:
+    """Sampling defaults from experiments/models.yaml."""
     try:
         import yaml
         data = yaml.safe_load((tj.REPO_ROOT / "experiments" / "models.yaml").read_text())
@@ -48,28 +49,13 @@ def load_sampling() -> dict:
         return {}
 
 
-def _known_conditions() -> list[str]:
-    try:
-        import yaml
-        data = yaml.safe_load((tj.REPO_ROOT / "experiments" / "conditions.yaml").read_text())
-        return list((data.get("conditions") or {}).keys())
-    except Exception:
-        return []
-
-
-def _condition_of(dirname: str, known: list[str]) -> str:
-    stem = _STAMP.sub("", dirname)  # eab-<task>-<model>-<harness>-<cond>
-    for cond in sorted(known, key=len, reverse=True):
-        if stem.endswith("-" + cond):
-            return cond
-    return ""
-
-
 def _served(model_name: str) -> str:
+    """Strip the provider prefix from a served model name."""
     return model_name.split("/", 1)[-1] if model_name else ""
 
 
 def _classify(reward: float | None, exc: str) -> str:
+    """Map (reward, exception) to solved|partial|fail|timeout|error."""
     if exc:
         return "timeout" if "Timeout" in exc else "error"
     if reward is None:
@@ -82,6 +68,7 @@ def _classify(reward: float | None, exc: str) -> str:
 
 
 def _rel(path: Path) -> str:
+    """Path relative to the repo root (or absolute if outside)."""
     try:
         return str(path.relative_to(tj.REPO_ROOT))
     except ValueError:
@@ -89,6 +76,7 @@ def _rel(path: Path) -> str:
 
 
 def _duration(start: str | None, end: str | None) -> float | None:
+    """Seconds between two ISO timestamps (None if unparseable)."""
     try:
         s = datetime.fromisoformat((start or "").replace("Z", "+00:00"))
         e = datetime.fromisoformat((end or "").replace("Z", "+00:00"))
@@ -98,9 +86,9 @@ def _duration(start: str | None, end: str | None) -> float | None:
 
 
 def index_records(runs_dir: Path | None = None) -> list[dict]:
+    """Build one flat metadata record per trial from the run tree."""
     runs_dir = Path(runs_dir or tj.RUNS_DIR)
     roster = load_roster()
-    known = _known_conditions()
     try:
         from .runconfig import load_manifest_names
         names = load_manifest_names()
@@ -109,12 +97,11 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
     records: list[dict] = []
     for job in sorted(glob.glob(str(runs_dir / "eab-*"))):
         jd = Path(job)
-        condition = _condition_of(jd.name, known)
-        stamp = _STAMP.search(jd.name)
-        stamp = stamp.group(1) if stamp else ""
+        ref = parse_job_dir(jd.name)
+        condition, stamp = ref.condition, ref.stamp
         for res in sorted(glob.glob(str(jd / "*" / "result.json"))):
             trial_dir = Path(res).parent
-            j = tj._read_json(Path(res))
+            j = read_json(Path(res))
             cfg = j.get("config", {})
             agent = cfg.get("agent", {})
             served = _served(agent.get("model_name", ""))
@@ -122,10 +109,10 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
             task = Path((cfg.get("task") or {}).get("path", "") or "").name
             harness = agent.get("name", "")
             exc = (j.get("exception_info") or {}).get("exception_type", "")
-            reward = tj._read_json(trial_dir / "verifier" / "reward.json")
+            reward = read_json(trial_dir / "verifier" / "reward.json")
             ar = j.get("agent_result") or {}
             traj = trial_dir / "agent" / "trajectory.json"
-            fm = (tj._read_json(traj).get("final_metrics") or {})
+            fm = (read_json(traj).get("final_metrics") or {})
             r = reward.get("reward")
             records.append({
                 "task": task, "model": model, "harness": harness,
@@ -151,6 +138,7 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
 
 
 def write_index(records: list[dict], out: Path, fmt: str = "jsonl") -> Path:
+    """Write records as jsonl (default), csv (flattened) or json."""
     out.parent.mkdir(parents=True, exist_ok=True)
     if fmt == "json":
         out.write_text(json.dumps(records, indent=2, default=str) + "\n")

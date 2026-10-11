@@ -17,16 +17,19 @@ PatternId = Literal[
 
 
 class SpatialExtent(BaseModel):
+    """Bounding box (west, south, east, north)."""
     type: Literal["bbox", "polygon", "point"]
     coordinates: list[float]
 
 
 class TemporalExtent(BaseModel):
+    """Time range (start/end)."""
     start: date
     end: date
 
 
 class AccessRequirement(BaseModel):
+    """Required aggregation/units/output format."""
     description: str
     spatial_extent: SpatialExtent
     temporal_extent: TemporalExtent
@@ -35,6 +38,7 @@ class AccessRequirement(BaseModel):
 
 
 class ServiceRef(BaseModel):
+    """A reference to an access service."""
     pattern: PatternId
     available: bool = True
     grade: Optional[str] = None
@@ -43,6 +47,7 @@ class ServiceRef(BaseModel):
 
 
 class CollectionRef(BaseModel):
+    """A CMR collection reference."""
     short_name: str
     concept_id: Optional[str] = None
     tier: Literal["preferred", "acceptable", "discouraged", "unacceptable"]
@@ -52,12 +57,14 @@ class CollectionRef(BaseModel):
 
 
 class Envelope(BaseModel):
+    """Efficiency envelope (expected bytes/objects/runtime)."""
     max_bytes: int
     max_objects: int
     max_runtime_s: int
 
 
 class ValidationSpec(BaseModel):
+    """Validation expectations for a task."""
     checks: list[str] = Field(default_factory=lambda: [
         "variable_present",
         "spatial_extent_correct",
@@ -69,6 +76,7 @@ class ValidationSpec(BaseModel):
 
 
 class PatternTiers(BaseModel):
+    """Ranked access-pattern tiers for a task."""
     best: list[PatternId] = Field(default_factory=list)
     acceptable: list[PatternId] = Field(default_factory=list)
     marginal: list[PatternId] = Field(default_factory=list)
@@ -76,12 +84,14 @@ class PatternTiers(BaseModel):
 
 
 class GoldStandard(BaseModel):
+    """The gold access pattern + services for a task."""
     primary_patterns: list[PatternId]
     acceptable_patterns: list[PatternId] = Field(default_factory=list)
     reasoning: str = ""
 
 
 class Task(BaseModel):
+    """A grounded benchmark task definition."""
     model_config = ConfigDict(extra="forbid")
 
     task_id: str
@@ -98,12 +108,14 @@ class Task(BaseModel):
 
 
 class EfficiencyMetrics(BaseModel):
+    """Observed efficiency metrics for a run."""
     bytes_read: int = 0
     objects_read: int = 0
     runtime_seconds: float = 0.0
 
 
 class RunObservation(BaseModel):
+    """Observed behavior of a run (services/patterns/metrics)."""
     task_id: str
     observed_patterns: list[PatternId] = Field(default_factory=list)
     collection_short_names: list[str] = Field(default_factory=list)
@@ -114,11 +126,12 @@ class RunObservation(BaseModel):
 
 
 class RunManifest(BaseModel):
+    """Metadata for one run (model/harness/condition/tokens)."""
     task_id: str
     model_id: str
     model_tier: Literal["local", "frontier_open", "closed_reference"]
     harness: str
-    condition: Literal["baseline", "mcp", "skills", "mcp-skills"]
+    condition: str = "baseline"
     trial: int = 1
     quantization: Optional[str] = None
     harness_version: Optional[str] = None
@@ -130,6 +143,7 @@ class RunManifest(BaseModel):
 
 
 class VerifierResult(BaseModel):
+    """Verifier outcome + per-component scores."""
     reward: float
     collection_selection: float
     service_discovery: float

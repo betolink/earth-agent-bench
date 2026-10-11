@@ -34,6 +34,7 @@ SERVICE_TO_PATTERN = {
 
 
 class ServiceCatalog:
+    """Catalog of known Earthdata access services and patterns."""
     def __init__(self, yaml_path: str | Path):
         self.path = Path(yaml_path)
         if not self.path.exists():

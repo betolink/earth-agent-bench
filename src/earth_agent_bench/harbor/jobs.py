@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shlex
 import shutil
 import subprocess
@@ -46,6 +45,7 @@ PI_MODEL_APIS = {
 
 
 def _harbor_model(model_id: str, harness: str) -> str:
+    """Build the Harbor model_name string for a roster model id."""
     roster = load_models()["models"]
     if model_id not in roster:
         raise SystemExit(
@@ -69,6 +69,7 @@ def _subst_gateway(obj, base: str | None = None):
 
 
 def _agent_env(provider: str | None) -> dict[str, str]:
+    """Env vars Harbor injects into the agent (gateway URL + key)."""
     base = gateway_base()
     key_ref = llm_api_key_ref()
     if provider == "anthropic":
@@ -170,6 +171,7 @@ def _harbor_cli() -> str:
 def render_harbor_command(
     job_config: str | Path, jobs_dir: Path = DEFAULT_JOBS
 ) -> list[str]:
+    """The `harbor run --config ...` shell command for a job."""
     return [
         _harbor_cli(),
         "run",

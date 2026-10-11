@@ -10,6 +10,7 @@ DEFAULT_TASKS_DIR = Path(__file__).resolve().parents[2] / "benchmark" / "tasks"
 
 
 def load_task(path: str | Path) -> Task:
+    """Load a grounded task YAML into a Task model."""
     path = Path(path)
     with path.open() as f:
         data = yaml.safe_load(f)
@@ -18,6 +19,7 @@ def load_task(path: str | Path) -> Task:
 
 
 def load_all(tasks_dir: str | Path = DEFAULT_TASKS_DIR) -> list[Task]:
+    """Load every task YAML under a directory."""
     tasks_dir = Path(tasks_dir)
     tasks = []
     for path in sorted(tasks_dir.rglob("*.yaml")):
@@ -26,11 +28,13 @@ def load_all(tasks_dir: str | Path = DEFAULT_TASKS_DIR) -> list[Task]:
 
 
 def _derive_task_id(path: Path) -> str:
+    """Derive a task id from its path."""
     relative = path.with_suffix("")
     return "/".join(relative.parts[-3:])
 
 
 def render_instruction(task: Task) -> str:
+    """Render a task's instruction.md from its definition."""
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
     variables = ", ".join(req.variables_of_interest)

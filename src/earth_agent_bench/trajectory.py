@@ -21,14 +21,14 @@ from __future__ import annotations
 import glob
 import json
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from .runs import parse_job_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNS_DIR = Path(os.environ.get("EAB_RUNS_DIR", REPO_ROOT / "runs" / "harbor"))
 TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
-_STAMP = re.compile(r"-(\d{8}-\d{6})$")
 
 # named formats -> path relative to the trial dir
 ARTIFACTS = {
@@ -45,6 +45,7 @@ SESSIONS = {"session", "jsonl"}  # agent/<harness>/sessions/*.jsonl
 
 @dataclass
 class Trial:
+    """A resolved trial directory (job, dir, condition, stamp)."""
     job: str          # eab-<task>-<model>-<harness>-<cond>-<stamp>
     dir: Path         # .../<trial-name>
     condition: str
@@ -68,12 +69,6 @@ def resolve_task_id(task: str) -> str:
     raise LookupError(f"ambiguous task {task!r}: {', '.join(hits)}")
 
 
-def _condition(job: str, task: str, model: str, harness: str) -> str:
-    prefix = f"eab-{task}-{model}-{harness}-"
-    tail = job[len(prefix):] if job.startswith(prefix) else job
-    return _STAMP.sub("", tail)
-
-
 def find_trials(task: str, model: str, harness: str,
                 condition: str | None = None) -> list[Trial]:
     """Trials matching (task, model, harness[, condition]), oldest -> newest."""
@@ -83,12 +78,9 @@ def find_trials(task: str, model: str, harness: str,
     pat += "-*"
     trials: list[Trial] = []
     for job in sorted(glob.glob(str(RUNS_DIR / pat))):
-        job_name = Path(job).name
-        stamp = (_STAMP.search(job_name).group(1)
-                 if _STAMP.search(job_name) else "")
-        cond = _condition(job_name, task, model, harness)
+        ref = parse_job_dir(Path(job).name)
         for result in sorted(glob.glob(str(Path(job) / "*" / "result.json"))):
-            trials.append(Trial(job_name, Path(result).parent, cond, stamp))
+            trials.append(Trial(Path(job).name, Path(result).parent, ref.condition, ref.stamp))
     trials.sort(key=lambda t: (t.stamp, t.name))
     return trials
 
@@ -124,6 +116,7 @@ def read_artifact(path: Path) -> object:
 
 
 def reward_of(trial: Trial) -> float | None:
+    """Read the trial's verifier reward (None if absent)."""
     p = trial.dir / "verifier" / "reward.json"
     try:
         return float(json.loads(p.read_text()).get("reward"))
@@ -132,6 +125,7 @@ def reward_of(trial: Trial) -> float | None:
 
 
 def exception_of(trial: Trial) -> str:
+    """Read the trial's exception type ('' if none)."""
     try:
         info = json.loads((trial.dir / "result.json").read_text()).get("exception_info") or {}
         return info.get("exception_type") or ""
@@ -144,6 +138,7 @@ def exception_of(trial: Trial) -> str:
 # --------------------------------------------------------------------------- #
 
 def _read_json(path: Path) -> dict:
+    """Best-effort JSON read; {} on failure."""
     try:
         return json.loads(path.read_text())
     except Exception:
@@ -160,6 +155,7 @@ def load_conditions() -> dict:
 
 
 def _task_toml(task_id: str) -> dict:
+    """Parse the generated task.toml for a task id ({} if absent)."""
     p = REPO_ROOT / "harbor" / "generated" / task_id / "task.toml"
     if not p.exists():
         return {}

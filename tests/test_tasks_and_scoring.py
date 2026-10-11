@@ -1,7 +1,7 @@
 
+from earth_agent_bench.schemas import PatternTiers, RunObservation
+from earth_agent_bench.scoring import score_access_pattern, score_run
 from earth_agent_bench.tasks import load_all, load_task, render_instruction
-from earth_agent_bench.scoring import score_run, score_access_pattern
-from earth_agent_bench.schemas import RunObservation, PatternTiers
 
 
 def test_load_all_tasks():
@@ -76,8 +76,8 @@ def test_score_run_full_download_is_penalized():
 
 
 def test_score_efficiency_no_metrics_no_credit():
-    from earth_agent_bench.scoring import score_efficiency
     from earth_agent_bench.schemas import EfficiencyMetrics
+    from earth_agent_bench.scoring import score_efficiency
 
     task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
     assert score_efficiency(task, EfficiencyMetrics(), ["C1"]) == 0.0

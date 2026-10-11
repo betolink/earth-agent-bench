@@ -47,6 +47,7 @@ def resolve_tasks(selection: str) -> list[Path]:
 
 @dataclass
 class SweepSpec:
+    """A sweep over models x harnesses x conditions."""
     tasks: str
     models: str = "all"
     harnesses: str = "all"
@@ -59,6 +60,7 @@ class SweepSpec:
 
 
 def run_sweep(spec: SweepSpec) -> int:
+    """Execute a SweepSpec, returning per-run results."""
     tasks = resolve_tasks(spec.tasks)
     models = resolve_models(spec.models)
     harnesses = resolve_harnesses(spec.harnesses)
