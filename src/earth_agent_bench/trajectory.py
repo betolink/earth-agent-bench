@@ -202,8 +202,14 @@ def build_bundle(trial: Trial, task_id: str, model: str, harness: str,
 
     toml = _task_toml(task_id)
     exception = res.get("exception_info") or {}
+    try:
+        from .runconfig import load_manifest_names
+        run_name = load_manifest_names().get(trial.stamp, "")
+    except Exception:
+        run_name = ""
     return {
         "run": {
+            "name": run_name,
             "task": task_id, "model": model, "harness": harness,
             "condition": trial.condition, "trial": trial.name, "stamp": trial.stamp,
             "started_at": res.get("started_at"), "finished_at": res.get("finished_at"),

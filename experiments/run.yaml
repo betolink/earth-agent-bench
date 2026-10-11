@@ -1,4 +1,10 @@
 version: 1
+
+# Experiment name — recorded in runs/manifests/<name>-<stamp>.json and shown by
+# `eab config`, `eab index`, and `eab trajectory`, so results are attributable.
+# Override with EAB_RUN_NAME. Use a distinct name when you change the setup
+# (e.g. timeout, sampling) so runs stay comparable.
+name: eab-full
 # Master run config — WHAT to benchmark.
 #
 # How to configure the benchmark for your own models:
@@ -15,7 +21,6 @@ version: 1
 
 # Roster ids from experiments/models.yaml to benchmark.
 models: [tiel-coder-35b, ornith-1.5-9b]
-
 # Harness CLIs crossed with every model.
 harnesses: [pi, opencode, codex-cli]
 

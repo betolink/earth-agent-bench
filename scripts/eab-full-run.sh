@@ -38,7 +38,24 @@ EAB=".venv/bin/eab"
 
 # 3) run matrix from experiments/run.yaml (override with EAB_MODELS/HARNESSES/CONDITIONS/TASKS)
 eval "$(.venv/bin/eab config --shell)"
-echo "matrix: models=[$MODELS] harnesses=[$HARNESSES] conditions=[$CONDITIONS] concurrency=${CONCURRENCY:-1}" | tee -a "$LOG"
+echo "matrix: name=[${EAB_RUN_NAME:-eab-full}] models=[$MODELS] harnesses=[$HARNESSES] conditions=[$CONDITIONS] concurrency=${CONCURRENCY:-1}" | tee -a "$LOG"
+
+# 3b) record a named manifest for this experiment (name -> stamp -> config)
+.venv/bin/python - "$RUN_START" <<PY 2>>"$LOG"
+import sys
+from earth_agent_bench.runconfig import load_run_config, write_manifest
+p = write_manifest(load_run_config(), sys.argv[1], log="runs/eab-full-${RUN_START}.log")
+print(f"manifest: {p}")
+PY
+
+# 3c) graceful pause: `touch runs/PAUSE` pauses after the current cell; remove to resume.
+PAUSE_FILE="${EAB_PAUSE_FILE:-runs/PAUSE}"
+pause_gate() {
+  [ -f "$PAUSE_FILE" ] || return 0
+  echo "PAUSED (found $PAUSE_FILE) at $(date -u +%FT%TZ) — remove it to resume" | tee -a "$LOG"
+  while [ -f "$PAUSE_FILE" ]; do sleep 15; done
+  echo "RESUMED at $(date -u +%FT%TZ)" | tee -a "$LOG"
+}
 
 # 4) preflight: prove the gateway the agents will actually use is reachable
 echo "resolved LITE_LLM_ENDPOINT: $LITE_LLM_ENDPOINT" | tee -a "$LOG"
@@ -62,7 +79,7 @@ fi
 # 6) resume: skip cells already completed in this run
 declare -A DONE
 while IFS= read -r k; do [ -n "$k" ] && DONE["$k"]=1; done \
-  < <(python3 scripts/done_cells.py "$RUN_START")
+  < <(.venv/bin/python scripts/done_cells.py "$RUN_START")
 echo "resume: ${#DONE[@]} cells already done" | tee -a "$LOG"
 
 MAPFILE_TASKS=$(find benchmark/tasks -name '*.yaml' | sort)
@@ -77,6 +94,7 @@ for m in $MODELS; do
   for h in $HARNESSES; do
     for c in $CONDITIONS; do
       echo "=== combo $m/$h/$c  $(date -u +%FT%TZ) ===" | tee -a "$LOG"
+      pause_gate
       while read -r task; do
         [ -z "$task" ] && continue
         id="$(basename "$task" .yaml)"
@@ -84,6 +102,7 @@ for m in $MODELS; do
           echo "== skip $m/$h/$c $id (done)" | tee -a "$LOG"
           continue
         fi
+        pause_gate
         run_cell "$task" "$m" "$h" "$c" &
         while [ "$(jobs -rp | wc -l)" -ge "$CONC" ]; do wait -n; done
       done <<< "$MAPFILE_TASKS"

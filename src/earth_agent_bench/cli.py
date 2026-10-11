@@ -655,6 +655,7 @@ def config(
         console.print(f"[dim]roster: {', '.join(c['roster'])}[/dim]")
         raise typer.Exit(code=1)
     if as_shell:
+        print(f'EAB_RUN_NAME="{c["name"]}"')
         print(f'MODELS="{" ".join(c["models"])}"')
         print(f'HARNESSES="{" ".join(c["harnesses"])}"')
         print(f'CONDITIONS="{" ".join(c["conditions"])}"')
@@ -665,6 +666,7 @@ def config(
     table = Table(title="EAB run config (experiments/run.yaml, env-overridable)")
     table.add_column("field")
     table.add_column("value")
+    table.add_row("name", c["name"])
     table.add_row("models", ", ".join(c["models"]))
     table.add_row("harnesses", ", ".join(c["harnesses"]))
     table.add_row("conditions", ", ".join(c["conditions"]))

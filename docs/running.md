@@ -97,6 +97,28 @@ root-owned run files after each combo.
 **Direct runner (no Harbor)**: `eab run <path> --model … --harness …` and
 `eab sweep all --models … --harnesses … --conditions all`.
 
+### Named runs, pause & resume
+
+Every run has a **name** (`name:` in `run.yaml`, override `EAB_RUN_NAME`) and a
+stamp. The driver writes `runs/manifests/<name>-<stamp>.json` binding the name to
+the exact config (models/harnesses/conditions/trials/concurrency + git sha +
+start time). `eab config`, `eab index` (`run_name`) and `eab trajectory` surface
+it, so cells are attributable. Bump the name when the setup changes (timeout,
+sampling) so runs stay comparable.
+
+**Pause / resume** — stop and restart without losing completed cells:
+
+```bash
+touch runs/PAUSE          # driver pauses after the current cell (no work lost)
+rm    runs/PAUSE          # resumes in place
+# Full stop/resume across restarts: relaunch with the same stamp
+EAB_RUN_START=20261011-005413 bash scripts/eab-full-run.sh
+```
+
+Resume skips any cell whose `result.json` has `n_completed_trials>0`
+(`scripts/done_cells.py`, config-driven). A cell killed mid-flight isn't
+completed, so it re-runs.
+
 ### The loop/stall watchdog (`scripts/loop_watchdog.py`)
 
 Harbor can't interrupt an agent mid-run, so a host-side monitor tails the current

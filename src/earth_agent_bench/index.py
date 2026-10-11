@@ -101,6 +101,11 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
     runs_dir = Path(runs_dir or tj.RUNS_DIR)
     roster = load_roster()
     known = _known_conditions()
+    try:
+        from .runconfig import load_manifest_names
+        names = load_manifest_names()
+    except Exception:
+        names = {}
     records: list[dict] = []
     for job in sorted(glob.glob(str(runs_dir / "eab-*"))):
         jd = Path(job)
@@ -124,7 +129,8 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
             r = reward.get("reward")
             records.append({
                 "task": task, "model": model, "harness": harness,
-                "condition": condition, "stamp": stamp, "trial": trial_dir.name,
+                "condition": condition, "stamp": stamp, "run_name": names.get(stamp, ""),
+                "trial": trial_dir.name,
                 "status": _classify(r, exc), "reward": r, "exception": exc,
                 "components": {c: reward.get(c) for c in COMPONENTS},
                 "n_input_tokens": ar.get("n_input_tokens"),
@@ -149,8 +155,8 @@ def write_index(records: list[dict], out: Path, fmt: str = "jsonl") -> Path:
     if fmt == "json":
         out.write_text(json.dumps(records, indent=2, default=str) + "\n")
     elif fmt == "csv":
-        cols = ["task", "model", "harness", "condition", "stamp", "trial", "status",
-                "reward", *COMPONENTS, "n_input_tokens", "n_output_tokens",
+        cols = ["task", "model", "harness", "condition", "stamp", "run_name", "trial",
+                "status", "reward", *COMPONENTS, "n_input_tokens", "n_output_tokens",
                 "n_cache_tokens", "cost_usd", "steps", "started_at", "finished_at",
                 "duration_sec", "exception", "trajectory", "reward_path",
                 "details_path", "result_path", "run_dir"]
