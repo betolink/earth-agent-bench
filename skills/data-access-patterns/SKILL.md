@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Select and execute the best available NASA Earthdata access pattern for a collection and a bounded requirement (bbox/time/variables). Use whenever searching, subsetting, streaming, virtualizing, or downloading NASA Earthdata, to avoid unnecessary full-granule downloads and to justify the access choice. Core skill of the Earthdata set.
+description: Select and execute the best NASA Earthdata access pattern for a GIVEN dataset (DOI / concept_id / short_name). Use earthaccess for link/granule discovery, service lookup (OPeNDAP, Harmony), virtualization and I/O — call earthaccess.login() (it reads EARTHDATA_TOKEN from the environment; no interactive auth) and NEVER the raw CMR API. Read this skill before writing any access code.
 ---
 
 # NASA Earthdata Access Patterns
@@ -28,6 +28,19 @@ already does. Pin the collection by its DOI / `concept_id` / `short_name`.
 If you need the results in another ecosystem, the `earthaccess` results translate
 cleanly to **STAC items** (e.g. for `odc-stac` / `stac` tooling) — build the items
 from the `earthaccess` results rather than re-querying CMR by hand.
+
+## Authentication (already provided — just call `login`)
+
+`earthaccess.login()` with **no arguments** reads `EARTHDATA_TOKEN` from the
+environment and authenticates. Pass **no arguments at all** — no `strategy=`
+(the strategy is automatic), no `provider=` / `client_id=`. Do not call the CMR
+`/api/users/token` endpoint and do not build a token by hand. Call it once before
+`search_data` / `search_services` / `open` / `download`:
+
+```python
+import earthaccess
+earthaccess.login()          # uses EARTHDATA_TOKEN; no username/password, no prompt
+```
 
 ## Procedure
 
