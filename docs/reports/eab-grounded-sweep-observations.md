@@ -140,3 +140,43 @@ Sources: `runs/index.jsonl`, `runs/harbor/**/{agent/trajectory.json,verifier/det
   pattern-only metric + a step-timeline breakdown.
 - Should the grader reward *any* acceptable collection (tier `acceptable`) more
   leniently, or keep the gold strict?
+
+---
+
+## Update (2026-10-12): dataset-given schema + skills (tiel / pi)
+
+Two changes were tested on a fresh `tiel-coder-35b / pi` run (`schema-test-tiel-pi`):
+
+1. **Schema** — each task now states the dataset + `concept_id`; collection
+   scoring dropped; `pattern_tiers` re-derived from verified availability
+   (virtualization → Harmony → OPeNDAP → HTTP → download).
+2. **Skills** — the earthaccess mandate was moved into the skill **description**
+   (the only part `pi` injects) plus a login/budget rule.
+
+### Results
+| | baseline | skills |
+|---|---|---|
+| mean reward | 0.117 | 0.038 |
+| nonzero | 7/18 | 3/18 |
+| timeouts | 13/18 | 15/18 |
+| earthaccess calls | ~0 | **256–687/cell** |
+| raw CMR | 100–270 | 0–42 |
+| `virtualize(` | 0 | 0–39 |
+
+### Findings
+- **The description mandate works.** In `skills`, earthaccess went from ~unused to
+  256–687 calls/cell, raw CMR collapsed, and the agent **actually virtualizes**
+  (0 → 24–39). The agent **never read the `SKILL.md` body** (`read=0`) — `pi`
+  injects only the name/description, so the body is effectively decorative.
+- **But results got worse.** The agent now does the *right* things and
+  **thrashes** — hundreds of earthaccess calls, hitting the ~627 s wall — so
+  completion *decreased*. The binding constraint is **budget discipline**, not
+  knowledge. Moving the thrashing from raw CMR to earthaccess + expensive
+  virtualization attempts did not help completion.
+- **Takeaway:** the injected **description** is the whole game for `pi`; it must
+  carry a *decisive recipe + budget rule* (one search → act → write), not more
+  prose. Applied: `data-access-patterns` description now says
+  "one search, then access and write; do not loop," plus a `Budget discipline`
+  section in the body.
+- **Open:** the 600 s cap is likely too low for virtualization on this model;
+  consider a larger cap or a "virtualize only if quick, else Harmony/OPeNDAP" rule.

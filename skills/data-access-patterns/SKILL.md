@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Select and execute the best NASA Earthdata access pattern for a GIVEN dataset (DOI / concept_id / short_name). Use earthaccess for link/granule discovery, service lookup (OPeNDAP, Harmony), virtualization and I/O — call earthaccess.login() (it reads EARTHDATA_TOKEN from the environment; no interactive auth) and NEVER the raw CMR API. Read this skill before writing any access code.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() takes no args; NEVER raw CMR): grade A/B → virtualize; else Harmony → OPeNDAP → open(). Be decisive — one search, then access and write the artifact; do not loop or retry. Read this skill.
 ---
 
 # NASA Earthdata Access Patterns
@@ -28,6 +28,17 @@ already does. Pin the collection by its DOI / `concept_id` / `short_name`.
 If you need the results in another ecosystem, the `earthaccess` results translate
 cleanly to **STAC items** (e.g. for `odc-stac` / `stac` tooling) — build the items
 from the `earthaccess` results rather than re-querying CMR by hand.
+
+## Budget discipline (do this or you time out)
+
+The budget is small and the model is slow — act, don't explore:
+
+- **One** `earthaccess.search_data(...)` call, then work from those results.
+  Never re-query CMR or re-list granules.
+- Attempt **one** pattern; if it errors, fall back to the next (Harmony → OPeNDAP
+  → `open()`). Do not retry the same call.
+- Write the output artifact **before** polishing — a partial answer beats a timeout.
+- Target a handful of tool calls, not dozens.
 
 ## Authentication (already provided — just call `login`)
 
