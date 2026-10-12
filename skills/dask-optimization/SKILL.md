@@ -1,6 +1,6 @@
 ---
 name: dask-optimization
-description: Keep lazy Earthdata workflows efficient — persist wisely, align chunks with the access pattern, avoid unnecessary shuffles and full materialization. Use when streamed/virtualized xarray workflows are slow, memory-hungry, or dying with KilledWorker/OOM. Adapted from tondevrel/scientific-agent-skills.
+description: Keep lazy Earthdata workflows efficient — persist wisely, align chunks with the access pattern, avoid unnecessary shuffles and full materialization. Use when streamed/virtualized xarray workflows are slow, memory-hungry, or dying with KilledWorker/OOM. Read this skill when scaling up.
 ---
 
 # Dask optimization for Earthdata workflows

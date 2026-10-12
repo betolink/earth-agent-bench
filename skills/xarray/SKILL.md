@@ -1,6 +1,6 @@
 ---
 name: xarray
-description: Work with N-dimensional labeled Earthdata arrays (NetCDF/Zarr/GRIB) — open remote datasets lazily, subset before computing, resample/group, and write artifacts. Use for any gridded Earthdata analysis. Adapted from tondevrel/scientific-agent-skills.
+description: Work with N-dimensional labeled Earthdata arrays (NetCDF/Zarr/GRIB) — open remote datasets lazily, subset before computing, resample/group, and write artifacts. Access the data via earthaccess (never the raw CMR API); pair with the data-access-patterns skill. Read this skill before writing analysis code.
 ---
 
 # Xarray for Earthdata access and analysis

@@ -1,6 +1,6 @@
 ---
 name: earthdata-streaming-vs-download
-description: Stream NASA Earthdata into memory with earthaccess.open() instead of downloading whole files, and know when downloading is still the right call. Use when accessing granules over HTTPS/S3, especially from laptops or out-of-region compute. Adapted from the NSIDC "Streaming NASA Earth Data with earthaccess" webinar.
+description: Stream NASA Earthdata with earthaccess.open() instead of downloading whole files, and know when downloading is still right. Discover/resolve granules and services with earthaccess (search_data, search_services) — NEVER the raw CMR API — after earthaccess.login() (no arguments; reads EARTHDATA_TOKEN). Out-of-region: always HTTPS, never S3. Read this skill before writing access code.
 ---
 
 # Streaming vs. Downloading NASA Earthdata
@@ -39,7 +39,7 @@ lazily.
 ```python
 import earthaccess, xarray as xr
 
-earthaccess.login()  # required before search, download AND streaming
+earthaccess.login()  # no args — reads EARTHDATA_TOKEN; required before search, download AND streaming
 
 results = earthaccess.search_data(
     short_name="M2T1NXSLV", temporal=("2023-07-01", "2023-07-02")

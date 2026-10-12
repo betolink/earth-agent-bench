@@ -1,6 +1,6 @@
 ---
 name: data-virtualization
-description: Create or open lazy virtual Zarr datacubes over NASA Earthdata archives with earthaccess.virtualize / write_virtual / open_virtual (VirtualiZarr ManifestArrays underneath, Icechunk persistence) without duplicating bytes. Use when a collection's archive needs repeated lazy, dimensioned access (time series, regional subsets) and its virtualizability grade is A or B.
+description: Build or open lazy virtual Zarr datacubes over NASA Earthdata with earthaccess.virtualize (VirtualiZarr/Icechunk) without copying bytes. Resolve granules with earthaccess.search_data — NEVER the raw CMR API — after earthaccess.login() (no arguments; reads EARTHDATA_TOKEN). Use when a collection's virtualizability grade is A/B and you need repeated lazy, dimensioned access. Read this skill before writing access code.
 ---
 
 # Data Virtualization (virtual Zarr over Earthdata archives)
@@ -12,6 +12,7 @@ requests; nothing is rewritten; no server sits in the middle.
 
 > **Resolve granules with `earthaccess.search_data(...)`** (by DOI / `concept_id` /
 > `short_name`), then `earthaccess.virtualize(...)` — not raw CMR `requests`.
+> Call `earthaccess.login()` first (no args; reads `EARTHDATA_TOKEN` — no other auth).
 
 ## When it is possible
 
