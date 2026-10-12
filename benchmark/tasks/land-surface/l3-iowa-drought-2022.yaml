@@ -31,8 +31,8 @@ collections:
     services:
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
 pattern_tiers:
-  best: [S1]
-  acceptable: [S3, S2]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -40,11 +40,9 @@ validation:
   aggregation: zscore_anomaly
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S3, S2]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    Mixed availability: earthaccess virtualization for SPL4SMGP (grade B),
-    Harmony for MOD16A2 (HDF4 tiles). Grid and unit alignment is the
-    science-side trap.
+    Verified availability — C1=y, S1=y, S2=n, S3=n, S4=y. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - temporal_extent covers the climatology baseline; the 2022 anomaly window is described in the requirement

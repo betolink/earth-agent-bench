@@ -35,8 +35,8 @@ collections:
     tier: discouraged
     reason: coarser resolution, different overpass sampling
 pattern_tiers:
-  best: [S1]
-  acceptable: [S3, S2, S5]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -44,12 +44,10 @@ validation:
   aggregation: monthly_mean
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S3, S2, S5]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    EDVS grade B (blocker only performance-related: "P-md: median 51 blocks in
-    46 runs, 4% leading"); earthaccess virtualization is the best available
-    pattern. Harmony, DMR++ and Giovanni are acceptable alternates.
+    Verified availability — C1=y, S1=y, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - pilot task
   - exact variable name pinned at task-build time from UMM-Var

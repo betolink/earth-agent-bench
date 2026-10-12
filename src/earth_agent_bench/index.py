@@ -24,7 +24,7 @@ from . import trajectory as tj
 from .runs import parse_job_dir, read_json
 
 COMPONENTS = ("access_pattern", "service_discovery", "representation",
-              "efficiency", "collection_selection", "validation")
+              "efficiency", "validation")
 
 
 def load_roster() -> dict[str, str]:

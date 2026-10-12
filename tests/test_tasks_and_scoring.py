@@ -47,7 +47,7 @@ def test_score_run_best_path():
     task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
-        observed_patterns=["S1"],
+        observed_patterns=["C1"],
         collection_short_names=["TEMPO_NO2_L3"],
         discovered_services=["S1", "S3"],
         representation="lazy",
@@ -56,7 +56,7 @@ def test_score_run_best_path():
     )
     result = score_run(task, observation)
     assert result.access_pattern == 1.0
-    assert result.reward > 0.85
+    assert result.reward > 0.8
 
 
 def test_score_run_full_download_is_penalized():
@@ -84,15 +84,18 @@ def test_score_efficiency_no_metrics_no_credit():
     assert score_efficiency(task, EfficiencyMetrics(bytes_read=1000), ["C1"]) == 1.0
 
 
-def test_collection_selection_is_normalized():
+def test_collection_selection_is_not_scored():
+    """The dataset is given by the task, so collection choice is not scored."""
     task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
         observed_patterns=["C1"],
-        collection_short_names=["tempo-no2-l3"],
+        collection_short_names=["something-else"],
         discovered_services=[],
         representation="lazy",
         validation_passed=True,
         metrics={"bytes_read": 1, "objects_read": 1, "runtime_seconds": 1.0},
     )
-    assert score_run(task, observation).collection_selection == 1.0
+    result = score_run(task, observation)
+    assert not hasattr(result, "collection_selection")
+    assert result.access_pattern == 1.0

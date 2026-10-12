@@ -28,8 +28,8 @@ collections:
     tier: acceptable
     reason: 25 km variant; coarser for reef-scale stress
 pattern_tiers:
-  best: [S1]
-  acceptable: [S3, S2]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -37,9 +37,7 @@ validation:
   aggregation: daily_series_and_accumulation
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S3, S2]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    EDVS grade B; the H2 blocker affects only dt_1km_data, while analysed_sst
-    is cube-able. Variable-level awareness (read analysed_sst, not the archive)
-    is part of the access lesson. DMR++ published per EDVS.
+    Verified availability — C1=y, S1=y, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

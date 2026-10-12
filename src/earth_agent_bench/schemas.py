@@ -143,9 +143,13 @@ class RunManifest(BaseModel):
 
 
 class VerifierResult(BaseModel):
-    """Verifier outcome + per-component scores."""
+    """Verifier outcome + per-component scores.
+
+    ``collection_selection`` is intentionally absent: the task hands the agent the
+    exact dataset(s), so collection choice is not scored (see
+    docs/reports/collection-verification.md).
+    """
     reward: float
-    collection_selection: float
     service_discovery: float
     access_pattern: float
     representation: float

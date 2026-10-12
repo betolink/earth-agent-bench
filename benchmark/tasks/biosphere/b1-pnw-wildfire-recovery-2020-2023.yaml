@@ -37,8 +37,8 @@ collections:
     tier: acceptable
     reason: alternative tile convention, more granule handling
 pattern_tiers:
-  best: [C3, S4]
-  acceptable: [S1]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -46,9 +46,7 @@ validation:
   aggregation: seasonal_nbr
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C3, S4]
-  acceptable_patterns: [S1]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    HLS is COG (EDVS grade B with COG-typical blockers); band-specific COG
-    range reads or AppEEARS sampling are best. Full-scene downloads across a
-    16-22M granule archive is the trap.
+    Verified availability — C1=y, S1=n, S2=n, S3=n, S4=y. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

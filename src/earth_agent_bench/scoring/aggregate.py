@@ -6,39 +6,12 @@ from .efficiency import score_efficiency
 from .service_discovery import score_service_discovery
 
 WEIGHTS = {
-    "collection_selection": 0.10,
     "service_discovery": 0.15,
-    "access_pattern": 0.35,
+    "access_pattern": 0.45,   # the task's focus (collection is given)
     "representation": 0.15,
     "efficiency": 0.15,
     "validation": 0.10,
 }
-
-
-def _normalize_name(value: str) -> str:
-    """Normalise a service/collection name for matching."""
-    return "".join(char for char in str(value).lower() if char.isalnum())
-
-
-def score_collection_selection(task: Task, observed_collections: list[str]) -> float:
-    """Score selected vs gold collections."""
-    if not observed_collections:
-        return 0.0
-    tiers = {"preferred": 1.0, "acceptable": 0.7, "discouraged": 0.2, "unacceptable": 0.0}
-    by_name = {_normalize_name(c.short_name): c for c in task.collections}
-    by_concept = {c.concept_id: c for c in task.collections if c.concept_id}
-    scores = []
-    for name in observed_collections:
-        token = str(name).strip()
-        collection = by_name.get(_normalize_name(token)) or by_concept.get(token)
-        if collection is None:
-            normalized = _normalize_name(token)
-            for key, candidate in by_name.items():
-                if len(key) >= 4 and (key in normalized or normalized in key):
-                    collection = candidate
-                    break
-        scores.append(tiers[collection.tier] if collection else 0.0)
-    return sum(scores) / len(scores)
 
 
 def score_representation(task: Task, representation: str) -> float:
@@ -67,15 +40,13 @@ def available_service_names(task: Task) -> list[str]:
 def score_run(task: Task, observation: RunObservation) -> VerifierResult:
     """Compute the full weighted score for a RunObservation."""
     access = score_patterns_for_collections(observation.observed_patterns, task.pattern_tiers)
-    collection = score_collection_selection(task, observation.collection_short_names)
     discovery = score_service_discovery(observation.discovered_services, available_service_names(task))
     representation = score_representation(task, observation.representation)
     efficiency = score_efficiency(task, observation.metrics, observation.observed_patterns)
     validation = 1.0 if observation.validation_passed else 0.0
 
     reward = (
-        WEIGHTS["collection_selection"] * collection
-        + WEIGHTS["service_discovery"] * discovery
+        WEIGHTS["service_discovery"] * discovery
         + WEIGHTS["access_pattern"] * access
         + WEIGHTS["representation"] * representation
         + WEIGHTS["efficiency"] * efficiency
@@ -100,7 +71,6 @@ def score_run(task: Task, observation: RunObservation) -> VerifierResult:
 
     return VerifierResult(
         reward=round(reward, 4),
-        collection_selection=round(collection, 4),
         service_discovery=round(discovery, 4),
         access_pattern=round(access, 4),
         representation=round(representation, 4),

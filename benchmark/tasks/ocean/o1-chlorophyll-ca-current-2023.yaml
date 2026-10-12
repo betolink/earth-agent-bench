@@ -24,18 +24,16 @@ collections:
       - {pattern: C1, available: false, grade: D, source: edvs-parquet, reason: "H2: chunk shape differs across granules (chlor_a: [44,87] vs [16,1024])"}
       - {pattern: S2, available: true, source: "catalog: OB.DAAC OPeNDAP; verify endpoint"}
 pattern_tiers:
-  best: [S2, S3]
-  acceptable: [S1]
-  marginal: [F2]
+  best: [S1]
+  acceptable: [S3, S2]
+  marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
   units: mg m-3
   aggregation: monthly_anomaly
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S2, S3]
-  acceptable_patterns: [S1]
+  primary_patterns: [S1]
+  acceptable_patterns: [S3, S2]
   reasoning: >
-    EDVS grade D: virtualization is off the table, and the agent must find the
-    next-best service (OB.DAAC OPeNDAP/DMR++). Attempting C1 on a D-grade
-    archive is the designed trap.
+    Verified availability — C1=n, S1=y, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

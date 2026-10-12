@@ -30,19 +30,18 @@ collections:
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
       - {pattern: S3, available: true, source: "catalog; verify (DMR++)"}
 pattern_tiers:
-  best: [S1]
-  acceptable: [S3, S2, F1]
-  marginal: [F2]
+  best: [S2]
+  acceptable: [F1, F2]
+  marginal: [T3]
   inefficient: [M1, M2]
 validation:
   units: m
   aggregation: collocation_statistics
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1, S1]
-  acceptable_patterns: [S3, S2, F1]
+  primary_patterns: [S2]
+  acceptable_patterns: [F1, F2]
   reasoning: >
-    Swath plus gridded product, both PODAAC Harmony-enabled per curation.
-    Pass/cycle sprawl without subsetting is the trap.
+    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - "service tiers pending CMR verification (curated verified: false)"

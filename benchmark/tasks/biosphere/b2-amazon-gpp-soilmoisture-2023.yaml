@@ -32,8 +32,8 @@ collections:
       - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "time-var-without-time-dim; cube-able"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
 pattern_tiers:
-  best: [S1]
-  acceptable: [S2, S3]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -41,9 +41,7 @@ validation:
   aggregation: anomaly_vs_baseline
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S2, S3]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    Mixed availability: Harmony for MOD17A2H (HDF4 tiles), earthaccess
-    virtualization for SPL4SMGP (grade B). Scale factors and grid mismatch are
-    the science-side traps.
+    Verified availability — C1=y, S1=y, S2=n, S3=n, S4=y. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

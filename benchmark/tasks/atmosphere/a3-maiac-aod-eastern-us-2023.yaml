@@ -26,19 +26,18 @@ collections:
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
       - {pattern: S2, available: true, source: "catalog; verify via CMR"}
 pattern_tiers:
-  best: [S1]
-  acceptable: [S3, S2]
-  marginal: [F1]
+  best: [F1, F2]
+  acceptable: [F3, F4]
+  marginal: [T3]
   inefficient: [M1, M2]
 validation:
   units: dimensionless
   aggregation: daily_maps_and_episode_mean
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S3, S2]
+  primary_patterns: [F1, F2]
+  acceptable_patterns: [F3, F4]
   reasoning: >
-    EDVS grade C (chunk misalignment across granules blocks virtualization).
-    Harmony subsetting is the best available pattern; DMR++/OPeNDAP acceptable.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - pilot task

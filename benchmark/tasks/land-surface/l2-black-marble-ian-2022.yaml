@@ -31,20 +31,18 @@ collections:
     tier: acceptable
     reason: requires own gap filling and moonlight correction
 pattern_tiers:
-  best: [S3, S2]
-  acceptable: [S1]
-  marginal: [F2]
+  best: [S2]
+  acceptable: [F1, F2]
+  marginal: [T3]
   inefficient: [M1, M2]
 validation:
   units: nW cm-2 sr-1
   aggregation: county_recovery_curve
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S3, S2]
-  acceptable_patterns: [S1]
+  primary_patterns: [S2]
+  acceptable_patterns: [F1, F2]
   reasoning: >
-    The parquet oracle returns unknown for VNP46A2, so C1 is not creditable;
-    the agent must fall back to service discovery (DMR++/OPeNDAP, Harmony).
-    This task tests fallback behavior when the score cannot bless C1.
+    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - revisit gold if a future EDVS release grades VNP46A2 A/B

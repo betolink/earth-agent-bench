@@ -25,17 +25,16 @@ collections:
       - {pattern: S1, available: false, reason: "ASF GUNW not Harmony-enabled"}
       - {pattern: S2, available: false, reason: "no OPeNDAP endpoint for ASF GUNW"}
 pattern_tiers:
-  best: [F1, F4]
-  acceptable: [M1]
-  marginal: [F2]
-  inefficient: [M2]
+  best: [F1, F2]
+  acceptable: [F3, F4]
+  marginal: [T3]
+  inefficient: [M1, M2]
 validation:
   units: m
   aggregation: displacement_time_series
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [F1, F4]
-  acceptable_patterns: [M1]
+  primary_patterns: [F1, F2]
+  acceptable_patterns: [F3, F4]
   reasoning: >
-    As with S1: no subsetting service; filtered granule selection is best.
-    Reference-frame handling is an additional gate item.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

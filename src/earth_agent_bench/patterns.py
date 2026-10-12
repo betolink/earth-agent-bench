@@ -43,8 +43,21 @@ STREAMING = [p for p in PATTERNS if p.startswith("T")]
 FILTERED_DOWNLOAD = [p for p in PATTERNS if p.startswith("F")]
 MATERIALIZATION = ["M1", "M2"]
 
-SELECTION_LADDER = ["C1", "C2", "S3", "S2", "S1", "S4", "S5", "T1", "T2", "T3",
-                    "F1", "F2", "F3", "F4", "M1"]
+# Preference order for choosing an access pattern (best -> worst):
+#   1. data virtualization (C1/C2/C3/C5, zarr streaming T2)
+#   2. Harmony subsetting (S1)
+#   3. OPeNDAP (S3 in-cloud/DMR++, S2)
+#   4. HTTP access with subsetting/aggregation (T3 range, T1 DAP4, then F1..F4)
+#   5. full download last (M1/M2)
+# AppEEARS (S4) and Giovanni (S5) are NOT "good" patterns (interactive apps,
+# not programmatic virtualization/subsetting) and are excluded from the ladder.
+SELECTION_LADDER = [
+    "C1", "C2", "C3", "C5", "T2",
+    "S1",
+    "S3", "S2", "T1", "T3",
+    "F1", "F2", "F3", "F4",
+    "M1", "M2",
+]
 
 
 def validate_pattern(pattern_id: str) -> bool:

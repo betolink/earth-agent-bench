@@ -88,14 +88,37 @@ The correct best pattern is likely **AppEEARS (S4)** where available
 `has_transforms` flag is legacy and the Harmony capabilities endpoint 404'd
 (route changed). Until that's nailed, treat the `S1` golds as unverified.
 
-## Recommended follow-ups
+## Re-derivation (applied)
 
-1. **Add a reliable access-service probe** (Harmony request/`capabilities` with a
-   valid route; OPeNDAP/DMR++ via RelatedUrls + service associations) and
-   re-derive each task's `pattern_tiers` / `gold` from it.
-2. **Correct the flagged golds** (a2, a3, b2, c2, c3, l1, l3, o3) so the "best"
-   pattern is one that is actually available (AppEEARS or HTTPS download).
-3. **Score collection_selection as given** — the dataset is now supplied, so the
-   component should be trivially satisfied (or dropped/reweighted).
-4. Persist `access_events.jsonl` and record selected collections (see
+Per the policy **data virtualization → Harmony → OPeNDAP → HTTP subsetting/
+aggregation → full download** (AppEEARS/Giovanni excluded as "good"), each task's
+`pattern_tiers` + `gold` were re-derived from verified availability
+(`scripts/rederive_patterns.py --write`). Signals: virtualization oracle grade
+A/B (C1), CMR `has_transforms` (S1), CMR RelatedUrls (S2/S3).
+
+| task | best | task | best |
+|---|---|---|---|
+| a1 TEMPO NO2 | C1 | l1 Phoenix LST | C1 |
+| a2 EMIT CH4 | F1,F2 | l2 Black Marble | S2 |
+| a3 MAIAC AOD | F1,F2 | l3 Iowa drought | C1 |
+| b1 HLS PNW | C1 | o1 Chl-a | S1 |
+| b2 GPP/SM | C1 | o2 MUR SST | C1 |
+| b3 GEDI/Landsat | C1 | o3 SWOT SSH | S2 |
+| c1 ITS_LIVE | C1 | s1/s2 S1 InSAR | F1,F2 |
+| c2 PREFIRE/MOD35 | S1 | s3 OPERA disp | F1,F2 |
+| c3 AMSR2 ice | C1 | | |
+
+**Scoring:** `collection_selection` dropped (dataset is given). Weights rebalanced
+— `access_pattern` 0.45, `service_discovery` 0.15, `representation` 0.15,
+`efficiency` 0.15, `validation` 0.10.
+
+## Remaining follow-ups
+
+1. **Reliable Harmony/OPeNDAP probe** — the CMR `has_transforms` flag is legacy
+   and the Harmony `capabilities` route 404'd; nail a real probe and re-check the
+   `S1` bests (a1, c2, o1 and the `S1=y` acceptable tiers).
+2. **`services` availability** in the task YAMLs still needs the same correction
+   (used by `service_discovery`), not just `pattern_tiers`.
+3. Persist `access_events.jsonl` and record selected collections (see
    `docs/reports/eab-grounded-sweep-observations.md`).
+

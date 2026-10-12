@@ -28,8 +28,8 @@ collections:
     tier: discouraged
     reason: would force F1 or M1 over thousands of files
 pattern_tiers:
-  best: [C2]
-  acceptable: [S1]
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -37,11 +37,9 @@ validation:
   aggregation: annual_mean
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [C2]
-  acceptable_patterns: [S1]
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    ITS_LIVE publishes native Zarr datacubes (C2) over the netCDF archive
-    (EDVS grade B; cube over vx/vy available). earthaccess virtualization (C1)
-    is equivalent-quality. Harmony acceptable. GeoTIFF download is the trap.
+    Verified availability — C1=y, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - pilot task

@@ -28,8 +28,8 @@ collections:
     tier: acceptable
     reason: 6.25 km variant, higher volume
 pattern_tiers:
-  best: [S1]
-  acceptable: []
+  best: [C1]
+  acceptable: [S1, S3, S2]
   marginal: [F1, F2]
   inefficient: [M1, M2]
 validation:
@@ -37,9 +37,7 @@ validation:
   aggregation: daily_series
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: []
+  primary_patterns: [C1]
+  acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    EDVS grade B whose only blocker is a missing time dimension; earthaccess
-    virtualization adds the concat axis, making C1 the best available pattern.
-    Downloading the global daily archive is the trap.
+    Verified availability — C1=y, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

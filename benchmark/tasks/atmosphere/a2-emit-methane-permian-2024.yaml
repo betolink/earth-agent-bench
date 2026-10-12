@@ -28,20 +28,18 @@ collections:
     tier: unacceptable
     reason: radiance is not methane enhancement
 pattern_tiers:
-  best: [S1]
-  acceptable: [S2, S3]
-  marginal: [F1, F2]
+  best: [F1, F2]
+  acceptable: [F3, F4]
+  marginal: [T3]
   inefficient: [M1, M2]
 validation:
   units: ppb m
   aggregation: monthly_plume_summary
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [S1]
-  acceptable_patterns: [S2, S3]
+  primary_patterns: [F1, F2]
+  acceptable_patterns: [F3, F4]
   reasoning: >
-    Plume product is per-scene and sparse; EDVS has not sampled this collection
-    so C1 is not creditable. Harmony subsetting is the curated best pattern
-    pending CMR verification of the association.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - "service tiers pending CMR verification (curated verified: false)"

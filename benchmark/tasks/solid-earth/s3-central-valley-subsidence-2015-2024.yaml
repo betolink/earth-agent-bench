@@ -27,20 +27,18 @@ collections:
     tier: acceptable
     reason: fallback via GUNW stacking; much higher granule volume
 pattern_tiers:
-  best: [F1]
-  acceptable: [M1]
-  marginal: [F2]
-  inefficient: [M2]
+  best: [F1, F2]
+  acceptable: [F3, F4]
+  marginal: [T3]
+  inefficient: [M1, M2]
 validation:
   units: cm yr-1
   aggregation: velocity_fit
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
-  primary_patterns: [F1]
-  acceptable_patterns: [M1]
+  primary_patterns: [F1, F2]
+  acceptable_patterns: [F3, F4]
   reasoning: >
-    DISP-S1 provides ready-made displacement time series; archive-filtered
-    reads beat GUNW stacking by orders of magnitude. OPERA_L2_CSLC-S1 is EDVS
-    grade B, and C1 becomes creditable if DISP-S1 is sampled A/B later.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - revisit gold when EDVS samples OPERA_L3_DISP-S1_V1

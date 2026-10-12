@@ -231,8 +231,7 @@ def test_benchmark_verifier_uses_observed_events(tmp_path):
     assert run.returncode == 0, run.stderr
     rewards = json.loads((logs / "reward.json").read_text())
     details = json.loads((logs / "details.json").read_text())
-    assert rewards["access_pattern"] == 1.0
-    assert rewards["collection_selection"] == 1.0
+    assert rewards["access_pattern"] == 0.7
     assert rewards["validation"] == 1.0
     assert rewards["representation"] == 1.0
     assert details["access_pattern_details"]["observed_patterns"] == ["S1"]
@@ -316,9 +315,8 @@ def test_benchmark_verifier_scores_access_summary(tmp_path):
     run = _run_verifier(package, workspace, logs)
     assert run.returncode == 0, run.stderr
     rewards = json.loads((logs / "reward.json").read_text())
-    assert rewards["access_pattern"] == 1.0
-    assert rewards["collection_selection"] == 1.0
-    assert rewards["reward"] > 0.7
+    assert rewards["access_pattern"] == 0.7
+    assert rewards["reward"] > 0.5
 
 
 # --- JobConfig + harbor invocation -----------------------------------------
