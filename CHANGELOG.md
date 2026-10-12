@@ -4,7 +4,9 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+> **0.1.0 is the initial release.** Everything before it was exploratory work;
+> this entry is finalized when 0.1.0 is committed/tagged. No per-change entries
+> are kept until then.
 
 ## [0.1.0] - 2026-10-12
 
@@ -61,5 +63,4 @@ execute the best available access pattern.
 - Dashboard live view now renders every harness schema (pi/opencode/codex/claude
   + generic); run-dir stamp parsing no longer mishandles the trailing stamp.
 
-[Unreleased]: https://github.com/betolink/earth-agent-bench/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/betolink/earth-agent-bench/releases/tag/v0.1.0
