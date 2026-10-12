@@ -567,24 +567,27 @@ def index(
 
 @app.command("archive")
 def archive(
-    name: str = typer.Option(..., "--name", "-n",
-                             help="Archive folder name, e.g. run-20261011-incomplete."),
-    stamp: Optional[str] = typer.Option(None, "--stamp",
-                                        help="Run stamp (YYYYMMDD-HHMMSS); default newest log."),
+    name: Optional[str] = typer.Option(None, "--name", "-n",
+                                       help="Archive folder name (default run-<date>-incomplete)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would move."),
 ) -> None:
-    """Move a run's job dirs, log and manifest under runs/archive/<name>/.
+    """Archive the active run (the newest one) under runs/archive/<name>/.
+
+    The run is auto-detected from the newest ``runs/eab-full-*.log``; no stamp
+    needed. Moves its job dirs, log and manifest out of the active tree.
 
     \b
-      eab archive --name run-20261011-incomplete            # newest run
-      eab archive --name pilot-1 --stamp 20261011-005413
+      eab archive --dry-run                 # preview
+      eab archive                           # -> runs/archive/run-<date>-incomplete
+      eab archive --name pilot-1
     """
     from .archive import archive_run, latest_stamp
 
-    stamp = stamp or latest_stamp()
+    stamp = latest_stamp()
     if not stamp:
-        console.print("[red]no run stamp found (no runs/eab-full-*.log)[/red]")
+        console.print("[red]no active run found (no runs/eab-full-*.log)[/red]")
         raise typer.Exit(code=1)
+    name = name or f"run-{stamp.split('-')[0]}-incomplete"
     result = archive_run(name, stamp, dry_run=dry_run)
     verb = "would archive" if dry_run else "archived"
     console.print(f"[green]{verb}[/green] {len(result['moved'])} items for "

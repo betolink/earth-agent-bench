@@ -196,11 +196,13 @@ raw artifacts are under `runs/harbor/<job>/` (`result.json`, `*/verifier/details
 - Observability that reads **LiteLLM spend/logs** needs a log/admin-scoped key
   (`eab doctor` flags inference-only keys).
 - **Archive a finished/abandoned run** so the dashboard/index only show the active
-  one (the dashboard names the active run from its manifest):
+  one (the dashboard names the active run from its manifest). The run is
+  auto-detected (newest); no stamp needed:
 
   ```bash
-  eab archive --name run-20261011-incomplete        # newest run
-  eab archive --name pilot-1 --stamp 20261011-005413
+  eab archive --dry-run          # preview what would move
+  eab archive                    # -> runs/archive/run-<date>-incomplete
+  eab archive --name pilot-1
   ```
 
   It moves the run's job dirs, log and manifest under `runs/archive/<name>/`.
