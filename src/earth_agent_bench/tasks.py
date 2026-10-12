@@ -38,7 +38,8 @@ def render_instruction(task: Task) -> str:
 
     The dataset(s) the agent must use are stated explicitly (short_name +
     concept_id) so the task tests *access-pattern* choice, not collection
-    discovery — collection selection is handled by a separate project.
+    discovery — collection selection is handled by the project's semantic
+    discovery part, which this benchmark does not cover.
     """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates

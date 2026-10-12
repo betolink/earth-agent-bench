@@ -10,9 +10,10 @@
 
 The grounded sweep showed the agent failing on **collection grounding** (it
 guessed short names like `MCD04AOD` for MAIAC AOD). Collection *selection* is
-handled by a separate project, so the tasks should hand the agent the exact
-dataset and test only **access-pattern** choice. That requires the dataset ids to
-be correct and the declared access patterns to be real.
+handled by the project's **semantic discovery** part, which this benchmark does
+not cover, so the tasks hand the agent the exact dataset and test only
+**access-pattern** choice. That requires the dataset ids to be correct and the
+declared access patterns to be real.
 
 ## Changes applied
 

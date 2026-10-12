@@ -5,11 +5,12 @@ Access-pattern selection benchmark for AI agents working with NASA Earthdata.
 > **Given a NASA Earthdata collection (with its CMR `concept_id`) and a bounded scientific access requirement, did the agent select and execute the best available access pattern — and could it justify why?**
 
 The benchmark does not score "amazing science", and it does **not** test
-collection *discovery* (handled by a separate project): each task names the exact
-dataset(s) it must use. Each task wraps a thin, discipline-representative
-computation (right variable, extent, units, trivial aggregation) around the real
-evaluation surface: **access-pattern selection**, service discovery,
-representation, and efficiency.
+collection *discovery*: that is handled by the project's **semantic discovery**
+part, which this benchmark does not cover. Each task names the exact dataset(s)
+it must use. Each task wraps a thin, discipline-representative computation
+(right variable, extent, units, trivial aggregation) around the real evaluation
+surface: **access-pattern selection**, service discovery, representation, and
+efficiency.
 
 ## Key concepts
 
