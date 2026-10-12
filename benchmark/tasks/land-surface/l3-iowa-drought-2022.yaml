@@ -18,12 +18,14 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: SPL4SMGP
+    concept_id: C3480440870-NSIDC_CPRD
     tier: preferred
     role: primary
     services:
       - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "time var without time dim; cube-able via store build"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: MOD16A2
+    concept_id: C2343113232-LPCLOUD
     tier: preferred
     role: secondary
     services:

@@ -17,6 +17,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: SENTINEL-1_INTERFEROGRAMS
+    concept_id: C1595422627-ASF
     tier: preferred
     role: main
     services:

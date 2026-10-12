@@ -18,6 +18,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: MCD19A2
+    concept_id: C2324689816-LPCLOUD
     tier: preferred
     role: main
     services:

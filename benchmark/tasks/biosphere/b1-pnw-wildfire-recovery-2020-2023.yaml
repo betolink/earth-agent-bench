@@ -18,6 +18,7 @@ access_requirement:
   output_format: geotiff
 collections:
   - short_name: HLSL30
+    concept_id: C2021957657-LPCLOUD
     tier: preferred
     role: main
     services:
@@ -25,6 +26,7 @@ collections:
       - {pattern: S4, available: true, source: "catalog; verify"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: HLSS30
+    concept_id: C2021957295-LPCLOUD
     tier: preferred
     role: main
     services:

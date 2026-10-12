@@ -17,6 +17,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: MODISA_L3m_CHL
+    concept_id: C3380709133-OB_CLOUD
     tier: preferred
     role: main
     services:

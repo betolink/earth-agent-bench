@@ -17,12 +17,14 @@ access_requirement:
   output_format: parquet
 collections:
   - short_name: GEDI02_B
+    concept_id: C3974616135-LPCLOUD
     tier: preferred
     role: primary
     services:
       - {pattern: S4, available: true, source: "catalog: AppEEARS GEDI point sampling; verify"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: HLSL30
+    concept_id: C2021957657-LPCLOUD
     tier: preferred
     role: secondary
     services:

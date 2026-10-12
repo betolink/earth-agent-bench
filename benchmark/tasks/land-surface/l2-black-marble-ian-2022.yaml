@@ -18,6 +18,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: VNP46A2
+    concept_id: C3365931269-LAADS
     tier: preferred
     role: main
     services:
@@ -26,6 +27,7 @@ collections:
       - {pattern: S2, available: true, source: "catalog; verify via CMR"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: VNP46A1
+    concept_id: C2980666614-LAADS
     tier: acceptable
     reason: requires own gap filling and moonlight correction
 pattern_tiers:

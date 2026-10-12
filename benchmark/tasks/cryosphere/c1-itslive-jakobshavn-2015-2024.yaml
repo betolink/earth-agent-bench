@@ -17,6 +17,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: NSIDC-0776
+    concept_id: C3618748415-NSIDC_CPRD
     tier: preferred
     role: main
     services:

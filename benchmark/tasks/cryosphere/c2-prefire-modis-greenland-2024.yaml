@@ -2,7 +2,7 @@ task_id: cryosphere/c2-prefire-modis-greenland-2024
 science_sphere: cryosphere
 title: PREFIRE and MODIS cloud-screened collocation, Greenland winter 2024
 discipline_workflow:
-  - Identify PREFIRE_SAT1_2B-Radiance and MOD35_L2 cloud mask
+  - Identify PREFIRE_SAT1_1B-RAD and MOD35_L2 cloud mask
   - Subset each collection to Greenland and Jan-Mar 2024
   - Time/space match footprints to MODIS pixels (30 min, 25 km)
   - Apply MODIS cloud mask to PREFIRE footprints
@@ -16,13 +16,15 @@ access_requirement:
   variables_of_interest: [prefire_radiance, modis_cloud_fraction]
   output_format: parquet
 collections:
-  - short_name: PREFIRE_SAT1_2B-Radiance
+  - short_name: PREFIRE_SAT1_1B-RAD
+    concept_id: C3523946238-LARC_CLOUD
     tier: preferred
     role: primary
     services:
       - {pattern: C1, available: false, reason: "EDVS grade unknown (not sampled)"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: MOD35_L2
+    concept_id: C1443561895-LAADS
     tier: preferred
     role: secondary
     services:

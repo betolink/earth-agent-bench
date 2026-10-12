@@ -17,12 +17,14 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: AU_SI12
+    concept_id: C3243521611-NSIDC_CPRD
     tier: preferred
     role: main
     services:
       - {pattern: C1, available: false, grade: B, source: edvs-parquet, reason: "T: no time dimension; time axis added at store build"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: AU_SI6
+    concept_id: C3243519075-NSIDC_CPRD
     tier: acceptable
     reason: 6.25 km variant, higher volume
 pattern_tiers:

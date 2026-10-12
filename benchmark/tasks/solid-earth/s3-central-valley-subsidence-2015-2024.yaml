@@ -16,12 +16,14 @@ access_requirement:
   output_format: geotiff
 collections:
   - short_name: OPERA_L3_DISP-S1_V1
+    concept_id: C3294057315-ASF
     tier: preferred
     role: main
     services:
       - {pattern: C1, available: false, reason: "EDVS sampling pending for DISP-S1"}
       - {pattern: S1, available: false, reason: "ASF OPERA not Harmony-enabled; verify"}
   - short_name: SENTINEL-1_INTERFEROGRAMS
+    concept_id: C1595422627-ASF
     tier: acceptable
     reason: fallback via GUNW stacking; much higher granule volume
 pattern_tiers:

@@ -34,7 +34,12 @@ def _derive_task_id(path: Path) -> str:
 
 
 def render_instruction(task: Task) -> str:
-    """Render a task's instruction.md from its definition."""
+    """Render a task's instruction.md from its definition.
+
+    The dataset(s) the agent must use are stated explicitly (short_name +
+    concept_id) so the task tests *access-pattern* choice, not collection
+    discovery — collection selection is handled by a separate project.
+    """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
     variables = ", ".join(req.variables_of_interest)
@@ -53,15 +58,27 @@ def render_instruction(task: Task) -> str:
         lines.append(f"- Required aggregation: {task.validation.aggregation}")
     if task.validation.units:
         lines.append(f"- Expected units: {task.validation.units}")
-    lines.append("")
-    lines.append("Produce the output artifact. Choose access services and patterns for")
-    lines.append("the collection(s) you select; justify your access choice in the workflow.")
-    lines.append("")
-    lines.append("## Execution policy (this environment runs OUTSIDE AWS)")
-    lines.append("- Direct S3 / cloud-native direct access is NOT available; always use HTTPS.")
-    lines.append("- Do NOT retry the same access service more than twice. On the second")
-    lines.append("  failure, move to the next acceptable pattern (e.g. Harmony -> OPeNDAP ->")
-    lines.append("  DMR++ -> Giovanni) instead of repeating the same call.")
-    lines.append("- Be decisive: if no service succeeds within your budget, write your best")
-    lines.append("  answer and the required access summary, then stop. Do not loop.")
+
+    datasets = [c for c in task.collections if c.tier == "preferred"] or list(task.collections)
+    if datasets:
+        lines += ["", "## Datasets to use"]
+        lines.append("Use the following dataset(s) — this is the required collection;")
+        lines.append("do not search for alternatives. Resolve access via the CMR concept_id:")
+        for collection in datasets:
+            cid = f" (concept_id: {collection.concept_id})" if collection.concept_id else ""
+            lines.append(f"- {collection.short_name}{cid}")
+
+    lines += [
+        "",
+        "Produce the output artifact. Choose the best access service and pattern for",
+        "the dataset(s) above; justify your access choice in the workflow.",
+        "",
+        "## Execution policy (this environment runs OUTSIDE AWS)",
+        "- Direct S3 / cloud-native direct access is NOT available; always use HTTPS.",
+        "- Do NOT retry the same access service more than twice. On the second",
+        "  failure, move to the next acceptable pattern (e.g. Harmony -> OPeNDAP ->",
+        "  DMR++ -> Giovanni) instead of repeating the same call.",
+        "- Be decisive: if no service succeeds within your budget, write your best",
+        "  answer and the required access summary, then stop. Do not loop.",
+    ]
     return "\n".join(lines)

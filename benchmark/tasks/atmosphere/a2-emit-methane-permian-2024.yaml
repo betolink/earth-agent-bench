@@ -17,12 +17,14 @@ access_requirement:
   output_format: csv
 collections:
   - short_name: EMITL2BCH4PLM
+    concept_id: C3242707413-LPCLOUD
     tier: preferred
     role: main
     services:
       - {pattern: C1, available: false, reason: "EDVS grade unknown (not sampled)"}
       - {pattern: S1, available: true, source: "catalog; verify via CMR"}
   - short_name: EMITL1BRAD
+    concept_id: C2408009906-LPCLOUD
     tier: unacceptable
     reason: radiance is not methane enhancement
 pattern_tiers:

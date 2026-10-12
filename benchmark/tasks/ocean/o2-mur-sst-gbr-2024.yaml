@@ -17,6 +17,7 @@ access_requirement:
   output_format: netcdf
 collections:
   - short_name: MUR-JPL-L4-GLOB-v4.1
+    concept_id: C1996881146-POCLOUD
     tier: preferred
     role: main
     services:
