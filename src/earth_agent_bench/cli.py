@@ -74,16 +74,36 @@ def validate(
 
 @app.command()
 def run(
-    task: Path = typer.Argument(..., help="Path to a task .yaml or eval .md file"),
-    model: str = typer.Option(..., help="Model id from experiments/models.yaml"),
-    harness: str = typer.Option(..., help="pi | opencode | codex-cli | claude-code"),
+    task: Optional[Path] = typer.Argument(
+        None, help="Task .yaml/.md for a single run; omit to run the full sweep."),
+    name: Optional[str] = typer.Option(
+        None, "--name", "-n", help="Experiment name (used as the run identity)."),
+    model: Optional[str] = typer.Option(None, help="Model id (single-run only)."),
+    harness: Optional[str] = typer.Option(None, help="Harness (single-run only)."),
     condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
     trial: int = typer.Option(1),
     runs_root: Path = typer.Option(REPO_ROOT / "runs", help="Where run workspaces live"),
     timeout: int = typer.Option(600, help="Per-run timeout in seconds (default 600 = 10 min)"),
     dry_run: bool = typer.Option(False, help="Print workspace/env/command only"),
 ) -> None:
-    """Direct single-run trial (no Harbor). Builds a workspace and launches the harness."""
+    """Run a single task, or (no task) the full EAB sweep under --name.
+
+    \b
+      eab run --name experiment-1               # full sweep, named
+      eab run task.yaml --model m --harness pi  # one task
+    """
+    if task is None:  # full sweep
+        import os
+        import subprocess
+        env = dict(os.environ)
+        if name:
+            env["EAB_RUN_NAME"] = name
+        console.print(f"[green]full sweep[/green] name={name or '(run.yaml default)'}")
+        raise typer.Exit(code=subprocess.call(
+            ["bash", "scripts/eab-full-run.sh"], cwd=REPO_ROOT, env=env))
+    if not model or not harness:
+        console.print("[red]--model and --harness are required for a single run[/red]")
+        raise typer.Exit(code=1)
     from .runner import RunSpec, execute
 
     spec = RunSpec(
@@ -582,12 +602,13 @@ def archive(
       eab archive --name pilot-1
     """
     from .archive import archive_run, latest_stamp
+    from .runconfig import load_manifest_names
 
     stamp = latest_stamp()
     if not stamp:
         console.print("[red]no active run found (no runs/eab-full-*.log)[/red]")
         raise typer.Exit(code=1)
-    name = name or f"run-{stamp.split('-')[0]}-incomplete"
+    name = name or load_manifest_names().get(stamp) or f"run-{stamp.split('-')[0]}-incomplete"
     result = archive_run(name, stamp, dry_run=dry_run)
     verb = "would archive" if dry_run else "archived"
     console.print(f"[green]{verb}[/green] {len(result['moved'])} items for "

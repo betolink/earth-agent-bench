@@ -86,8 +86,12 @@ eab harbor run benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml \
 **Whole grounded sweep** (the driver used for the 540-cell matrix):
 
 ```bash
-bash scripts/eab-full-run.sh
+eab run --name experiment-1        # named run (recommended)
+bash scripts/eab-full-run.sh       # same, name from run.yaml
 ```
+
+`eab run --name <n>` launches the driver with that experiment name (the run's
+identity for the dashboard, manifest and `eab archive`); the stamp is internal.
 
 It iterates `18 tasks × {models} × {pi, opencode, codex-cli} × {baseline, improve,
 mcp, skills, mcp-skills}`, one Harbor job per cell, logging to
