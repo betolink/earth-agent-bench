@@ -14,6 +14,12 @@ description: Stream NASA Earthdata into memory with earthaccess.open() instead o
 > try to read it directly — re-resolve to HTTPS or fall back to `earthaccess.download()`
 > over HTTPS.
 
+> **Discover through `earthaccess`, not raw CMR.** Given a DOI / `concept_id` /
+> `short_name`, resolve granules, links and services with `earthaccess`
+> (`search_data`, `search_services`) — **not** `https://cmr.earthdata.nasa.gov/…`
+> via `requests`/`curl`. Results translate cleanly to **STAC items** when you need
+> another ecosystem (e.g. `odc-stac`).
+
 Both paths start the same: `earthaccess.search_data()` (metadata only), URL resolution
 (S3 in-cloud or HTTPS out-of-cloud), authenticated connection. The difference is what
 happens after the connection opens:

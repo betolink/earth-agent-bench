@@ -10,6 +10,9 @@ copying data: a reference manifest maps every chunk of the logical array to a
 `(url, offset, length)` triple inside the original files. Reads become HTTP range
 requests; nothing is rewritten; no server sits in the middle.
 
+> **Resolve granules with `earthaccess.search_data(...)`** (by DOI / `concept_id` /
+> `short_name`), then `earthaccess.virtualize(...)` — not raw CMR `requests`.
+
 ## When it is possible
 
 Virtualizability is decided at **write time** by the archive, not by tooling. The

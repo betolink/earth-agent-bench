@@ -9,13 +9,33 @@ The access pattern you choose usually matters more than the analysis code. A reg
 monthly mean can cost 40 MB through the right pattern or 500 GB through the wrong one.
 Never default to downloading whole granules.
 
+## Use earthaccess for everything (when you have a DOI, concept_id, or short_name)
+
+If the dataset is identified by a **DOI, CMR `concept_id`, or `short_name`**, do
+**all** of the following through `earthaccess` — never the raw CMR REST API:
+
+- **Link / granule discovery** — `earthaccess.search_data(...)`; it resolves the
+  EDL-authenticated HTTPS links for each granule.
+- **Service discovery (OPeNDAP, Harmony)** — `earthaccess.search_services(...)`
+  and the collection's services, before writing any access code.
+- **Virtualization** — `earthaccess.virtualize(...)` (see `data-virtualization`).
+- **I/O** — `earthaccess.open(...)` (stream) or `earthaccess.download(...)`.
+
+Do **not** call `https://cmr.earthdata.nasa.gov/...` with raw `requests`/`curl`:
+it bypasses EDL auth handling, is not recorded, and duplicates what `earthaccess`
+already does. Pin the collection by its DOI / `concept_id` / `short_name`.
+
+If you need the results in another ecosystem, the `earthaccess` results translate
+cleanly to **STAC items** (e.g. for `odc-stac` / `stac` tooling) — build the items
+from the `earthaccess` results rather than re-querying CMR by hand.
+
 ## Procedure
 
 1. **Pin the requirement.** Collection candidates, bbox (W,S,E,N), time window, variable
    names, output artifact. Everything downstream is decided by this.
-2. **Discover the services** for the candidate collection before writing access code:
-   - CMR service associations (`RelatedUrls` with `GET/USE SERVICE API`, or the
-     collection feed's `has_transforms` flag → Harmony-enabled).
+2. **Discover the services** with `earthaccess` before writing access code
+   (`earthaccess.search_services(...)` plus the collection's `RelatedUrls`):
+   - Harmony (`has_transforms` / a Harmony service → server-side subsetting).
    - OPeNDAP / DMR++ availability (cloud-hosted collections often publish DMR++ sidecars).
    - AppEEARS (LP DAAC point/area sampling), Giovanni (atmospheric composition).
    - Native Zarr endpoints published by projects (e.g. ITS_LIVE datacubes).
@@ -30,12 +50,15 @@ Never default to downloading whole granules.
 |---:|---|---|
 | 1 | Virtual Zarr via `earthaccess.virtualize` | lazy datacube over the archive (needs grade A/B) |
 | 2 | Native Zarr store | open directly with xarray |
-| 3 | OPeNDAP in the cloud (DMR++) | ranged reads via pydap/netCDF4 |
-| 4 | OPeNDAP (Hyrax) | server-side slicing |
-| 5 | Harmony subsetting | async server-side subset (bbox/time/variables) |
-| 6 | AppEEARS / Giovanni | point sampling / pre-aggregated products |
-| 7 | Filtered download | granule-list filtering (bbox/time/QA metadata) before downloading |
-| 8 | Full granule download | last resort; never the archive |
+| 3 | COG (cloud-optimized GeoTIFF) | range reads via rioxarray / GDAL |
+| 4 | Harmony subsetting | async server-side subset (bbox/time/variables) |
+| 5 | OPeNDAP in the cloud (DMR++) | ranged reads via pydap/netCDF4 |
+| 6 | OPeNDAP (Hyrax) | server-side slicing |
+| 7 | HTTP subsetting / filtered download | granule-list filtering (bbox/time/QA) before transfer |
+| 8 | Full granule download | last resort; never the whole archive |
+
+AppEEARS and Giovanni are interactive / pre-aggregated apps, **not** preferred
+programmatic patterns — reach for them only when nothing above fits.
 
 5. **Subset before you compute.** Whatever the pattern: apply the spatial/temporal/variable
    selection at access time, then compute (see the `earthdata-streaming-vs-download` and
@@ -51,8 +74,8 @@ Never default to downloading whole granules.
 - Reading every variable when the analysis needs one (e.g. MUR `analysed_sst`, not the
   misaligned `dt_1km_data`).
 - Ignoring granule metadata filters (bbox, cloud cover, QA) before transfer.
-- Confusing product levels (L2 vs L3) or column types (total vs tropospheric) — access
-  correctness includes picking the right collection, not just the right bytes.
+- Confusing product levels (L2 vs L3) or column types (total vs tropospheric) — the
+  dataset is given; access correctness means the right bytes from it, not just any bytes.
 
 ## Quick signals
 
