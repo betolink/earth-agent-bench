@@ -79,9 +79,11 @@ fi
 
 # 6) resume: skip cells already completed in this run
 declare -A DONE
-while IFS= read -r k; do [ -n "$k" ] && DONE["$k"]=1; done \
-  < <(.venv/bin/python scripts/done_cells.py "$RUN_START")
-echo "resume: ${#DONE[@]} cells already done" | tee -a "$LOG"
+DONE_COUNT=0
+while IFS= read -r k; do
+  if [ -n "$k" ]; then DONE["$k"]=1; DONE_COUNT=$((DONE_COUNT + 1)); fi
+done < <(.venv/bin/python scripts/done_cells.py "$RUN_START")
+echo "resume: $DONE_COUNT cells already done" | tee -a "$LOG"
 
 MAPFILE_TASKS=$(find benchmark/tasks -name '*.yaml' | sort)
 CONC="${CONCURRENCY:-1}"
@@ -113,7 +115,7 @@ for m in $MODELS; do
         fi
         pause_gate
         run_cell "$task" "$m" "$h" "$c" &
-        while [ "$(jobs -rp | wc -l)" -ge "$CONC" ]; do wait -n; done
+        while [ "$(jobs -rp | wc -l)" -ge "$CONC" ]; do wait -n || true; done
       done <<< "$MAPFILE_TASKS"
       wait
       bash scripts/fix-perms.sh runs >/dev/null 2>&1 || true
