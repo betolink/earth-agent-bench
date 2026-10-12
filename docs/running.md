@@ -195,6 +195,15 @@ raw artifacts are under `runs/harbor/<job>/` (`result.json`, `*/verifier/details
   `scripts/fix-perms.sh` (no sudo needed) — the driver already calls it per combo.
 - Observability that reads **LiteLLM spend/logs** needs a log/admin-scoped key
   (`eab doctor` flags inference-only keys).
+- **Archive a finished/abandoned run** so the dashboard/index only show the active
+  one (the dashboard names the active run from its manifest):
+
+  ```bash
+  eab archive --name run-20261011-incomplete        # newest run
+  eab archive --name pilot-1 --stamp 20261011-005413
+  ```
+
+  It moves the run's job dirs, log and manifest under `runs/archive/<name>/`.
 
 ## 5. Inspect a cell (trajectory + metadata)
 

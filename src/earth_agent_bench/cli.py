@@ -565,6 +565,32 @@ def index(
         console.print(f"[dim]sampling defaults: {sampling} (from models.yaml)[/dim]")
 
 
+@app.command("archive")
+def archive(
+    name: str = typer.Option(..., "--name", "-n",
+                             help="Archive folder name, e.g. run-20261011-incomplete."),
+    stamp: Optional[str] = typer.Option(None, "--stamp",
+                                        help="Run stamp (YYYYMMDD-HHMMSS); default newest log."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would move."),
+) -> None:
+    """Move a run's job dirs, log and manifest under runs/archive/<name>/.
+
+    \b
+      eab archive --name run-20261011-incomplete            # newest run
+      eab archive --name pilot-1 --stamp 20261011-005413
+    """
+    from .archive import archive_run, latest_stamp
+
+    stamp = stamp or latest_stamp()
+    if not stamp:
+        console.print("[red]no run stamp found (no runs/eab-full-*.log)[/red]")
+        raise typer.Exit(code=1)
+    result = archive_run(name, stamp, dry_run=dry_run)
+    verb = "would archive" if dry_run else "archived"
+    console.print(f"[green]{verb}[/green] {len(result['moved'])} items for "
+                  f"{stamp} -> {result['dest']}")
+
+
 @app.command("dashboard")
 def dashboard(
     interval: int = typer.Option(300, help="Refresh interval in seconds."),

@@ -247,6 +247,11 @@ def collect_eab() -> dict:
     if logs:
         mm = _STAMP.search(Path(logs[-1]).stem)
         run_start = mm.group(1) if mm else ""
+    try:
+        from .runconfig import load_manifest_names
+        run_name = load_manifest_names().get(run_start, "")
+    except Exception:
+        run_name = ""
 
     combos = []
     total_done = 0
@@ -286,7 +291,7 @@ def collect_eab() -> dict:
             log.warning("could not read EAB log %s: %s", logs[-1], e)
     total = len(combos) * EAB_TASKS
     return {"combos": combos, "total_done": total_done, "done_combos": done_combos,
-            "total": total, "run_start": run_start,
+            "total": total, "run_start": run_start, "run_name": run_name,
             "log": logs[-1] if logs else "(no log yet)", "recent": list(reversed(recent))}
 
 
@@ -648,7 +653,9 @@ class Dashboard(App):
         t.append(f"   |   harbor jobs: {p.get('harbor', 0)}\n")
         t.append("current: ", style="bold")
         t.append(f"{p.get('current') or '—'}\n")
-        t.append("EAB progress: ")
+        t.append("EAB run: ", style="bold")
+        t.append(f"{e.get('run_name') or 'unnamed'} · {e.get('run_start') or '?'}", style=RUN)
+        t.append("   |   progress: ")
         t.append(f"{e.get('total_done',0)}/{e.get('total',0)} tasks ({pct}%), "
                  f"{e.get('done_combos',0)}/{len(e.get('combos',[]))} combos", style=YELLOW)
         t.append(f"   updated {datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')}"
