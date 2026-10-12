@@ -2,28 +2,31 @@
 
 Access-pattern selection benchmark for AI agents working with NASA Earthdata.
 
-> **Given a NASA Earthdata collection and a bounded scientific access requirement, did the agent select and execute the best available access pattern — and could it justify why?**
+> **Given a NASA Earthdata collection (with its CMR `concept_id`) and a bounded scientific access requirement, did the agent select and execute the best available access pattern — and could it justify why?**
 
-The benchmark does not score "amazing science." Each task wraps a thin,
-discipline-representative computation (a gate: right variable, right extent,
-right units, trivial aggregation) around the real evaluation surface: service
-discovery, access-pattern selection, representation, and efficiency.
+The benchmark does not score "amazing science", and it does **not** test
+collection *discovery* (handled by a separate project): each task names the exact
+dataset(s) it must use. Each task wraps a thin, discipline-representative
+computation (right variable, extent, units, trivial aggregation) around the real
+evaluation surface: **access-pattern selection**, service discovery,
+representation, and efficiency.
 
 ## Key concepts
 
-- **Access pattern taxonomy** (`C1`…`M2`): cloud-native direct access,
-  server-mediated subsetting, streaming, filtered download, materialization.
-- **earthaccess virtualization** (`C1`, `earthaccess.virtualize`) is a
-  first-class pattern ranked above OPeNDAP when the collection's
-  [EarthDataVirtualizabilityScore](https://github.com/alex-s-gardner/EarthDataVirtualizabilityScore)
-  (EDVS) grade is A or B — **but `C1`/direct-S3 is unavailable here**: the suite
-  runs **out-of-region**, so tasks rank the best **HTTPS** pattern (Harmony `S1`,
-  OPeNDAP `S2`, DMR++ `S3`, Giovanni `S5`).
-- **Oracles**: an EDVS parquet file decides `C1` availability and DMR++ (`S3`);
-  a curated YAML catalog covers other services (until verified against CMR);
-  live CMR discovery is available on demand.
+- **Access-pattern preference** (`C1`…`M2`): **data virtualization first**
+  (`C1` virtual zarr, `C2` native zarr, `C3` COG), then **Harmony** (`S1`), then
+  **OPeNDAP** (`S3` DMR++ / `S2`), then **HTTP subsetting/aggregation** (`T*`,
+  `F*`), and **full download last** (`M1`/`M2`). AppEEARS (`S4`) and Giovanni
+  (`S5`) are not ranked as "good" patterns.
+- **Out-of-region**: direct S3 / cloud-native *storage* is unavailable here, so
+  access goes over **HTTPS** (virtualization, Harmony, OPeNDAP, or filtered
+  download).
+- **Oracles**: an EDVS parquet file decides virtualization (`C1`) availability;
+  live CMR (`has_transforms`, RelatedUrls) decides Harmony (`S1`) and OPeNDAP
+  (`S2`/`S3`); a curated YAML catalog covers the rest.
 - **18 grounded tasks** across atmosphere, cryosphere, biosphere, ocean, solid
-  earth, and land surface — real collections, regions, and event windows.
+  earth, and land surface — real collections, regions, and event windows, each
+  with a resolved `concept_id`.
 
 ## Documentation
 
@@ -36,6 +39,10 @@ discovery, access-pattern selection, representation, and efficiency.
 - **[Executor & profiler](docs/executor.md)** — `eab exec` (`ok|error|timeout|oom`
   + scalene/memray) for code deliverables.
 - **[Tasks & evals](docs/tasks-and-evals.md)** — full task suite + evaluation spec.
+- **[Reports](docs/reports/)** — grounded-sweep observations and collection
+  verification (what to improve next).
+- **[FineEnvs RL assessment](docs/rl-fineenvs-assessment.md)** — gap to the
+  multi-harness RL recipe (future track).
 - **[Consolidated plan](docs/consolidated-plan.md)** · **[Gaps](docs/gaps.md)**.
 
 ## Setup
@@ -55,6 +62,10 @@ uv run eab config                            # preview the run matrix: models ×
 uv run eab trajectory -t a3 -m tiel-coder-35b -H pi   # dump a cell's trajectory + metadata
 uv run eab index                             # build runs/index.jsonl (per-trial metadata)
 uv run eab dashboard                         # live TUI (runs · live agent · current task; Ctrl+L logs)
+uv run eab archive                           # shelve the active run -> runs/archive/<name>
+
+# full sweep, named (the name is the run identity for dashboard/manifest/archive)
+EAB_MODELS=tiel-coder-35b EAB_HARNESSES=pi uv run eab run --name experiment-1
 
 uv run eab validate                          # validate all 18 task YAMLs
 uv run eab matrix TEMPO_NO2_L3               # service availability matrix
@@ -96,8 +107,9 @@ Example run observation for `eab score`:
 }
 ```
 
-Scoring weights: collection 10% · service discovery 15% · **access pattern 35%** ·
-representation 15% · efficiency 15% · validation gate 10%.
+Scoring weights (collection choice is **not** scored — the dataset is given):
+**access pattern 45%** · service discovery 15% · representation 15% ·
+efficiency 15% · validation gate 10%.
 
 ## Skills, MCP, and running a trial
 
@@ -113,7 +125,7 @@ representation 15% · efficiency 15% · validation gate 10%.
 - `docs/quickstart.md` — the runbook: EDL account, gateway setup, a manual quick
   trial, the knowledge conditions, and the pilot scale-up path
 
-## Experiment configuration (v3.1)
+## Experiment configuration
 
 Run matrices and roster live in `experiments/`:
 
@@ -139,11 +151,18 @@ skills/ improvements/ knowledge skills + per-model self-improvement skills
 src/earth_agent_bench/
   patterns.py        pattern registry + selection ladder
   schemas.py         pydantic task/result models
-  tasks.py           task loading + instruction rendering
+  tasks.py           task loading + instruction rendering (dataset + concept_id)
+  runconfig.py       run config + manifests (models/harnesses/conditions/tasks)
+  runs.py            run-dir parsing (parse_job_dir) + read_json
+  trajectory.py      per-cell trajectory + metadata resolver (eab trajectory)
+  index.py           rebuildable per-trial JSONL index (eab index)
+  archive.py         shelve a run (eab archive)
+  report.py          per-model reward + token aggregation (eab report)
   evals.py           deterministic correctness grader (10 eval tasks)
   models.py          LiteLLM roster helpers (discover / reconcile)
+  mcp.py             MCP server manifest probe (eab mcp)
   wiring.py          shared gateway / condition / MCP / skills wiring
-  runner.py          direct single-run orchestrator (eab run)
+  runner.py          single-run orchestrator (eab run <task>)
   sweep.py           cartesian sweep (eab sweep)
   postmortem.py      per-model self-improvement skill generator (eab postmortem)
   dashboard.py       live TUI (Textual): eab dashboard
@@ -151,20 +170,23 @@ src/earth_agent_bench/
     runtime/         verifiers + executor (ok|error|timeout|oom) + profiler
   oracles/           virtualizability (parquet), services, CMR, matrix
   scoring/           access-pattern, efficiency, discovery, aggregate
-scripts/             EDVS build, sweep driver, loop watchdog, fix-perms
+scripts/             EDVS build, sweep driver, loop watchdog, concept-id resolver
 tests/               unit tests
 ```
 
-## Status
+## Status (0.1.0)
 
-Working (v3.4): task suite, oracles, scoring, CLI, skills, MCP wiring, the
-direct single-run runner (`eab run` / `eab sweep`), the correctness eval suite
-(`eab eval`), the real Harbor integration (`eab harbor`), the code executor +
-profiler (`eab exec`), the per-model self-improvement loop (`eab postmortem` +
-the `improve` condition), and the live dashboard (`eab dashboard`).
+Working: the grounded task suite (dataset given + `concept_id`), oracles,
+scoring, CLI, skills, MCP wiring, the full sweep driver (`eab run --name`) and
+single run, the correctness eval suite (`eab eval`), real Harbor integration
+(`eab harbor`), the code executor + profiler (`eab exec`), the per-model
+self-improvement loop (`eab postmortem` + `improve`), run naming/manifests +
+pause/resume + archive (`eab archive`), trajectory/index inspection
+(`eab trajectory`, `eab index`), and the live dashboard (`eab dashboard`).
 
 EAB is **self-contained** — no hard-coded hosts/paths; run it with
 `EARTHDATA_TOKEN`, `LITE_LLM_ENDPOINT`, `LITE_LLM_API_KEY` (`eab doctor`
-validates). Remaining gaps: harbor/earthaccess version pinning, byte-level
-instrumentation, reference solutions, earthaccess-mcp, and batch orchestration —
-see `docs/gaps.md` and `docs/quickstart.md`.
+validates). Remaining gaps: harbor/earthaccess version pinning, a reliable
+Harmony/OPeNDAP probe, byte-level instrumentation, reference solutions,
+earthaccess-mcp, and batch orchestration — see `docs/gaps.md`,
+`docs/reports/collection-verification.md` and `docs/quickstart.md`.
