@@ -13,7 +13,7 @@ the full science result. See `docs/tasks-and-evals.md` §1.2 for the contract.
 
 <description>
 
-**Dataset (use exactly this — do not search for alternatives):**
+**Dataset(s):**
 - <short_name> (concept_id: <C…>)
 
 **Deliverable — write and run `access.py`:**

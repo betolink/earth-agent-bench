@@ -93,7 +93,7 @@ def render_instruction(task: Task) -> str:
         "",
         req.description,
         "",
-        "**Dataset (use exactly this — do not search for alternatives):**",
+        "**Dataset(s):**",
         *dataset_lines,
         "",
         "**Deliverable — write and run `access.py`:**",
