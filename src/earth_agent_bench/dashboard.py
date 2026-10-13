@@ -577,13 +577,13 @@ class Dashboard(App):
         yield Static("starting…", id="status")
         with Horizontal(id="top"):
             with Vertical(id="left"):
-                yield Static("CODING SUITE — mean reward (tasks scored)", classes="panel-title")
-                yield DataTable(id="coding")
                 yield Static("EAB — combos × 18 tasks   ✓pass · part=yellow · ✗fail · ⏱timeout · ·pending",
                              classes="panel-title")
                 yield DataTable(id="eabcombo")
             with Vertical(id="right"):
-                yield Static("CODING — per-task grid (latest)", classes="panel-title")
+                yield Static("CODING — suite (mean reward) · per-task grid (latest)",
+                             classes="panel-title")
+                yield DataTable(id="coding")
                 yield DataTable(id="codingtasks")
         with Horizontal(id="bottom"):
             with Vertical(id="livebox"):
