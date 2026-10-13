@@ -101,6 +101,25 @@ root-owned run files after each combo.
 **Direct runner (no Harbor)**: `eab run <path> --model … --harness …` and
 `eab sweep all --models … --harnesses … --conditions all`.
 
+### Naming: run · row · cell · trial
+
+Four levels — keep them straight so a single execution isn't mistaken for the
+whole experiment:
+
+| term | what | example |
+|---|---|---|
+| **run** | the whole named experiment (the umbrella) — what `--name` names | `tiel-pi`, `tiel-full` |
+| **row** | one `model × harness × condition` combo (a dashboard row) | `tiel-coder-35b / pi / baseline` |
+| **cell** | one `row × task` — one Harbor job | `a1-tempo … tiel pi baseline` |
+| **trial** | a repeat of a cell (`trials` / `n_attempts`) | trial 2 |
+
+So `eab run --name tiel-pi-baseline` is a **run** whose matrix happens to hold a
+single **row** (`tiel / pi / baseline` × 18 tasks = 18 **cells**). Name a run for
+its **scope** (`tiel-pi`, `tiel-full`, `all-models`), not for one row — running a
+subset is still a run with fewer rows.
+
+`eab config` prints the counts (`rows`, `cells`) and this legend.
+
 ### Named runs, pause & resume
 
 Every run has a **name** (`name:` in `run.yaml`, override `EAB_RUN_NAME`) and a

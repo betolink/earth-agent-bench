@@ -4,6 +4,8 @@ version: 1
 # `eab config`, `eab index`, and `eab trajectory`, so results are attributable.
 # Override with EAB_RUN_NAME. Use a distinct name when you change the setup
 # (e.g. timeout, sampling) so runs stay comparable.
+# Name the RUN for its scope (e.g. tiel-pi, tiel-full) — not for one row
+# (model × harness × condition); see docs/running.md "Naming".
 name: eab-full
 # Master run config — WHAT to benchmark.
 #

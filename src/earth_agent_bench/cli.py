@@ -722,11 +722,12 @@ def config(
         print(f'CONCURRENCY={c["concurrency"]}')
         return
     n_tasks = len(resolve_run_tasks(c["tasks"]))
-    cells = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"]) * n_tasks * c["trials"]
+    rows = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"])
+    cells = rows * n_tasks * c["trials"]
     table = Table(title="EAB run config (experiments/run.yaml, env-overridable)")
     table.add_column("field")
     table.add_column("value")
-    table.add_row("name", c["name"])
+    table.add_row("run", c["name"] + "  (the whole experiment)")
     table.add_row("models", ", ".join(c["models"]))
     table.add_row("harnesses", ", ".join(c["harnesses"]))
     table.add_row("conditions", ", ".join(c["conditions"]))
@@ -735,8 +736,11 @@ def config(
     table.add_row("concurrency", f"{c['concurrency']}"
                   + ("  (sequential — right for a single local GPU)" if c["concurrency"] <= 1
                      else "  (parallel — for gateway/API models)"))
-    table.add_row("cells", str(cells))
+    table.add_row("rows", f"{rows}  (model × harness × condition)")
+    table.add_row("cells", f"{cells}  (row × task × trial)")
     console.print(table)
+    console.print("[dim]run = the named experiment · row = one model×harness×condition "
+                  "· cell = one row×task · trial = a repeat of a cell[/dim]")
     console.print("[dim]add models in experiments/models.yaml; select them in "
                   "experiments/run.yaml (or EAB_MODELS=…)[/dim]")
 
