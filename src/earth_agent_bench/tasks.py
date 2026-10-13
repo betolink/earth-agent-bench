@@ -99,7 +99,7 @@ def render_instruction(task: Task) -> str:
         "**Deliverable — write and run `access.py`:**",
         *steps,
         "- Write `/app/output/access_summary.json`: "
-        '{"collections": ["SHORT_NAME"], "access_services_used": ["harmony"], '
+        '{"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], '
         '"bytes_read_estimate": 0, "pattern_notes": "one sentence justifying the choice"}.',
         *tail,
         "",
