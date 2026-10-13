@@ -109,6 +109,88 @@ gold:
 
 The agent sees only `access_requirement` (rendered as an instruction). Everything else is verifier-side.
 
+### 1.2 Task contract (v2): deliver the access code, at demo scope
+
+The scored surface is the **access pattern**, so tasks ask for the **code that gets
+the data**, run at the smallest scope that demonstrates the pattern — **not** the
+full science result. This removes the artificial load of processing years of
+granules (the cause of the timeouts) and keeps the observed-behavior signal.
+
+**Deliverable (every task):**
+1. `access.py` — the script that obtains the data with the best available pattern.
+2. A **demo output** — run `access.py` on the smallest scope (one day / 2–4 granules
+   / one small bbox) and write the artifact.
+3. The **access summary** (pattern used, services found, bytes expected).
+
+**Scope rule.** The *science* window (e.g. "2015–2024") stays in the goal prose, but
+the **executable ask is a demo slice** — do not process the full range. **Exception:**
+a **daily ask** (e.g. "SST over the Gulf of Mexico today") produces the real result
+(one granule, quick).
+
+**Task types** (each task declares one, `access_requirement.kind`):
+- `subset` — bbox/time subset of a larger product (e.g. SST over the El Niño region, one month).
+- `virtualize` — open the archive as a lazy virtual datacube (no compute).
+- `aggregate` — reduce to a mean/composite, demonstrated on a demo slice.
+- `daily` — a single-day / single-granule ask; the actual result is the deliverable.
+
+**Grading.** The verifier runs `access.py` at demo scope (`verify_exec`/executor →
+`ok|error|timeout|oom`), then scores the **observed access events** (as today) plus a
+code check (the script uses the sanctioned pattern — earthaccess, virtualize, open —
+not raw CMR or direct URL fetches).
+
+#### Task template
+
+```
+## Goal
+<subset|aggregate|virtualize> <variable> for <region> over <science window>.
+
+## Datasets to use
+Use the following dataset(s) — this is the required collection; do not search for
+alternatives. Resolve access via the CMR concept_id:
+- <short_name> (concept_id: <C…>)
+
+## Deliverable
+1. Write `access.py` that obtains the data with the best access pattern.
+2. Run it on the SMALLEST scope that shows the pattern (one day / a couple of
+   granules / one small bbox) and write the demo artifact.
+3. Write the access summary (pattern used, services found, bytes expected).
+Do NOT process the full time range — demonstrate the pattern, don't run the study.
+
+## Access policy (outside AWS; HTTPS only)
+- Use earthaccess for everything (login() no args; never raw CMR or direct URL
+  fetches — open() returns an authenticated file object).
+- Order: virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) →
+  Harmony/OPeNDAP (async, last) → download.
+- Be decisive: one search, then act and write; do not loop.
+
+## Skills
+If your environment provides skills, READ them before starting and use the ones
+relevant to this task.
+```
+
+#### Draft type/scope per task
+
+| task | type | demo scope |
+|---|---|---|
+| a1 TEMPO NO₂ | virtualize | one day (one granule) |
+| a2 EMIT CH₄ | subset | one plume scene |
+| a3 MAIAC AOD | subset | one day over the bbox |
+| b1 PNW wildfire | aggregate | one season slice |
+| b2 Amazon GPP/SM | virtualize | one month |
+| b3 GEDI/Landsat | subset | one footprint |
+| c1 ITS_LIVE | virtualize | one scene pair |
+| c2 PREFIRE | subset | one orbit over Greenland |
+| c3 AMSR2 ice | subset | one day |
+| l1 Phoenix LST | aggregate | one summer day |
+| l2 Black Marble | subset | one night |
+| l3 Iowa drought | virtualize | one month |
+| o1 Chl-a | virtualize | one month |
+| o2 MUR SST | **daily** | today, Gulf of Mexico (real result) |
+| o3 SWOT | subset | one swath |
+| s1 Türkiye | subset | one interferogram |
+| s2 Reykjanes | subset | one scene pair |
+| s3 Central Valley | virtualize | one scene pair |
+
 ---
 
 ## 2. Atmosphere
