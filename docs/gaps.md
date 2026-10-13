@@ -53,7 +53,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
   generated package; the validity rule (each task's expert workflow must achieve
   its own gold score before the experiment) is unenforceable without them.
 - **Where:** `harbor/runtime/solve.sh` (generated `solution/`);
-  general-plan §40.
+  docs/archive/general-plan.md §40.
 - **Acceptance:** one expert workflow per task passing primary pattern + science
   gate + efficiency envelopes; recorded reference metrics become the envelope
   calibration input (see #8).
@@ -122,7 +122,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **What/why:** `eab run` / `eab harbor run` execute single runs (or one task
   list); nothing walks the pilot/full matrices, writes a `RunManifest` per run,
   or enforces the closed-reference budget guard.
-- **Where:** `experiments/pilot.yaml`, `experiments/full.yaml`.
+- **Where:** `experiments/run.yaml` (the matrices `pilot.yaml`/`full.yaml` are archived under `experiments/archive/`).
 - **Acceptance:** one command runs the pilot matrix restartably, skipping
   completed cells, marking infrastructure failures distinctly.
 
@@ -130,11 +130,11 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **What/why:** the specified outputs (condition comparison, price-tier,
   knowledge×tier interaction, cost-per-success, failure taxonomy) have no
   aggregation/analysis code.
-- **Where:** `docs/tasks-and-evals.md` §9–§10; general-plan §42.
+- **Where:** `docs/tasks-and-evals.md` §9–§10; docs/archive/general-plan.md §42.
 - **Acceptance:** `eab`-generated reports from collected runs.
 
 ### 14. Harbor packaging depth
-- **What/why:** infrastructure-failure accounting (general-plan §51) and
+- **What/why:** infrastructure-failure accounting (docs/archive/general-plan.md §51) and
   live-vs-reproducible modes (§52) are not yet wired into the generated
   packages.
 - **Acceptance:** failure classification + a reproducible (cached/snapshot)
@@ -184,6 +184,6 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 | `status: pending` | `mcp/manifest.yaml` | #10 |
 | scaffold skills note | `skills/`, `docs/quickstart.md` §7 | #11 |
 | "still to be built" batch note | `docs/quickstart.md` §6 | #12 |
-| verifier fidelity note | `docs/consolidated-plan.md` §5.2 | #6/#7 |
+| verifier fidelity note | `docs/archive/consolidated-plan.md` §5.2 | #6/#7 |
 | "not yet wired — FUTURE" note | `docs/executor.md`, `harbor/runtime/*` | #15 |
 | RL gap assessment | `docs/rl-fineenvs-assessment.md` | #16 |

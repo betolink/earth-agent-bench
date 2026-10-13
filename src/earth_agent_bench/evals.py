@@ -57,11 +57,6 @@ FALSE = {"no", "false", "0", "n", "f"}
 NOT_APPLICABLE = "not applicable"
 
 
-def _strip(value: str) -> str:
-    """Normalise a value to a comparable string."""
-    return value.strip()
-
-
 def _label(value: str) -> str:
     """Type label of a value (bool/int/float/str/other)."""
     return " ".join(value.strip().lower().split())

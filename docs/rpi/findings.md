@@ -258,4 +258,4 @@ produce.
 2. **Tool-call source** — the FineEnvs tool bonus applies only when a tool-call
    count is instrumented; otherwise `reward ≡ correctness`. Harbor's ATIF
    trajectory carries the counts when needed.
-3. **Trial count** — N=1 by default (`n_attempts: 1`); raise per `pilot.yaml`.
+3. **Trial count** — N=1 by default (`n_attempts: 1`); raise per `experiments/run.yaml`.

@@ -44,18 +44,6 @@ def find_collections(short_name: str, timeout: float = 30.0) -> list[dict]:
     return (payload.get("feed") or {}).get("entry") or []
 
 
-def find_concept_id(short_name: str, provider: Optional[str] = None,
-                    timeout: float = 30.0) -> Optional[str]:
-    """Resolve a collection concept-id from a short name."""
-    entries = find_collections(short_name, timeout=timeout)
-    if provider:
-        entries = [e for e in entries if e.get("id", "").endswith(f"-{provider}")]
-    if not entries:
-        return None
-    cloud = [e for e in entries if e.get("cloud_hosted")]
-    return (cloud or entries)[0].get("id")
-
-
 _SERVICE_SUBTYPES = {"APPEEARS", "GIOVANNI", "OPENDAP", "HARMONY", "ESI", "SUBSETTER"}
 
 

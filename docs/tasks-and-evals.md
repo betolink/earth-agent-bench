@@ -1,7 +1,7 @@
 # Earth-Agent-Bench: Task Suite & Evaluation Specification
 
 **Version:** 3.0 (grounded, access-pattern focused)
-**Companion:** `docs/consolidated-plan.md`
+**Companion:** `docs/archive/consolidated-plan.md`
 
 ---
 

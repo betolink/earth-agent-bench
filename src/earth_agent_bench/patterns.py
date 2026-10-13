@@ -60,8 +60,3 @@ SELECTION_LADDER = [
     "F1", "F2", "F3", "F4",
     "M1", "M2",
 ]
-
-
-def validate_pattern(pattern_id: str) -> bool:
-    """Validate a pattern code against the known set."""
-    return pattern_id in PATTERNS

@@ -54,7 +54,6 @@ def test_alias_resolution():
 
 
 def test_alias_lists():
-    assert len(resolve_tasks("pilot")) == 3
     assert len(resolve_tasks("all")) == 28  # 18 benchmark + 10 eval
     assert len(resolve_tasks("cryo-1,atmo-2")) == 2
 

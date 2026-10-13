@@ -145,11 +145,12 @@ def load_manifest_names() -> dict[str, str]:
     return out
 
 
-def resolve_tasks(sel) -> list[Path]:
-    """Resolve a task selection into task YAML paths.
+def resolve_run_tasks(sel) -> list[Path]:
+    """Resolve the *run* task selection (run.yaml `tasks`) into benchmark task YAMLs.
 
-    ``sel`` may be ``"all"``/``None``, a comma-separated string, or a list of task
-    ids (matched by exact stem or substring).
+    Distinct from `harbor.resolve.resolve_tasks` (which expands task *references*
+    — paths/ids/aliases/globs — and includes the eval suite). This one is
+    benchmark-only and drives the run matrix (`eab config`).
     """
     all_tasks = sorted(TASKS_DIR.rglob("*.yaml"))
     if sel in ("all", None, ""):

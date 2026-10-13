@@ -53,33 +53,6 @@ def test_conditions_complete():
     assert conditions["improve"]["improvement"] is True
 
 
-def test_pilot_references_valid_models(models):
-    pilot = yaml.safe_load((EXPERIMENTS / "pilot.yaml").read_text())
-    roster = set(models["models"])
-    assert set(pilot["models"]) <= roster
-    lane_models = set(pilot["lanes"]["claude-reference"]["models"])
-    assert lane_models <= roster
-
-
-def test_full_run_arithmetic():
-    full = yaml.safe_load((EXPERIMENTS / "full.yaml").read_text())
-    main = 9 * 3 * 4 * 18 * full["trials"]
-    assert full["main_runs"] == main
-    lane = 1 * 1 * 4 * 18 * full["trials"]
-    lane_entry = full["lanes"]["claude-reference"]
-    assert lane_entry["lane_runs"] == lane
-    assert full["total_runs"] == main + lane
-
-
-def test_pilot_run_arithmetic():
-    pilot = yaml.safe_load((EXPERIMENTS / "pilot.yaml").read_text())
-    main = len(pilot["models"]) * len(pilot["harnesses"]) * 4 * len(pilot["tasks"]) * pilot["trials"]
-    assert pilot["main_runs"] == main
-    lane_entry = pilot["lanes"]["claude-reference"]
-    lane = 1 * 1 * 4 * len(pilot["tasks"]) * lane_entry["trials"]
-    assert lane_entry["lane_runs"] == lane
-
-
 def test_gateway_example_covers_roster(models):
     gateway = yaml.safe_load((EXPERIMENTS / "litellm.example.yaml").read_text())
     served = {entry["model_name"] for entry in gateway["model_list"]}

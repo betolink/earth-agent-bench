@@ -2,47 +2,14 @@
 
 from __future__ import annotations
 
-import glob
 from dataclasses import dataclass
 from pathlib import Path
 
+from .harbor.resolve import resolve_tasks
 from .models import resolve_conditions, resolve_harnesses, resolve_models
 from .runner import RunSpec, execute
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def resolve_tasks(selection: str) -> list[Path]:
-    """Expand a comma-separated list of paths / dirs / globs into task files.
-
-    'all' expands to the benchmark suite plus the eval suite.
-    """
-    tokens = [t.strip() for t in selection.split(",") if t.strip()]
-    if tokens == ["all"]:
-        tokens = ["benchmark/tasks", "experiments/evals/tasks"]
-
-    paths: list[Path] = []
-    for token in tokens:
-        if any(c in token for c in "*?["):
-            matches = [Path(m) for m in glob.glob(token, recursive=True)]
-        else:
-            matches = [Path(token)]
-        for match in matches:
-            if match.is_dir():
-                paths.extend(sorted(match.rglob("*.md")))
-                paths.extend(sorted(match.rglob("*.yaml")))
-            elif match.is_file():
-                paths.append(match)
-
-    seen: set[Path] = set()
-    ordered: list[Path] = []
-    for path in paths:
-        if path not in seen:
-            seen.add(path)
-            ordered.append(path)
-    if not ordered:
-        raise SystemExit(f"no tasks matched '{selection}'")
-    return ordered
 
 
 @dataclass

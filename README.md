@@ -44,7 +44,7 @@ efficiency.
   verification (what to improve next).
 - **[FineEnvs RL assessment](docs/rl-fineenvs-assessment.md)** — gap to the
   multi-harness RL recipe (future track).
-- **[Consolidated plan](docs/consolidated-plan.md)** · **[Gaps](docs/gaps.md)**.
+- **[Consolidated plan](docs/archive/consolidated-plan.md)** · **[Gaps](docs/gaps.md)**.
 
 ## Setup
 

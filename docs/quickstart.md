@@ -153,20 +153,21 @@ is pending — until it ships, MCP conditions test discovery-level knowledge onl
       installed `harbor` CLI accepts — fix the template in `harbor/harbor.yaml`
       if flags differ
 
-## 6. Scaling up: pilot, then full
+## 6. Scaling up: screen, then the full sweep
 
 Both paths loop naturally once a single run works:
 
 ```bash
 # direct: repeat eab run per matrix cell
-# harbor: the pilot suite resolves as a task list
-uv run eab harbor run pilot --model tiel-coder-35b --harness opencode --condition mcp-skills
+# harbor: run one benchmark task
+uv run eab harbor run a1-tempo-no2-florida-2024 --model tiel-coder-35b --harness opencode --condition mcp-skills
 ```
 
-The matrices themselves live in `experiments/pilot.yaml` (108 + 12 runs) and
-`experiments/full.yaml` (5,832 + 216 runs at 3 trials, budget-guarded for
-closed references). A batch orchestrator that walks those matrices and writes a
-`RunManifest` per run is still to be built (§7).
+The run matrix lives in `experiments/run.yaml` (models × harnesses × conditions
+× tasks), driven by `eab run --name <experiment>`. **Screen candidate models
+first** on `experiments/evals/tasks` (cheap correctness), then run the full sweep
+on `benchmark/tasks` — see `benchmark/tasks/README.md`. (The old `pilot.yaml` /
+`full.yaml` matrices are archived under `experiments/archive/`.)
 
 ## 7. What exists vs. what is missing
 

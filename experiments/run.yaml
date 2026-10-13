@@ -20,6 +20,8 @@ name: eab-full
 # EAB_CONDITIONS, EAB_TASKS (comma-separated).
 
 # Roster ids from experiments/models.yaml to benchmark.
+# Screen candidates first on experiments/evals/tasks (cheap, correctness); only
+# the competent ones belong here — see benchmark/tasks/README.md.
 models: [tiel-coder-35b, ornith-1.5-9b]
 # Harness CLIs crossed with every model.
 harnesses: [pi, opencode, codex-cli]

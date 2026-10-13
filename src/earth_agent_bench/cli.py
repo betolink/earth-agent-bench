@@ -706,7 +706,7 @@ def config(
     as_shell: bool = typer.Option(False, "--shell", help="Emit shell var assignments (for scripts)."),
 ) -> None:
     """Show/validate the benchmark run config (experiments/run.yaml + env + roster)."""
-    from .runconfig import load_run_config, resolve_tasks
+    from .runconfig import load_run_config, resolve_run_tasks
 
     c = load_run_config()
     if c["unknown_models"]:
@@ -721,7 +721,7 @@ def config(
         print(f'CONDITIONS="{" ".join(c["conditions"])}"')
         print(f'CONCURRENCY={c["concurrency"]}')
         return
-    n_tasks = len(resolve_tasks(c["tasks"]))
+    n_tasks = len(resolve_run_tasks(c["tasks"]))
     cells = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"]) * n_tasks * c["trials"]
     table = Table(title="EAB run config (experiments/run.yaml, env-overridable)")
     table.add_column("field")

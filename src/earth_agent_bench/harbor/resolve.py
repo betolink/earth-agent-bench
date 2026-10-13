@@ -5,9 +5,7 @@ from __future__ import annotations
 import glob
 from pathlib import Path
 
-import yaml
-
-from .config import BENCHMARK_TASKS_DIR, EVAL_TASKS_DIR, REPO_ROOT
+from .config import BENCHMARK_TASKS_DIR, EVAL_TASKS_DIR
 
 SPHERE_PREFIXES = {
     "atmo": "atmosphere", "a": "atmosphere",
@@ -80,24 +78,24 @@ def resolve_task(token: str) -> Path:
     )
 
 
+def _md(directory: Path) -> list[Path]:
+    """Eval task files (``*.md``) under a directory, excluding ``README.md``."""
+    return sorted(p for p in directory.rglob("*.md") if p.name.lower() != "readme.md")
+
+
 def resolve_tasks(selection: str) -> list[Path]:
     """Expand a selection into task files.
 
-    ``all`` -> the benchmark suite plus the eval suite; ``pilot`` -> the tasks
-    listed in experiments/pilot.yaml; a directory or glob expands to the
-    ``.yaml``/``.md`` tasks under it; otherwise a comma-separated list of
-    references accepted by :func:`resolve_task`.
+    ``all`` -> the benchmark suite plus the eval suite; a directory or glob
+    expands to the ``.yaml``/``.md`` tasks under it; otherwise a comma-separated
+    list of references accepted by :func:`resolve_task`.
     """
     token = selection.strip()
     if token.lower() == "all":
         return [
             *sorted(BENCHMARK_TASKS_DIR.rglob("*.yaml")),
-            *sorted(EVAL_TASKS_DIR.rglob("*.md")),
+            *_md(EVAL_TASKS_DIR),
         ]
-    if token.lower() == "pilot":
-        pilot = yaml.safe_load((REPO_ROOT / "experiments" / "pilot.yaml").read_text())
-        return [resolve_task(task_id.split("/")[-1]) for task_id in pilot["tasks"]]
-
     paths: list[Path] = []
     for part in token.split(","):
         part = part.strip()
@@ -112,7 +110,7 @@ def resolve_tasks(selection: str) -> list[Path]:
             for match in matches:
                 if match.is_dir():
                     paths.extend(sorted(match.rglob("*.yaml")))
-                    paths.extend(sorted(match.rglob("*.md")))
+                    paths.extend(_md(match))
                 elif match.is_file():
                     paths.append(match)
         else:

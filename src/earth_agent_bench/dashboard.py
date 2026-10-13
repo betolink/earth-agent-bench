@@ -146,13 +146,6 @@ def eab_task_text(status: str | None, reward: float | None) -> Text:
     return Text("✗", style=RED)
 
 
-def bar_text(frac: float) -> Text:
-    """Render a unicode progress bar for done/total."""
-    filled = int(round(frac * 10))
-    style = GREEN if frac >= 0.999 else (YELLOW if frac > 0 else NONE)
-    return Text("█" * filled, style=style) + Text("░" * (10 - filled), style=NONE)
-
-
 def cond_text(c: str) -> Text:
     """Render a condition name with its colour."""
     return Text(c, style=COND_STYLE.get(c, "white"))

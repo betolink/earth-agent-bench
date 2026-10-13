@@ -18,7 +18,7 @@ implemented in earth-agent-bench to make it runnable today?
 FineEnvs contribution is a thin evaluation-protocol layer, not a substrate.**
 
 The goal as stated *is* earth-agent-bench's core research question, verbatim
-(consolidated-plan §6):
+(docs/archive/consolidated-plan.md §6):
 
 > does giving it operational knowledge about available access services — including
 > whether the archive can be virtualized — cause it to select a more efficient,
@@ -35,7 +35,7 @@ scratch. earth-agent-bench already has all of it.
 
 | Requirement | earth-agent-bench | FineEnvs |
 |---|---|---|
-| Access-pattern taxonomy (C1/S1/S2/…/M2) + selection ladder | ✅ `patterns.py`, `consolidated-plan.md` §2 | ❌ absent |
+| Access-pattern taxonomy (C1/S1/S2/…/M2) + selection ladder | ✅ `patterns.py`, `docs/archive/consolidated-plan.md` §2 | ❌ absent |
 | "MCP + skills" as knowledge conditions | ✅ `conditions.yaml` (baseline/mcp/skills/mcp-skills) | ❌ absent |
 | Service-availability oracle (EDVS parquet + curated + live CMR) | ✅ `oracles/` | ❌ absent |
 | Multi-model / multi-harness roster + cost/token accounting | ✅ `experiments/`, `RunManifest` | ⚠️ harness loop only, no domain |
@@ -138,7 +138,7 @@ this knowledge". Organized under the two current aims.
 ### 5.2 Data services (how it can be accessed — the operational knowledge)
 
 This is the axis the benchmark actually scores, so these tools should mirror the
-selection ladder (`consolidated-plan.md` §2.1) and be backed by the oracles, not by
+selection ladder (`docs/archive/consolidated-plan.md` §2.1) and be backed by the oracles, not by
 recalled knowledge:
 
 | Tool | Returns | Maps to |
