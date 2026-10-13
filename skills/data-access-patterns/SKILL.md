@@ -72,8 +72,8 @@ earthaccess.login()          # uses EARTHDATA_TOKEN; no username/password, no pr
 
 | # | Pattern | How | Why |
 |---:|---|---|---|
-| 1 | Virtual Zarr via **DMR++** | `earthaccess.virtualize(granules)` — VirtualiZarr reads the OPeNDAP **DMR++** sidecar | lazy range reads, no server queue |
-| 2 | Virtual Zarr via **native parser** | same, using the format parser (usually **HDF5**) when no DMR++ exists | lazy, no queue |
+| 1 | Virtual Zarr via **DMR++** | `earthaccess.virtualize(granules, reader="dmrpp", concat_dim="time")` — reads the OPeNDAP **DMR++** sidecar (no `tree=True`) | lazy range reads, no server queue |
+| 2 | Virtual Zarr via **native parser** | `earthaccess.virtualize(granules, reader="hdf", tree=True, concat_dim="time")` — the format parser (usually **HDF5**) when no DMR++ | lazy, no queue |
 | 3 | **Streaming** | `earthaccess.open(granules)` → xarray / h5py / pandas read the file object lazily (**netcdf4 / hdf5 / COG**) | client-side, no queue |
 | 4 | **Harmony / OPeNDAP** | `harmony` subsetting, `pydap` OPeNDAP | **backend async, queued** — heavier |
 | 5 | Filtered / full download | only if none of the above fit | last resort |

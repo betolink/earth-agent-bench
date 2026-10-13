@@ -43,7 +43,14 @@ granules = earthaccess.search_data(
     temporal=("2013-01-02", "2013-01-31"),
 )
 
-vds = earthaccess.virtualize(granules, concat_dim="time", access="indirect", load=False)
+vds = earthaccess.virtualize(
+    granules, reader="dmrpp", concat_dim="time", access="indirect", load=False
+)
+# Prefer reader="dmrpp" when the collection publishes DMR++ sidecars — but note
+# tree=True is NOT supported for dmrpp. Otherwise use the native parser:
+# vds = earthaccess.virtualize(
+#     granules, reader="hdf", tree=True, concat_dim="time", access="indirect", load=False
+# )
 # vds variables are ManifestArrays: logical arrays whose chunks reference
 # (url, offset, length) triples inside the original granules.
 
@@ -56,12 +63,17 @@ region = ds["analysed_sst"].sel(lat=slice(-25, -8), lon=slice(142, 155)).mean("t
 Extending the cube incrementally (e.g. new month arrives):
 
 ```python
-delta = earthaccess.virtualize(new_granules, concat_dim="time", access="indirect", load=False)
+delta = earthaccess.virtualize(
+    new_granules, reader="dmrpp", concat_dim="time", access="indirect", load=False
+)
 earthaccess.write_virtual(delta, "mur_sst", format="icechunk", append_dim="time")
 ```
 
 Notes:
 
+- `reader="dmrpp"` uses OPeNDAP **DMR++** sidecars (no `tree=True`); `reader="hdf"`
+  uses the native HDF5 parser (`tree=True` is allowed). DMR++ is preferred when
+  available.
 - `access="indirect"` reads over HTTPS from anywhere; `"direct"` uses S3 URLs
   (in-region compute). `load=False` keeps reference building lazy.
 - `write_virtual(..., format="icechunk")` persists to an Icechunk store; a kerchunk
