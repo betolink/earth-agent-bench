@@ -104,7 +104,7 @@ def render_instruction(task: Task) -> str:
         "**Steps:**",
         *steps,
         "- Write `/app/output/access_summary.json`: "
-        '{"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], '
+        '{"collections": ["SHORT_NAME"], "data_access_pattern": ["<pattern>"], '
         '"bytes_read_estimate": 0, "route_notes": "why you picked this route"}.',
         "",
         slice_line,

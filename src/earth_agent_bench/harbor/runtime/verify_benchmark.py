@@ -126,7 +126,8 @@ def main() -> int:
         observation = RunObservation.model_validate(json.loads(obs_path.read_text()))
     else:
         summary = json.loads(summary_path.read_text()) if summary_path else {}
-        declared_services = summary.get("access_services_used", [])
+        declared_services = (summary.get("data_access_pattern")
+                            or summary.get("access_services_used", []))
         candidate_patterns = observed["patterns"] or classify(declared_services)
         dominant = dominant_pattern(candidate_patterns, task.pattern_tiers)
         patterns = [dominant] if dominant else []

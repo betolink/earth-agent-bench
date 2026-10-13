@@ -20,7 +20,7 @@ the full science result. See `docs/tasks-and-evals.md` §1.2 for the contract.
 1. `access.py` obtains the data by the best route.
 2. Run it once on the smallest slice that shows the route (<demo scope>) — write the demo artifact to `/app/output/`.
 3. Do NOT process the full window — show the route, don't run the study.
-- Write `/app/output/access_summary.json`: {"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], "bytes_read_estimate": 0, "route_notes": "why you picked this route"}.
+- Write `/app/output/access_summary.json`: {"collections": ["SHORT_NAME"], "data_access_pattern": ["<pattern>"], "bytes_read_estimate": 0, "route_notes": "why you picked this route"}.
 
 **Target.** bbox [W, S, E, N]; <start> to <end>; product: <…>; variables: <…>; output: <…>; units: <…>.
 
