@@ -22,8 +22,6 @@ the full science result. See `docs/tasks-and-evals.md` §1.2 for the contract.
 3. Do NOT process the full window — show the route, don't run the study.
 - Write `/app/output/access_summary.json`: {"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], "bytes_read_estimate": 0, "route_notes": "why you picked this route"}.
 
-**Access.** Use earthaccess for everything (`earthaccess.login()` takes no arguments) — do NOT probe the raw CMR API or fetch granule URLs directly.
-
 **Target.** bbox [W, S, E, N]; <start> to <end>; product: <…>; variables: <…>; output: <…>; units: <…>.
 
 **Skills.** If your environment provides skills, read the relevant ones first.

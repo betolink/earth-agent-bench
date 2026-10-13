@@ -109,8 +109,5 @@ def render_instruction(task: Task) -> str:
         "",
         slice_line,
         "",
-        "**Access.** Use earthaccess for everything (`earthaccess.login()` takes no "
-        "arguments) — do NOT probe the raw CMR API or fetch granule URLs directly.",
-        "",
         "**Skills.** If your environment provides skills, read the relevant ones first.",
     ])
