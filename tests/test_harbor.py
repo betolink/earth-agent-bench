@@ -86,8 +86,9 @@ def test_generate_eval_package(tmp_path):
 
     config = _toml(package)
     assert config["schema_version"] == "1.4"
-    assert config["agent"]["timeout_sec"] == 600.0
-    assert config["verifier"]["timeout_sec"] == 600.0
+    from earth_agent_bench.harbor.config import agent_timeout_sec, verifier_timeout_sec
+    assert config["agent"]["timeout_sec"] == agent_timeout_sec()
+    assert config["verifier"]["timeout_sec"] == verifier_timeout_sec()
     assert config["environment"]["network_mode"] == "public"
     env = config["environment"]["env"]
     assert env["EARTHDATA_USERNAME"] == "${EARTHDATA_USERNAME:-}"
