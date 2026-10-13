@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() no args; NEVER raw CMR). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive — one search, then act and write. Read this skill.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess for everything (login() no args; never raw CMR or direct URL fetches — open() returns an authenticated file object). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive — one search, then act and write. Read this skill.
 ---
 
 # NASA Earthdata Access Patterns
@@ -19,7 +19,10 @@ If the dataset is identified by a **DOI, CMR `concept_id`, or `short_name`**, do
 - **Service discovery (OPeNDAP, Harmony)** — `earthaccess.search_services(...)`
   and the collection's services, before writing any access code.
 - **Virtualization** — `earthaccess.virtualize(...)` (see `data-virtualization`).
-- **I/O** — `earthaccess.open(...)` (stream) or `earthaccess.download(...)`.
+- **I/O** — `earthaccess.open(granules)` returns an **authenticated file object**
+  (an `fsspec` file system) — read it with xarray / h5py / pandas. **Never fetch
+  granule URLs directly** with `requests`/`curl`: protected URLs require EDL auth,
+  which `open()` (and `download()`) apply for you.
 
 Do **not** call `https://cmr.earthdata.nasa.gov/...` with raw `requests`/`curl`:
 it bypasses EDL auth handling, is not recorded, and duplicates what `earthaccess`
@@ -97,6 +100,8 @@ are the slowest option. AppEEARS/Giovanni likewise.
 ## Anti-patterns
 
 - Downloading all granules "to be safe" when a subsetting service exists.
+- Fetching granule URLs directly with `requests`/`curl` — use `earthaccess.open()`;
+  it returns an authenticated file object and handles protected URLs for you.
 - Attempting virtualization on a collection whose grade is C/D.
 - Reading every variable when the analysis needs one (e.g. MUR `analysed_sst`, not the
   misaligned `dt_1km_data`).
