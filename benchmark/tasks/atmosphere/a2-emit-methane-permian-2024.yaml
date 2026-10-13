@@ -8,7 +8,7 @@ discipline_workflow:
   - Summarize plume count and max enhancement per month
   - Save CSV artifact
 access_requirement:
-  kind: subset
+  kind: aggregate
   description: >
     Screen 2024 EMIT methane plume-complexity observations over the Permian
     Basin and summarize detected plumes per month.

@@ -9,7 +9,7 @@ discipline_workflow:
   - Correlation map
   - Save NetCDF artifact
 access_requirement:
-  kind: virtualize
+  kind: aggregate
   description: >
     2023 GPP and soil-moisture anomalies against a 2018-2022 baseline over the
     Amazon, with a coupling correlation map.

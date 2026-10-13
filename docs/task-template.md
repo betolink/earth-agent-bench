@@ -13,35 +13,22 @@ the full science result. See `docs/tasks-and-evals.md` §1.2 for the contract.
 
 <description>
 
-## Requirement
-- Spatial extent (bbox): [W, S, E, N]
-- Temporal extent (science window): <start> to <end>
-- Variables of interest: <...>
-- Output format: <...>
-
-## Datasets to use
-Use the following dataset(s) — this is the required collection; do not search for
-alternatives. Resolve access via the CMR concept_id:
+**Dataset (use exactly this — do not search for alternatives):**
 - <short_name> (concept_id: <C…>)
 
-## Deliverable
-1. Write `access.py` that obtains the data with the best access pattern.
-2. Run it on the SMALLEST scope that shows the pattern (one day / a couple of
-   granules / one small bbox) and write the demo artifact.
-3. Write the access summary (pattern used, services found, bytes expected).
-Do NOT process the full time range — demonstrate the pattern, don't run the study.
+**Deliverable — write and run `access.py`:**
+1. `access.py` obtains the data by the best route.
+2. Run it once on the smallest slice that shows the route (<demo scope>) — write the demo artifact to `/app/output/`.
+3. Do NOT process the full window — show the route, don't run the study.
+- Write `/app/output/access_summary.json`: {"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], "bytes_read_estimate": 0, "route_notes": "why you picked this route"}.
 
-## Access policy (outside AWS; HTTPS only)
-- Use earthaccess for everything (login() no args; never raw CMR or direct URL
-  fetches — open() returns an authenticated file object).
-- Order: virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) →
-  Harmony/OPeNDAP (async, last) → download.
-- Be decisive: one search, then act and write; do not loop.
+**Access.** Use earthaccess for everything (`earthaccess.login()` takes no arguments) — do NOT probe the raw CMR API or fetch granule URLs directly.
 
-## Skills
-If your environment provides skills, READ them before starting and use the ones
-relevant to this task.
+**Target.** bbox [W, S, E, N]; <start> to <end>; aggregation: <…>; variables: <…>; output: <…>; units: <…>.
+
+**Skills.** If your environment provides skills, read the relevant ones first.
 ```
+(`kind: daily` swaps step 2 for "Run it and write the actual result for the single day / region".)
 
 ## 2. Task YAML (verifier-side)
 
@@ -49,7 +36,7 @@ relevant to this task.
 task_id: <sphere>/<slug>
 science_sphere: <atmosphere|cryosphere|biosphere|ocean|solid-earth|land-surface>
 title: <...>
-kind: <subset|virtualize|aggregate|daily>      # NEW: drives the demo scope
+kind: <subset|aggregate|daily>                 # NEW: the ask shape (drives the deliverable)
 discipline_workflow: [ <representative steps> ]
 access_requirement:
   description: <goal prose; the science window may be long>

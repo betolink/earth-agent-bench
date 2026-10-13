@@ -127,11 +127,11 @@ the **executable ask is a demo slice** — do not process the full range. **Exce
 a **daily ask** (e.g. "SST over the Gulf of Mexico today") produces the real result
 (one granule, quick).
 
-**Task types** (each task declares one, `access_requirement.kind`):
-- `subset` — bbox/time subset of a larger product (e.g. SST over the El Niño region, one month).
-- `virtualize` — open the archive as a lazy virtual datacube (no compute).
-- `aggregate` — reduce to a mean/composite, demonstrated on a demo slice.
-- `daily` — a single-day / single-granule ask; the actual result is the deliverable.
+**Task types** (each task declares one, `access_requirement.kind`) — the *ask shape*,
+not the access approach (that is graded via `pattern_tiers`):
+- `subset` — retrieve a spatial/temporal slice (a swath, a scene, a collocation table).
+- `aggregate` — reduce over time (mean/composite/anomaly/series/change/fit).
+- `daily` — a single-day ask; the actual result is the deliverable.
 
 **Grading.** The verifier runs `access.py` at demo scope (`verify_exec`/executor →
 `ok|error|timeout|oom`), then scores the **observed access events** (as today) plus a
@@ -172,24 +172,24 @@ relevant to this task.
 
 | task | type | demo scope |
 |---|---|---|
-| a1 TEMPO NO₂ | virtualize | one day (one granule) |
-| a2 EMIT CH₄ | subset | one plume scene |
+| a1 TEMPO NO₂ | aggregate | one day, one granule |
+| a2 EMIT CH₄ | aggregate | one plume scene |
 | a3 MAIAC AOD | subset | one day over the bbox |
 | b1 PNW wildfire | aggregate | one season slice |
-| b2 Amazon GPP/SM | virtualize | one month |
-| b3 GEDI/Landsat | subset | one footprint |
-| c1 ITS_LIVE | virtualize | one scene pair |
+| b2 Amazon GPP/SM | aggregate | one month |
+| b3 GEDI/Landsat | aggregate | one footprint |
+| c1 ITS_LIVE | aggregate | one scene pair |
 | c2 PREFIRE | subset | one orbit over Greenland |
-| c3 AMSR2 ice | subset | one day |
+| c3 AMSR2 ice | aggregate | one day |
 | l1 Phoenix LST | aggregate | one summer day |
 | l2 Black Marble | subset | one night |
-| l3 Iowa drought | virtualize | one month |
-| o1 Chl-a | virtualize | one month |
-| o2 MUR SST | **daily** | today, Gulf of Mexico (real result) |
+| l3 Iowa drought | aggregate | one month |
+| o1 Chl-a | aggregate | one month |
+| o2 MUR SST | **daily** | one day (the real result) |
 | o3 SWOT | subset | one swath |
 | s1 Türkiye | subset | one interferogram |
 | s2 Reykjanes | subset | one scene pair |
-| s3 Central Valley | virtualize | one scene pair |
+| s3 Central Valley | aggregate | one scene pair |
 
 ---
 

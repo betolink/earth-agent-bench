@@ -7,7 +7,7 @@ discipline_workflow:
   - Fit displacement to line-of-sight velocity
   - Save GeoTIFF artifact
 access_requirement:
-  kind: virtualize
+  kind: aggregate
   description: >
     Long-term InSAR subsidence velocity for the Central Valley from
     displacement time series, 2015-2024.

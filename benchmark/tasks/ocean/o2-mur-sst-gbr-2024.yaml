@@ -1,20 +1,18 @@
 task_id: ocean/o2-mur-sst-gbr-2024
 science_sphere: ocean
-title: Great Barrier Reef thermal stress, 2023-24 summer
+title: Sea-surface temperature over the Great Barrier Reef, one day
 discipline_workflow:
   - Identify MUR-JPL-L4-GLOB-v4.1
-  - Virtualize; read only analysed_sst (stable chunking; H2 blocker affects dt_1km_data)
-  - GBR daily series Dec 2023 - Mar 2024
-  - Thermal-stress accumulation vs bleaching threshold
+  - Read only analysed_sst (stable chunking; H2 blocker affects dt_1km_data)
+  - GBR SST for a single day (2024-01-15)
   - Save NetCDF artifact
 access_requirement:
   kind: daily
   description: >
-    Daily MUR SST over the Great Barrier Reef for austral summer 2023-24 with
-    degree-heating-style thermal stress accumulation.
+    Daily MUR SST over the Great Barrier Reef for a single day.
   spatial_extent: {type: bbox, coordinates: [142.0, -25.0, 155.0, -8.0]}
-  temporal_extent: {start: 2023-12-01, end: 2024-03-31}
-  demo_scope: {days: 1, note: "today, Gulf of Mexico (real result)"}
+  temporal_extent: {start: 2024-01-15, end: 2024-01-15}
+  demo_scope: {days: 1, note: "one day (the real result)"}
   variables_of_interest: [analysed_sst]
   output_format: netcdf
 collections:
@@ -36,7 +34,7 @@ pattern_tiers:
   inefficient: [M1, M2]
 validation:
   units: K
-  aggregation: daily_series_and_accumulation
+  aggregation: daily_snapshot
   checks: [variable_present, spatial_extent_correct, temporal_extent_correct, units_correct]
 gold:
   primary_patterns: [C1]

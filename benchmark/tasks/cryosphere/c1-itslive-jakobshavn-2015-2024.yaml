@@ -8,7 +8,7 @@ discipline_workflow:
   - Compute annual means
   - Save small NetCDF artifact
 access_requirement:
-  kind: virtualize
+  kind: aggregate
   description: >
     Decade-long surface velocity time series (vx, vy) at Jakobshavn Isbrae for
     a speed-up analysis, annual resolution.

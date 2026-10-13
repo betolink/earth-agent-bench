@@ -9,7 +9,7 @@ discipline_workflow:
   - Compute monthly means of the tropospheric column
   - Save small NetCDF artifact
 access_requirement:
-  kind: virtualize
+  kind: aggregate
   description: >
     Seasonal air-quality picture of tropospheric NO2 over Florida for calendar
     year 2024 at monthly resolution from TEMPO, QA-filtered.

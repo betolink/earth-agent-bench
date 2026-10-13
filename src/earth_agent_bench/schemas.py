@@ -39,7 +39,7 @@ class DemoScope(BaseModel):
 class AccessRequirement(BaseModel):
     """What the task asks for: goal, kind, extent, variables, output, demo scope."""
     description: str
-    kind: Literal["subset", "virtualize", "aggregate", "daily"] = "aggregate"
+    kind: Literal["subset", "aggregate", "daily"] = "aggregate"
     spatial_extent: SpatialExtent
     temporal_extent: TemporalExtent
     demo_scope: Optional[DemoScope] = None
