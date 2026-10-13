@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() no args; NEVER raw CMR). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive: one search, then act and write. Read this skill.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() no args; NEVER raw CMR). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive — one search, then act and write. Read this skill.
 ---
 
 # NASA Earthdata Access Patterns
