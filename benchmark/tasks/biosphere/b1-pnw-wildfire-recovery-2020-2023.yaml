@@ -9,11 +9,13 @@ discipline_workflow:
   - Recovery curve and map
   - Save GeoTIFF plus CSV
 access_requirement:
+  kind: aggregate
   description: >
     Post-fire vegetation recovery trajectories (dNBR) over 2020 Oregon fire
     perimeters using HLS reflectance, through 2023.
   spatial_extent: {type: bbox, coordinates: [-124.0, 44.0, -118.0, 49.0]}
   temporal_extent: {start: 2020-06-01, end: 2023-10-31}
+  demo_scope: {days: 1, note: "one season slice"}
   variables_of_interest: [nir_reflectance, swir2_reflectance]
   output_format: geotiff
 collections:

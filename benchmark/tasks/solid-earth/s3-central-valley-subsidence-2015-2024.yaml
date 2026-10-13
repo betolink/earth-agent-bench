@@ -7,11 +7,13 @@ discipline_workflow:
   - Fit displacement to line-of-sight velocity
   - Save GeoTIFF artifact
 access_requirement:
+  kind: virtualize
   description: >
     Long-term InSAR subsidence velocity for the Central Valley from
     displacement time series, 2015-2024.
   spatial_extent: {type: bbox, coordinates: [-121.5, 36.0, -119.0, 37.8]}
   temporal_extent: {start: 2015-01-01, end: 2024-12-31}
+  demo_scope: {days: 1, note: "one scene pair"}
   variables_of_interest: [los_displacement]
   output_format: geotiff
 collections:

@@ -9,11 +9,13 @@ discipline_workflow:
   - Drought-index map and series
   - Save NetCDF artifact
 access_requirement:
+  kind: virtualize
   description: >
     Growing-season drought characterization for the Iowa Corn Belt: 2022 soil
     moisture and evapotranspiration anomalies vs the 2018-2022 climatology.
   spatial_extent: {type: bbox, coordinates: [-96.6, 40.3, -90.0, 43.6]}
   temporal_extent: {start: 2018-04-01, end: 2022-10-31}
+  demo_scope: {days: 30, note: "one month"}
   variables_of_interest: [soil_moisture, et]
   output_format: netcdf
 collections:

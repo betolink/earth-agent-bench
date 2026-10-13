@@ -8,11 +8,13 @@ discipline_workflow:
   - Monthly means; 2023 anomalies vs 2018-2022 monthly climatology
   - Save NetCDF artifact
 access_requirement:
+  kind: virtualize
   description: >
     2023 chlorophyll concentration vs a 2018-2022 monthly climatology in the
     California Current during the marine heatwave.
   spatial_extent: {type: bbox, coordinates: [-130.0, 33.0, -115.0, 45.0]}
   temporal_extent: {start: 2018-01-01, end: 2023-12-31}
+  demo_scope: {days: 30, note: "one month"}
   variables_of_interest: [chlor_a]
   output_format: netcdf
 collections:

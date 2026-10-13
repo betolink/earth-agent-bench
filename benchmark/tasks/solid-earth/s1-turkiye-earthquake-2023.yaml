@@ -9,11 +9,13 @@ discipline_workflow:
   - Coseismic displacement map
   - Save GeoTIFF artifact
 access_requirement:
+  kind: subset
   description: >
     Sentinel-1 interferometric displacement for the Feb 6, 2023 Pazarcak
     earthquake sequence in southeastern Türkiye.
   spatial_extent: {type: bbox, coordinates: [35.5, 36.5, 38.5, 39.5]}
   temporal_extent: {start: 2023-02-01, end: 2023-02-28}
+  demo_scope: {days: 1, note: "one interferogram"}
   variables_of_interest: [unwrapped_phase, coherence]
   output_format: geotiff
 collections:

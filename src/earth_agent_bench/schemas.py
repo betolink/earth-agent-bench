@@ -28,11 +28,21 @@ class TemporalExtent(BaseModel):
     end: date
 
 
+class DemoScope(BaseModel):
+    """The executable demo slice (smaller than the science window)."""
+    days: Optional[int] = None
+    granules: Optional[int] = None
+    bbox: Optional[list[float]] = None
+    note: Optional[str] = None
+
+
 class AccessRequirement(BaseModel):
-    """Required aggregation/units/output format."""
+    """What the task asks for: goal, kind, extent, variables, output, demo scope."""
     description: str
+    kind: Literal["subset", "virtualize", "aggregate", "daily"] = "aggregate"
     spatial_extent: SpatialExtent
     temporal_extent: TemporalExtent
+    demo_scope: Optional[DemoScope] = None
     variables_of_interest: list[str]
     output_format: Literal["netcdf", "zarr", "csv", "geotiff", "parquet"]
 

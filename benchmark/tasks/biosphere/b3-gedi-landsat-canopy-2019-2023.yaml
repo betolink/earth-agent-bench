@@ -8,11 +8,13 @@ discipline_workflow:
   - Join footprints to pixels; annual canopy-cover change
   - Save Parquet artifact
 access_requirement:
+  kind: subset
   description: >
     Forest canopy change from GEDI L2B footprints joined with HLS reflectance
     over Sierra Nevada managed forests.
   spatial_extent: {type: bbox, coordinates: [-121.0, 36.0, -118.0, 40.0]}
   temporal_extent: {start: 2019-04-01, end: 2023-12-31}
+  demo_scope: {days: 1, note: "one footprint"}
   variables_of_interest: [canopy_cover_fraction, reflectance]
   output_format: parquet
 collections:

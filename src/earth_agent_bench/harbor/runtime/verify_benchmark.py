@@ -1,9 +1,14 @@
-"""Score access-pattern selection from the calls the agent actually made.
+"""Score access-pattern selection from the deliverable the agent produced.
 
-Runs in the agent environment. Prefers the observed access events written by
-eab_instrument, falling back to the agent's output/access_summary.json. Writes
-the component scores to /logs/verifier/reward.json and diagnostics to
-/logs/verifier/details.json.
+v2 contract: the deliverable is ``access.py`` (the access code), run at a demo
+scope. The verifier:
+
+  1. finds ``access.py`` and runs it under the executor (``ok|error|timeout|oom``);
+  2. reads the observed access events written by ``eab_instrument``;
+  3. applies a code check (sanctioned: uses earthaccess, not raw CMR/URL fetches);
+  4. scores the components and writes ``/logs/verifier/{reward,details}.json``.
+
+Falls back to the agent's ``output/access_summary.json`` when no events exist.
 """
 
 from __future__ import annotations
@@ -55,17 +60,56 @@ def dominant_pattern(patterns, tiers):
     return patterns[0] if patterns else None
 
 
+def code_check(script: Path) -> dict:
+    """Static check: does the deliverable use the sanctioned access path?"""
+    text = script.read_text(errors="replace")
+    low = text.lower()
+    check = {
+        "uses_earthaccess": "earthaccess" in low,
+        "uses_virtualize": "virtualize(" in low,
+        "uses_open": "earthaccess.open(" in low,
+        "raw_cmr": "cmr.earthdata.nasa.gov" in low,
+        "raw_url_fetch": ("requests." in low or "urllib" in low or "curl " in low),
+    }
+    check["sanctioned"] = bool(check["uses_earthaccess"] and not check["raw_cmr"])
+    return check
+
+
+def run_deliverable(script: Path, timeout: float, mem_mb: int) -> str:
+    """Run ``access.py`` under the executor; return the exec status."""
+    try:
+        from earth_agent_bench.executor import run_script
+    except ImportError:  # local dev
+        sys.path.insert(0, str(HERE.parents[3]))
+        from earth_agent_bench.harbor.runtime.executor import run_script
+    result = run_script(script, workdir=script.parent, timeout_s=timeout,
+                        mem_mb=mem_mb or None)
+    return result.status
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workspace", default="/app")
     parser.add_argument("--search-root", action="append", default=[])
     parser.add_argument("--task", default=str(HERE / "task.yaml"))
     parser.add_argument("--logs", default="/logs/verifier")
+    parser.add_argument("--run-timeout", type=float, default=300.0,
+                        help="budget for running access.py at demo scope")
+    parser.add_argument("--run-mem-mb", type=int, default=0)
     args = parser.parse_args()
 
     roots_list = roots(args.workspace, args.search_root)
     task = load_task(args.task)
 
+    # 1) run the agent's deliverable (demo scope) under the executor
+    script = find(roots_list, "access.py", "work/access.py", "output/access.py")
+    check: dict = {}
+    exec_status = "missing"
+    if script is not None:
+        check = code_check(script)
+        exec_status = run_deliverable(script, args.run_timeout, args.run_mem_mb)
+
+    # 2) observed access events (from the run above, or the agent's own run)
     events = read_events(
         find(
             roots_list,
@@ -119,7 +163,18 @@ def main() -> int:
         )
 
     result = score_run(task, observation)
+    reward = result.reward
+    # Code check: an unsanctioned deliverable (raw CMR, no earthaccess) is penalised.
+    if check and not check.get("sanctioned"):
+        reward = round(reward * 0.5, 4)
+
     details = result.model_dump()
+    details.update({
+        "reward": reward,
+        "exec_status": exec_status,
+        "code_check": check,
+        "script": str(script) if script else None,
+    })
     # Harbor's reward.json must be flat and numeric; keep diagnostics separate.
     rewards = {
         key: value
@@ -130,7 +185,7 @@ def main() -> int:
     logs = Path(args.logs)
     logs.mkdir(parents=True, exist_ok=True)
     (logs / "reward.json").write_text(json.dumps(rewards))
-    (logs / "reward.txt").write_text(f"{result.reward}\n")
+    (logs / "reward.txt").write_text(f"{reward}\n")
     (logs / "details.json").write_text(json.dumps(details, indent=2))
 
     print(json.dumps(details, indent=2))

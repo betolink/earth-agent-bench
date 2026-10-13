@@ -68,7 +68,7 @@ skills_dir: /harbor/skills
 # Per-cell budgets baked into generated task.toml files. The agent gets up to
 # 10 minutes; the loop watchdog ends a trial earlier only on a detected loop or a
 # >3-minute stall (see scripts/loop_watchdog.py).
-agent_timeout_sec: 600.0
+agent_timeout_sec: 720.0
 verifier_timeout_sec: 600.0
 
 note: >

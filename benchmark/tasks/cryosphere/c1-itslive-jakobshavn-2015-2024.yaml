@@ -8,11 +8,13 @@ discipline_workflow:
   - Compute annual means
   - Save small NetCDF artifact
 access_requirement:
+  kind: virtualize
   description: >
     Decade-long surface velocity time series (vx, vy) at Jakobshavn Isbrae for
     a speed-up analysis, annual resolution.
   spatial_extent: {type: bbox, coordinates: [-52.0, 68.5, -48.0, 70.0]}
   temporal_extent: {start: 2015-01-01, end: 2024-12-31}
+  demo_scope: {days: 1, note: "one scene pair"}
   variables_of_interest: [vx, vy]
   output_format: netcdf
 collections:

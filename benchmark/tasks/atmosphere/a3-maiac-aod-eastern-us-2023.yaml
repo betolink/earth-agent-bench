@@ -9,11 +9,13 @@ discipline_workflow:
   - Produce daily maps and episode mean
   - Save NetCDF artifact
 access_requirement:
+  kind: subset
   description: >
     MODIS MAIAC aerosol optical depth over the eastern US during the June 2023
     Canadian smoke episode; daily maps plus episode mean.
   spatial_extent: {type: bbox, coordinates: [-90.0, 35.0, -70.0, 45.0]}
   temporal_extent: {start: 2023-06-01, end: 2023-06-30}
+  demo_scope: {days: 1, note: "one day over the bbox"}
   variables_of_interest: [AOD_550]
   output_format: netcdf
 collections:

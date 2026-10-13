@@ -33,13 +33,29 @@ def _derive_task_id(path: Path) -> str:
     return "/".join(relative.parts[-3:])
 
 
-def render_instruction(task: Task) -> str:
-    """Render a task's instruction.md from its definition.
+def _demo_scope_text(req) -> str:
+    """Human description of the executable demo slice."""
+    ds = req.demo_scope
+    if ds is None:
+        return "the smallest slice that shows the pattern (one day / a couple of granules)"
+    if ds.note:
+        return ds.note
+    parts = []
+    if ds.days:
+        parts.append(f"{ds.days} day(s)")
+    if ds.granules:
+        parts.append(f"{ds.granules} granule(s)")
+    if ds.bbox:
+        parts.append(f"bbox {ds.bbox}")
+    return ", ".join(parts) or "the smallest slice that shows the pattern"
 
-    The dataset(s) the agent must use are stated explicitly (short_name +
-    concept_id) so the task tests *access-pattern* choice, not collection
-    discovery — collection selection is handled by the project's semantic
-    discovery part, which this benchmark does not cover.
+
+def render_instruction(task: Task) -> str:
+    """Render the agent-facing instruction (v2 contract: access code at demo scope).
+
+    The deliverable is ``access.py`` run on a small demo slice — the task grades
+    the *access pattern*, not the full science result. ``kind: daily`` is the one
+    exception (the real result for a single day/region is the deliverable).
     """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
@@ -50,8 +66,9 @@ def render_instruction(task: Task) -> str:
         req.description,
         "",
         "## Requirement",
+        f"- Kind: {req.kind}",
         f"- Spatial extent ({req.spatial_extent.type}): {bbox}",
-        f"- Temporal extent: {req.temporal_extent.start} to {req.temporal_extent.end}",
+        f"- Temporal extent (science window): {req.temporal_extent.start} to {req.temporal_extent.end}",
         f"- Variables of interest: {variables}",
         f"- Output format: {req.output_format}",
     ]
@@ -59,6 +76,7 @@ def render_instruction(task: Task) -> str:
         lines.append(f"- Required aggregation: {task.validation.aggregation}")
     if task.validation.units:
         lines.append(f"- Expected units: {task.validation.units}")
+    lines.append(f"- Demo scope: {_demo_scope_text(req)}")
 
     datasets = [c for c in task.collections if c.tier == "preferred"] or list(task.collections)
     if datasets:
@@ -69,21 +87,36 @@ def render_instruction(task: Task) -> str:
             cid = f" (concept_id: {collection.concept_id})" if collection.concept_id else ""
             lines.append(f"- {collection.short_name}{cid}")
 
+    if req.kind == "daily":
+        deliverable = [
+            "## Deliverable",
+            "1. Write `access.py` that obtains the data with the best access pattern.",
+            "2. Run it and write the actual result for the single day / region asked.",
+            "3. Write the access summary (pattern used, services found, bytes expected).",
+        ]
+    else:
+        deliverable = [
+            "## Deliverable",
+            "1. Write `access.py` that obtains the data with the best access pattern.",
+            "2. Run it on the SMALLEST scope that shows the pattern "
+            f"({_demo_scope_text(req)}) and write the demo artifact.",
+            "3. Write the access summary (pattern used, services found, bytes expected).",
+            "Do NOT process the full time range — demonstrate the pattern, don't run the study.",
+        ]
+
     lines += [
+        "",
+        *deliverable,
+        "",
+        "## Access policy (outside AWS; HTTPS only)",
+        "- Use earthaccess for everything (login() takes no arguments; never raw CMR or",
+        "  direct URL fetches — open() returns an authenticated file object).",
+        "- Order: virtualize (DMR++ then native parser) → stream via open() (xarray/h5py)",
+        "  → Harmony/OPeNDAP (async, last) → download.",
+        "- Be decisive: one search, then act and write; do not loop or retry.",
         "",
         "## Skills",
         "If your environment provides skills, READ them before starting and use the",
         "ones relevant to this task.",
-        "",
-        "Produce the output artifact. Choose the best access service and pattern for",
-        "the dataset(s) above; justify your access choice in the workflow.",
-        "",
-        "## Execution policy (this environment runs OUTSIDE AWS)",
-        "- Direct S3 / cloud-native direct access is NOT available; always use HTTPS.",
-        "- Do NOT retry the same access service more than twice. On the second",
-        "  failure, move to the next acceptable pattern (e.g. Harmony -> OPeNDAP ->",
-        "  DMR++ -> Giovanni) instead of repeating the same call.",
-        "- Be decisive: if no service succeeds within your budget, write your best",
-        "  answer and the required access summary, then stop. Do not loop.",
     ]
     return "\n".join(lines)

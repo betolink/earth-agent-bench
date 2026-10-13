@@ -9,11 +9,13 @@ discipline_workflow:
   - County-level outage and recovery index
   - Save CSV and NetCDF artifacts
 access_requirement:
+  kind: subset
   description: >
     Nighttime-light outage and recovery curve for Florida counties after
     Hurricane Ian (Sep 2022 - Mar 2023) from VIIRS Black Marble.
   spatial_extent: {type: bbox, coordinates: [-87.5, 24.5, -80.0, 31.0]}
   temporal_extent: {start: 2022-09-20, end: 2023-03-31}
+  demo_scope: {days: 1, note: "one night"}
   variables_of_interest: [gap_filled_brdf_corrected_ntl]
   output_format: netcdf
 collections:

@@ -8,11 +8,13 @@ discipline_workflow:
   - Melt-onset and September-minimum diagnostics
   - Save NetCDF artifact
 access_requirement:
+  kind: subset
   description: >
     2024 melt-season sea-ice concentration time series in the Beaufort Sea with
     melt onset and September minimum diagnostics.
   spatial_extent: {type: bbox, coordinates: [-160.0, 68.0, -120.0, 78.0]}
   temporal_extent: {start: 2024-04-01, end: 2024-09-30}
+  demo_scope: {days: 1, note: "one day"}
   variables_of_interest: [sea_ice_concentration]
   output_format: netcdf
 collections:

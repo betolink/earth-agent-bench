@@ -465,12 +465,14 @@ Pattern coverage: `C1` ×7, `C2` ×1, `C3` ×2, `S1` ×9, `S2`/`S3` ×7, `S4` ×
 
 | Category | Weight | Measure |
 |---|---:|---|
-| Collection selection | 10% | Preferred/acceptable collection chosen (per sub-collection, averaged) |
 | Service discovery | 15% | Fraction of actually-available services surfaced (trajectory evidence) |
-| **Access pattern** | **35%** | Observed pattern vs tiers: best 1.0 / acceptable 0.7 / marginal 0.3 / else 0.0 |
+| **Access pattern** | **45%** | Observed pattern vs tiers: best 1.0 / acceptable 0.7 / marginal 0.3 / else 0.0 |
 | Representation | 15% | xarray-lazy/chunked vs materialized; format fit |
 | Efficiency | 15% | Bytes/objects/runtime vs per-pattern envelopes |
 | Minimal science gate | 10% | Binary gate: variables, extents, units, required aggregation |
+
+Collection selection is **not** scored — the task names the dataset (see §1.2).
+An **unsanctioned deliverable** (raw CMR / no earthaccess) is penalised 0.5× (§1.2).
 
 ### 9.2 Pattern observation
 

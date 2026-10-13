@@ -8,11 +8,13 @@ discipline_workflow:
   - Thermal-stress accumulation vs bleaching threshold
   - Save NetCDF artifact
 access_requirement:
+  kind: daily
   description: >
     Daily MUR SST over the Great Barrier Reef for austral summer 2023-24 with
     degree-heating-style thermal stress accumulation.
   spatial_extent: {type: bbox, coordinates: [142.0, -25.0, 155.0, -8.0]}
   temporal_extent: {start: 2023-12-01, end: 2024-03-31}
+  demo_scope: {days: 1, note: "today, Gulf of Mexico (real result)"}
   variables_of_interest: [analysed_sst]
   output_format: netcdf
 collections:

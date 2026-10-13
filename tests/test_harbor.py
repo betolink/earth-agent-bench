@@ -320,6 +320,38 @@ def test_benchmark_verifier_scores_access_summary(tmp_path):
     assert rewards["reward"] > 0.5
 
 
+def test_benchmark_verifier_runs_access_py_and_checks_code(tmp_path):
+    package = generate_package(BENCH_TASK, "baseline", tmp_path)
+    ws = tmp_path / "ws"
+    (ws / "output").mkdir(parents=True)
+    (ws / "access.py").write_text("import earthaccess\nearthaccess.login()\n")
+    (ws / "output" / "access_summary.json").write_text(
+        json.dumps({"collections": ["TEMPO_NO2_L3"], "access_services_used": ["harmony"]}))
+    logs = tmp_path / "logs"
+    run = _run_verifier(package, ws, logs)
+    assert run.returncode == 0, run.stderr
+    details = json.loads((logs / "details.json").read_text())
+    assert details["code_check"]["sanctioned"] is True
+    assert details["exec_status"] in ("ok", "error", "timeout", "oom")
+
+
+def test_benchmark_verifier_penalizes_raw_cmr(tmp_path):
+    package = generate_package(BENCH_TASK, "baseline", tmp_path)
+    ws = tmp_path / "ws"
+    (ws / "output").mkdir(parents=True)
+    (ws / "access.py").write_text(
+        "import requests\n"
+        "requests.get('https://cmr.earthdata.nasa.gov/search/collections.json')\n")
+    (ws / "output" / "access_summary.json").write_text(
+        json.dumps({"access_services_used": ["harmony"]}))
+    logs = tmp_path / "logs"
+    run = _run_verifier(package, ws, logs)
+    assert run.returncode == 0, run.stderr
+    details = json.loads((logs / "details.json").read_text())
+    assert details["code_check"]["raw_cmr"] is True
+    assert details["code_check"]["sanctioned"] is False
+
+
 # --- JobConfig + harbor invocation -----------------------------------------
 
 def test_job_config_opencode_model_and_skills(tmp_path):

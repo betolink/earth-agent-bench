@@ -8,11 +8,13 @@ discipline_workflow:
   - Compute urban-minus-ring LST difference per summer
   - Save NetCDF artifact
 access_requirement:
+  kind: aggregate
   description: >
     Summer daytime land-surface temperature composites for Phoenix metro and a
     rural control ring, 2015-2024, with an urban heat island difference series.
   spatial_extent: {type: bbox, coordinates: [-112.8, 33.0, -111.5, 34.1]}
   temporal_extent: {start: 2015-06-01, end: 2024-09-30}
+  demo_scope: {days: 1, note: "one summer day"}
   variables_of_interest: [LST_Day_1km]
   output_format: netcdf
 collections:

@@ -8,11 +8,13 @@ discipline_workflow:
   - Apply MODIS cloud mask to PREFIRE footprints
   - Save matched table as Parquet
 access_requirement:
+  kind: subset
   description: >
     Collocate PREFIRE far-IR radiance with cloud-cleared MODIS observations
     over Greenland during winter 2024 for a validation study.
   spatial_extent: {type: bbox, coordinates: [-55.0, 59.0, -20.0, 84.0]}
   temporal_extent: {start: 2024-01-01, end: 2024-03-31}
+  demo_scope: {days: 1, note: "one orbit over Greenland"}
   variables_of_interest: [prefire_radiance, modis_cloud_fraction]
   output_format: parquet
 collections:

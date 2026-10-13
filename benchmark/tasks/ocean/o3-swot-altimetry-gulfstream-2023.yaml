@@ -8,11 +8,13 @@ discipline_workflow:
   - Difference statistics
   - Save NetCDF artifact
 access_requirement:
+  kind: subset
   description: >
     Compare SWOT KaRIn swath sea-surface height with gridded two-satellite
     reference altimetry over the Gulf Stream for 2023.
   spatial_extent: {type: bbox, coordinates: [-80.0, 30.0, -60.0, 45.0]}
   temporal_extent: {start: 2023-04-01, end: 2023-12-31}
+  demo_scope: {days: 1, note: "one swath"}
   variables_of_interest: [swath_ssh, gridded_sla]
   output_format: netcdf
 collections:
