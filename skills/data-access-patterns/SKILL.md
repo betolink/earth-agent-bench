@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() takes no args; NEVER raw CMR): grade A/B → virtualize; else Harmony → OPeNDAP → open(). Be decisive — one search, then access and write the artifact; do not loop or retry. Read this skill.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() takes no args; NEVER raw CMR). Grade A/B → virtualize; else Harmony → OPeNDAP → open(). Be decisive — one search, then access and write the artifact; do not loop or retry. Read this skill.
 ---
 
 # NASA Earthdata Access Patterns

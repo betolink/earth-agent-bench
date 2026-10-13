@@ -1,6 +1,6 @@
 ---
 name: earthdata-streaming-vs-download
-description: Stream NASA Earthdata with earthaccess.open() instead of downloading whole files, and know when downloading is still right. Discover/resolve granules and services with earthaccess (search_data, search_services) — NEVER the raw CMR API — after earthaccess.login() (no arguments; reads EARTHDATA_TOKEN). Out-of-region: always HTTPS, never S3. Read this skill before writing access code.
+description: Stream NASA Earthdata with earthaccess.open() instead of downloading whole files, and know when downloading is still right. Discover/resolve granules and services with earthaccess (search_data, search_services) — NEVER the raw CMR API — after earthaccess.login() (no arguments; reads EARTHDATA_TOKEN). Out-of-region — always HTTPS, never S3. Read this skill before writing access code.
 ---
 
 # Streaming vs. Downloading NASA Earthdata
