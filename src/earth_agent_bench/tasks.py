@@ -51,72 +51,65 @@ def _demo_scope_text(req) -> str:
 
 
 def render_instruction(task: Task) -> str:
-    """Render the agent-facing instruction (v2 contract: access code at demo scope).
+    """Render the agent-facing instruction (tight v2: write + run ``access.py``).
 
-    The deliverable is ``access.py`` run on a small demo slice — the task grades
-    the *access pattern*, not the full science result. ``kind: daily`` is the one
-    exception (the real result for a single day/region is the deliverable).
+    Leads with the dataset and the deliverable, then one target line and a short
+    access policy. ``kind: daily`` writes the real result; otherwise the agent
+    runs ``access.py`` once on a small demo slice — the task grades the *access
+    pattern*, not the full science result.
     """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
     variables = ", ".join(req.variables_of_interest)
-    lines = [
+    datasets = [c for c in task.collections if c.tier == "preferred"] or list(task.collections)
+    dataset_lines = [
+        f"- {c.short_name}" + (f" (concept_id: {c.concept_id})" if c.concept_id else "")
+        for c in datasets
+    ]
+    target = [f"bbox {bbox}", f"{req.temporal_extent.start} to {req.temporal_extent.end}",
+              f"variables: {variables}", f"output: {req.output_format}"]
+    if task.validation.aggregation:
+        target.insert(2, f"aggregation: {task.validation.aggregation}")
+    if task.validation.units:
+        target.append(f"units: {task.validation.units}")
+
+    if req.kind == "daily":
+        steps = [
+            "1. `access.py` obtains the data with the best access pattern.",
+            "2. Run it and write the actual result for the single day / region to `/app/output/`.",
+        ]
+        tail = []
+    else:
+        steps = [
+            "1. `access.py` obtains the data with the best access pattern.",
+            f"2. Run it once on the smallest slice that shows the pattern "
+            f"({_demo_scope_text(req)}) — write the demo artifact to `/app/output/`.",
+            "3. Do NOT process the full window — demonstrate the pattern, don't run the study.",
+        ]
+        tail = []
+
+    return "\n".join([
         f"# {task.title}",
         "",
         req.description,
         "",
-        "## Requirement",
-        f"- Kind: {req.kind}",
-        f"- Spatial extent ({req.spatial_extent.type}): {bbox}",
-        f"- Temporal extent (science window): {req.temporal_extent.start} to {req.temporal_extent.end}",
-        f"- Variables of interest: {variables}",
-        f"- Output format: {req.output_format}",
-    ]
-    if task.validation.aggregation:
-        lines.append(f"- Required aggregation: {task.validation.aggregation}")
-    if task.validation.units:
-        lines.append(f"- Expected units: {task.validation.units}")
-    lines.append(f"- Demo scope: {_demo_scope_text(req)}")
-
-    datasets = [c for c in task.collections if c.tier == "preferred"] or list(task.collections)
-    if datasets:
-        lines += ["", "## Datasets to use"]
-        lines.append("Use the following dataset(s) — this is the required collection;")
-        lines.append("do not search for alternatives. Resolve access via the CMR concept_id:")
-        for collection in datasets:
-            cid = f" (concept_id: {collection.concept_id})" if collection.concept_id else ""
-            lines.append(f"- {collection.short_name}{cid}")
-
-    if req.kind == "daily":
-        deliverable = [
-            "## Deliverable",
-            "1. Write `access.py` that obtains the data with the best access pattern.",
-            "2. Run it and write the actual result for the single day / region asked.",
-            "3. Write the access summary (pattern used, services found, bytes expected).",
-        ]
-    else:
-        deliverable = [
-            "## Deliverable",
-            "1. Write `access.py` that obtains the data with the best access pattern.",
-            "2. Run it on the SMALLEST scope that shows the pattern "
-            f"({_demo_scope_text(req)}) and write the demo artifact.",
-            "3. Write the access summary (pattern used, services found, bytes expected).",
-            "Do NOT process the full time range — demonstrate the pattern, don't run the study.",
-        ]
-
-    lines += [
+        "**Dataset (use exactly this — do not search for alternatives):**",
+        *dataset_lines,
         "",
-        *deliverable,
+        "**Deliverable — write and run `access.py`:**",
+        *steps,
+        "- Write `/app/output/access_summary.json`: "
+        '{"collections": ["SHORT_NAME"], "access_services_used": ["harmony"], '
+        '"bytes_read_estimate": 0, "pattern_notes": "one sentence justifying the choice"}.',
+        *tail,
         "",
-        "## Access policy (outside AWS; HTTPS only)",
-        "- Use earthaccess for everything (login() takes no arguments; never raw CMR or",
-        "  direct URL fetches — open() returns an authenticated file object).",
-        "- Order: virtualize (DMR++ then native parser) → stream via open() (xarray/h5py)",
-        "  → Harmony/OPeNDAP (async, last) → download.",
-        "- Be decisive: one search, then act and write; do not loop or retry.",
+        "**Access policy (outside AWS; HTTPS only).** Use earthaccess for everything "
+        "(`earthaccess.login()` takes no arguments; never raw CMR or direct URL fetches — "
+        "`open()` returns an authenticated file object). Order: virtualize (DMR++ then "
+        "native parser) → stream via `open()` → Harmony/OPeNDAP (async, last) → download. "
+        "One search, then act and write — do not loop.",
         "",
-        "## Skills",
-        "If your environment provides skills, READ them before starting and use the",
-        "ones relevant to this task.",
-    ]
-    return "\n".join(lines)
+        f"**Target.** {'; '.join(target)}.",
+        "",
+        "**Skills.** If your environment provides skills, read the relevant ones first.",
+    ])

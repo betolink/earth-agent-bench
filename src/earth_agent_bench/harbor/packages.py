@@ -171,7 +171,7 @@ def generate_package(
         (tests / "gold.json").write_text(find_gold(task_id).model_dump_json(indent=2))
         _vendor_eval(tests)
     else:
-        instruction = render_instruction(load_task(task_path)) + HARBOR_OUTPUT_CONTRACT
+        instruction = render_instruction(load_task(task_path))
         shutil.copy(RUNTIME_DIR / "verify_benchmark.py", tests / "verify.py")
         shutil.copy(task_path, tests / "task.yaml")
         _vendor_benchmark(tests)
