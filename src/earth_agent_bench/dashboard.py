@@ -37,7 +37,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, RichLog, Static
 
-from .runconfig import condition_ids, load_run_config, task_ids
+from .runconfig import condition_ids, harness_ids, load_run_config, task_ids
 from .runs import parse_job_dir
 
 # ----------------------------------------------------------------- logging
@@ -86,10 +86,11 @@ MODELS = list(_MB.get("models", []))
 HARNESSES = list(_MB.get("harnesses", []))
 TASK_ORDER = [t["id"] for t in _MB.get("tasks", []) if isinstance(t, dict)]
 
-# Earth-agent-bench: the run matrix comes from the master config (run.yaml).
+# Earth-agent-bench: the run matrix comes from the master config (run.yaml),
+# plus every harness in the roster (so lanes like claude-code still show up).
 _CFG = load_run_config()
 EAB_MODELS = list(_CFG["models"])
-EAB_HARNESSES = list(_CFG["harnesses"])
+EAB_HARNESSES = list(dict.fromkeys(list(_CFG["harnesses"]) + harness_ids()))
 EAB_CONDITIONS = list(_CFG["conditions"])
 EAB_TASKS = len(task_ids())
 EAB_CODE_MAP = [(t, t.split("-")[0]) for t in task_ids()]
