@@ -4,7 +4,7 @@ title: Canadian wildfire smoke AOD over the eastern US, June 2023
 discipline_workflow:
   - Identify MCD19A2 (MAIAC AOD, tiled HDF4)
   - Check virtualizability oracle (grade C; chunk misalignment blocks C1)
-  - Use server-side subsetting (Harmony) or DMR++ range reads
+  - Use server-side subsetting (S1) or DMR++ range reads
   - QA-filter AOD (cloud, high-retrieval-quality)
   - Produce daily maps and episode mean
   - Save NetCDF artifact
@@ -40,6 +40,6 @@ gold:
   primary_patterns: [F1, F2]
   acceptable_patterns: [F3, F4]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - pilot task

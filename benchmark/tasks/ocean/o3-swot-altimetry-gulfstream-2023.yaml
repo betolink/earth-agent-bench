@@ -23,7 +23,7 @@ collections:
     tier: preferred
     role: primary
     services:
-      - {pattern: S1, available: true, source: "catalog: PODAAC Harmony SWOT; verify via CMR"}
+      - {pattern: S1, available: true, source: "catalog: PODAAC S1 SWOT; verify via CMR"}
   - short_name: SEA_SURFACE_HEIGHT_ALT_GRIDS_L4_2SATS_5DAY_6THDEG_V_JPL2205
     concept_id: C2270392799-POCLOUD
     tier: preferred
@@ -44,6 +44,6 @@ gold:
   primary_patterns: [S2]
   acceptable_patterns: [F1, F2]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - "service tiers pending CMR verification (curated verified: false)"

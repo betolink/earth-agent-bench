@@ -37,7 +37,7 @@ def _demo_scope_text(req) -> str:
     """Human description of the executable demo slice."""
     ds = req.demo_scope
     if ds is None:
-        return "the smallest slice that shows the pattern (one day / a couple of granules)"
+        return "the smallest slice that shows the route (one day / a couple of granules)"
     if ds.note:
         return ds.note
     parts = []
@@ -47,7 +47,7 @@ def _demo_scope_text(req) -> str:
         parts.append(f"{ds.granules} granule(s)")
     if ds.bbox:
         parts.append(f"bbox {ds.bbox}")
-    return ", ".join(parts) or "the smallest slice that shows the pattern"
+    return ", ".join(parts) or "the smallest slice that shows the route"
 
 
 def render_instruction(task: Task) -> str:
@@ -56,7 +56,7 @@ def render_instruction(task: Task) -> str:
     Leads with the dataset and the deliverable, then one target line and a short
     access policy. ``kind: daily`` writes the real result; otherwise the agent
     runs ``access.py`` once on a small demo slice — the task grades the *access
-    pattern*, not the full science result.
+    route, not the full science result.
     """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
@@ -75,16 +75,16 @@ def render_instruction(task: Task) -> str:
 
     if req.kind == "daily":
         steps = [
-            "1. `access.py` obtains the data with the best access pattern.",
+            "1. `access.py` obtains the data by the best route.",
             "2. Run it and write the actual result for the single day / region to `/app/output/`.",
         ]
         tail = []
     else:
         steps = [
-            "1. `access.py` obtains the data with the best access pattern.",
-            f"2. Run it once on the smallest slice that shows the pattern "
+            "1. `access.py` obtains the data by the best route.",
+            f"2. Run it once on the smallest slice that shows the route "
             f"({_demo_scope_text(req)}) — write the demo artifact to `/app/output/`.",
-            "3. Do NOT process the full window — demonstrate the pattern, don't run the study.",
+            "3. Do NOT process the full window — show the route, don't run the study.",
         ]
         tail = []
 
@@ -100,7 +100,7 @@ def render_instruction(task: Task) -> str:
         *steps,
         "- Write `/app/output/access_summary.json`: "
         '{"collections": ["SHORT_NAME"], "access_services_used": ["<service>"], '
-        '"bytes_read_estimate": 0, "pattern_notes": "one sentence justifying the choice"}.',
+        '"bytes_read_estimate": 0, "route_notes": "why you picked this route"}.',
         *tail,
         "",
         "**Access.** Use earthaccess for everything (`earthaccess.login()` takes no "

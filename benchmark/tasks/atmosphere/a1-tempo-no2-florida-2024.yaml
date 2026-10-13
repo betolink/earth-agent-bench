@@ -49,7 +49,7 @@ gold:
   primary_patterns: [C1]
   acceptable_patterns: [S1, S3, S2]
   reasoning: >
-    Verified availability — C1=y, S1=y, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=y, S1=y, S2=n, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - pilot task
   - exact variable name pinned at task-build time from UMM-Var

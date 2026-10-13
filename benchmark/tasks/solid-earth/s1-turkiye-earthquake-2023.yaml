@@ -25,7 +25,7 @@ collections:
     role: main
     services:
       - {pattern: C1, available: false, reason: "EDVS grade unknown; not creditable"}
-      - {pattern: S1, available: false, reason: "ASF GUNW not Harmony-enabled"}
+      - {pattern: S1, available: false, reason: "ASF GUNW not S1-enabled"}
       - {pattern: S2, available: false, reason: "no OPeNDAP endpoint for ASF GUNW"}
 pattern_tiers:
   best: [F1, F2]
@@ -40,4 +40,4 @@ gold:
   primary_patterns: [F1, F2]
   acceptable_patterns: [F3, F4]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

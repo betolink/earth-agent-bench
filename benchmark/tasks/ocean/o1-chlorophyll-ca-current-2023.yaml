@@ -38,4 +38,4 @@ gold:
   primary_patterns: [S1]
   acceptable_patterns: [S3, S2]
   reasoning: >
-    Verified availability — C1=n, S1=y, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=y, S2=y, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.

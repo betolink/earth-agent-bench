@@ -42,6 +42,6 @@ gold:
   primary_patterns: [F1, F2]
   acceptable_patterns: [F3, F4]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - "service tiers pending CMR verification (curated verified: false)"

@@ -23,7 +23,7 @@ collections:
     role: main
     services:
       - {pattern: C1, available: false, reason: "EDVS sampling pending for DISP-S1"}
-      - {pattern: S1, available: false, reason: "ASF OPERA not Harmony-enabled; verify"}
+      - {pattern: S1, available: false, reason: "ASF OPERA not S1-enabled; verify"}
   - short_name: SENTINEL-1_INTERFEROGRAMS
     concept_id: C1595422627-ASF
     tier: acceptable
@@ -41,6 +41,6 @@ gold:
   primary_patterns: [F1, F2]
   acceptable_patterns: [F3, F4]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=n, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - revisit gold when EDVS samples OPERA_L3_DISP-S1_V1

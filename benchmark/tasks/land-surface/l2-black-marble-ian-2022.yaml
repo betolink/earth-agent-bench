@@ -4,7 +4,7 @@ title: Black Marble nighttime-light recovery after Hurricane Ian
 discipline_workflow:
   - Identify VNP46A2 (gap-filled BRDF-corrected Black Marble, not raw DNB)
   - Query the virtualizability oracle (grade unknown, C1 not creditable)
-  - Use DMR++/OPeNDAP or Harmony subsetting per service discovery
+  - Use DMR++/OPeNDAP or S1 subsetting per service discovery
   - Apply cloud and lunar QA
   - County-level outage and recovery index
   - Save CSV and NetCDF artifacts
@@ -45,6 +45,6 @@ gold:
   primary_patterns: [S2]
   acceptable_patterns: [F1, F2]
   reasoning: >
-    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > Harmony > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
+    Verified availability — C1=n, S1=n, S2=y, S3=n, S4=n. Preference: virtualization > S1 > OPeNDAP > HTTP-subset > download; AppEEARS/Giovanni excluded.
 notes:
   - revisit gold if a future EDVS release grades VNP46A2 A/B
