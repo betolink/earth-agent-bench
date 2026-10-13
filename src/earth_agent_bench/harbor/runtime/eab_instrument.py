@@ -28,8 +28,8 @@ SPECS: tuple[tuple[str, str, str | None, str | None], ...] = (
     ("earthaccess", "search_data", None, None),
     ("earthaccess", "search_datasets", None, None),
     ("earthaccess", "search_services", None, None),
-    ("harmony", "Client.request", "harmony", "S1"),
     ("harmony", "Client.submit", "harmony", "S1"),
+    ("harmony", "Client.request_as_url", "harmony", "S1"),
     ("pydap.client", "open_url", "opendap", "S2"),
     ("pydap.client", "open_file", "opendap", "S2"),
     ("s3fs", "S3FileSystem.open", None, "C1"),
@@ -125,16 +125,21 @@ def _patch_top(top: str) -> None:
 
 
 class _Loader:
-    def __init__(self, loader, top: str):
+    def __init__(self, loader, top: str, fullname: str):
         self._loader = loader
         self._top = top
+        self._fullname = fullname
 
     def create_module(self, spec):
         return self._loader.create_module(spec)
 
     def exec_module(self, module):
         self._loader.exec_module(module)
-        _patch_top(self._top)
+        # Patch only after the *top* package itself finishes loading: its public
+        # attributes (earthaccess.open, .virtualize, …) exist only after its
+        # __init__ completes — submodules load first, during that __init__.
+        if self._fullname == self._top:
+            _patch_top(self._top)
 
 
 class _Finder:
@@ -147,7 +152,7 @@ class _Finder:
                 continue
             spec = finder.find_spec(fullname, path, target)
             if spec is not None and spec.loader is not None:
-                spec.loader = _Loader(spec.loader, top)
+                spec.loader = _Loader(spec.loader, top, fullname)
                 return spec
         return None
 
