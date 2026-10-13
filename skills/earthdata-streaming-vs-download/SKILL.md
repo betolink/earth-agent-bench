@@ -20,6 +20,11 @@ description: Stream NASA Earthdata with earthaccess.open() instead of downloadin
 > via `requests`/`curl`. Results translate cleanly to **STAC items** when you need
 > another ecosystem (e.g. `odc-stac`).
 
+> **Streaming beats services.** `earthaccess.open()` reads **client-side** (no
+> queue); Harmony/OPeNDAP are backend **async** jobs. Prefer streaming when the
+> format allows (netcdf4 / hdf5 / COG) — xarray, h5py and pandas read the file
+> object `open()` returns.
+
 Both paths start the same: `earthaccess.search_data()` (metadata only), URL resolution
 (S3 in-cloud or HTTPS out-of-cloud), authenticated connection. The difference is what
 happens after the connection opens:

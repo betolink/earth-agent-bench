@@ -44,17 +44,19 @@ FILTERED_DOWNLOAD = [p for p in PATTERNS if p.startswith("F")]
 MATERIALIZATION = ["M1", "M2"]
 
 # Preference order for choosing an access pattern (best -> worst):
-#   1. data virtualization (C1/C2/C3/C5, zarr streaming T2)
-#   2. Harmony subsetting (S1)
-#   3. OPeNDAP (S3 in-cloud/DMR++, S2)
-#   4. HTTP access with subsetting/aggregation (T3 range, T1 DAP4, then F1..F4)
-#   5. full download last (M1/M2)
-# AppEEARS (S4) and Giovanni (S5) are NOT "good" patterns (interactive apps,
-# not programmatic virtualization/subsetting) and are excluded from the ladder.
+#   1. data virtualization (C1/C2/C3/C5) — DMR++ references, else the native
+#      parser (usually HDF5); lazy, no server queue
+#   2. streaming (T2 zarr, T3 HTTP range, T1 DAP4) — client-side via
+#      earthaccess.open(), no queue
+#   3. backend services (S1 Harmony, S3 DMR++/in-cloud OPeNDAP, S2 OPeNDAP) —
+#      async jobs that land in a queue; use only when 1-2 don't fit
+#   4. filtered download (F1..F4), then full download last (M1/M2)
+# AppEEARS (S4) and Giovanni (S5) are interactive/pre-aggregated apps, not
+# preferred programmatic patterns.
 SELECTION_LADDER = [
-    "C1", "C2", "C3", "C5", "T2",
-    "S1",
-    "S3", "S2", "T1", "T3",
+    "C1", "C2", "C3", "C5",
+    "T2", "T3", "T1",
+    "S1", "S3", "S2",
     "F1", "F2", "F3", "F4",
     "M1", "M2",
 ]

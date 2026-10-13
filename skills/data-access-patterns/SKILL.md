@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() takes no args; NEVER raw CMR). Grade A/B → virtualize; else Harmony → OPeNDAP → open(). Be decisive — one search, then access and write the artifact; do not loop or retry. Read this skill.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess (login() no args; NEVER raw CMR). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive: one search, then act and write. Read this skill.
 ---
 
 # NASA Earthdata Access Patterns
@@ -70,19 +70,22 @@ earthaccess.login()          # uses EARTHDATA_TOKEN; no username/password, no pr
    criterion tells you why (usually chunk misalignment across granules).
 4. **Pick from the ladder, top-down** (first available that satisfies the requirement):
 
-| Priority | Pattern | How |
-|---:|---|---|
-| 1 | Virtual Zarr via `earthaccess.virtualize` | lazy datacube over the archive (needs grade A/B) |
-| 2 | Native Zarr store | open directly with xarray |
-| 3 | COG (cloud-optimized GeoTIFF) | range reads via rioxarray / GDAL |
-| 4 | Harmony subsetting | async server-side subset (bbox/time/variables) |
-| 5 | OPeNDAP in the cloud (DMR++) | ranged reads via pydap/netCDF4 |
-| 6 | OPeNDAP (Hyrax) | server-side slicing |
-| 7 | HTTP subsetting / filtered download | granule-list filtering (bbox/time/QA) before transfer |
-| 8 | Full granule download | last resort; never the whole archive |
+| # | Pattern | How | Why |
+|---:|---|---|---|
+| 1 | Virtual Zarr via **DMR++** | `earthaccess.virtualize(granules)` — VirtualiZarr reads the OPeNDAP **DMR++** sidecar | lazy range reads, no server queue |
+| 2 | Virtual Zarr via **native parser** | same, using the format parser (usually **HDF5**) when no DMR++ exists | lazy, no queue |
+| 3 | **Streaming** | `earthaccess.open(granules)` → xarray / h5py / pandas read the file object lazily (**netcdf4 / hdf5 / COG**) | client-side, no queue |
+| 4 | **Harmony / OPeNDAP** | `harmony` subsetting, `pydap` OPeNDAP | **backend async, queued** — heavier |
+| 5 | Filtered / full download | only if none of the above fit | last resort |
 
-AppEEARS and Giovanni are interactive / pre-aggregated apps, **not** preferred
-programmatic patterns — reach for them only when nothing above fits.
+**Virtualization first. Streaming beats services.** Harmony/OPeNDAP run on a
+backend as **async jobs** (even a valid request lands in a queue) — they work but
+are the slowest option. AppEEARS/Giovanni likewise.
+
+> **Grading note.** If a dataset *has* Harmony/OPeNDAP, proving you **found** the
+> service and know how to call it (an HTTP 200 from its capabilities /
+> get-description endpoint) is enough — you do **not** have to run the full async
+> job.
 
 5. **Subset before you compute.** Whatever the pattern: apply the spatial/temporal/variable
    selection at access time, then compute (see the `earthdata-streaming-vs-download` and
