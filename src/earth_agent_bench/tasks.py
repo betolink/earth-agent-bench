@@ -71,6 +71,10 @@ def render_instruction(task: Task) -> str:
 
     lines += [
         "",
+        "## Skills",
+        "If your environment provides skills, READ them before starting and use the",
+        "ones relevant to this task.",
+        "",
         "Produce the output artifact. Choose the best access service and pattern for",
         "the dataset(s) above; justify your access choice in the workflow.",
         "",
