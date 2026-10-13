@@ -69,7 +69,7 @@ def render_instruction(task: Task) -> str:
     target = [f"bbox {bbox}", f"{req.temporal_extent.start} to {req.temporal_extent.end}",
               f"variables: {variables}", f"output: {req.output_format}"]
     if task.validation.aggregation:
-        target.insert(2, f"aggregation: {task.validation.aggregation}")
+        target.insert(2, f"product: {task.validation.aggregation}")
     if task.validation.units:
         target.append(f"units: {task.validation.units}")
 

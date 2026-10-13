@@ -24,7 +24,7 @@ the full science result. See `docs/tasks-and-evals.md` §1.2 for the contract.
 
 **Access.** Use earthaccess for everything (`earthaccess.login()` takes no arguments) — do NOT probe the raw CMR API or fetch granule URLs directly.
 
-**Target.** bbox [W, S, E, N]; <start> to <end>; aggregation: <…>; variables: <…>; output: <…>; units: <…>.
+**Target.** bbox [W, S, E, N]; <start> to <end>; product: <…>; variables: <…>; output: <…>; units: <…>.
 
 **Skills.** If your environment provides skills, read the relevant ones first.
 ```
