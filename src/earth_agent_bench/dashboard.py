@@ -167,19 +167,40 @@ def _pgrep(pattern: str) -> list[str]:
 
 
 def collect_processes() -> dict:
-    """Snapshot running benchmark processes + the current job."""
+    """Snapshot running benchmark processes + the current job.
+
+    Also resolves the in-progress *cell* ``(model, harness, condition, task)`` so
+    the combo grid can mark where execution is.
+    """
     runner = _pgrep("runner/run.py")
     driver = _pgrep("scripts/eab-full-run.sh")
     harbor = _pgrep("harbor run")
     current = ""
+    current_cell: dict | None = None
     for line in harbor:
-        for tok in line.split():
-            if not tok.endswith(".yaml"):
-                continue
-            stem = Path(tok).stem
-            current = Path(tok).parent.name if stem in ("job", "job_config") else stem
+        toks = line.split()
+        model = harness = cond = task = ""
+        for i, tok in enumerate(toks):
+            if tok.endswith(".yaml"):
+                stem = Path(tok).stem
+                if stem in ("job", "job_config"):  # harbor run --config <jobdir>/job.yaml
+                    ref = parse_job_dir(Path(tok).parent.name)
+                    task, model, harness, cond = ref.task, ref.model, ref.harness, ref.condition
+                else:  # eab harbor run <task>.yaml
+                    task = stem
+            elif tok == "--model" and i + 1 < len(toks):
+                model = toks[i + 1]
+            elif tok == "--harness" and i + 1 < len(toks):
+                harness = toks[i + 1]
+            elif tok == "--condition" and i + 1 < len(toks):
+                cond = toks[i + 1]
+        if task:
+            current = task
+            if model and harness and cond:
+                current_cell = {"model": model, "harness": harness,
+                                "condition": cond, "task": FULL2SHORT.get(task, task)}
     return {"coding": bool(runner), "eab_driver": bool(driver),
-            "harbor": len(harbor), "current": current}
+            "harbor": len(harbor), "current": current, "current_cell": current_cell}
 
 
 def collect_coding() -> dict:
@@ -653,7 +674,11 @@ class Dashboard(App):
                  style=RUN if p.get("eab_driver") else IDLE)
         t.append(f"   |   harbor jobs: {p.get('harbor', 0)}\n")
         t.append("current: ", style="bold")
-        t.append(f"{p.get('current') or '—'}\n")
+        cc = p.get("current_cell") or {}
+        if cc:
+            t.append(f"{cc['model']}/{cc['harness']}/{cc['condition']} · {cc['task']}\n", style=RUN)
+        else:
+            t.append(f"{p.get('current') or '—'}\n")
         t.append("EAB run: ", style="bold")
         t.append(f"{e.get('run_name') or 'unnamed'} · {e.get('run_start') or '?'}", style=RUN)
         t.append("   |   progress: ")
@@ -721,10 +746,18 @@ class Dashboard(App):
         t.clear(columns=True)
         shorts = [short for _, short in EAB_CODE_MAP]
         t.add_columns("model", "harness", "cond", *shorts, "done")
+        cur = self.proc.get("current_cell") or {}
         for combo in self.edata["combos"]:
             row = [Text(combo["model"][:9], style="bold"), combo["harness"][:6],
                    cond_text(combo["condition"])]
-            row += [eab_task_text(*combo["tasks"].get(sh, (None, None))) for sh in shorts]
+            for sh in shorts:
+                is_current = (bool(cur)
+                              and combo["model"] == cur.get("model")
+                              and combo["harness"] == cur.get("harness")
+                              and combo["condition"] == cur.get("condition")
+                              and sh == cur.get("task"))
+                row.append(Text("▶", style="bold cyan") if is_current
+                           else eab_task_text(*combo["tasks"].get(sh, (None, None))))
             row.append(Text(f"{combo['done']}/{EAB_TASKS}",
                             style=GREEN if combo["done"] >= EAB_TASKS else NONE))
             t.add_row(*row)
