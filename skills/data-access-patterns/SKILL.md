@@ -1,6 +1,6 @@
 ---
 name: data-access-patterns
-description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Use earthaccess for everything (login() no args; never raw CMR or direct URL fetches — open() returns an authenticated file object). Order — virtualize (DMR++ then native parser) → stream via open() (xarray/h5py) → Harmony/OPeNDAP (async, last) → download. Be decisive — one search, then act and write. Read this skill.
+description: Pick and execute the best Earthdata access pattern for the GIVEN dataset. Scope the request first (subset vs aggregate; estimate the size), then route — virtualized dataset first, else streamable subset via open() or dask for larger aggregations, else Harmony/OPeNDAP, download last. Use earthaccess for everything (login() no args; never raw CMR or direct URL fetches). Read this skill.
 ---
 
 # NASA Earthdata Access Patterns
@@ -55,6 +55,22 @@ environment and authenticates. Pass **no arguments at all** — no `strategy=`
 import earthaccess
 earthaccess.login()          # uses EARTHDATA_TOKEN; no username/password, no prompt
 ```
+
+## Scope the request (before choosing a route)
+
+1. **Shape** — from the task, decide: a **subset** (a slice) or an **aggregate**
+   (reduce over time).
+2. **Size** — estimate it:
+   `granules ≈ (window / cadence) × (area / granule footprint)`;
+   `bytes ≈ granules × granule size × (variables needed / variables in file)`.
+3. **Route** — let the size decide:
+   - **virtualized dataset first** — a lazy virtual Zarr datacube (range reads, no
+     copies) whenever the archive can be virtualized;
+   - else **streamable subsetting** — `earthaccess.open()` for a small slice
+     (netcdf4 / hdf5 / COG);
+   - for **larger aggregations**, combine with **dask** (chunked / distributed) —
+     still lazy, still no full download.
+State the estimate and the route you chose.
 
 ## Procedure
 
