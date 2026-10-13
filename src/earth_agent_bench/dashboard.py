@@ -574,6 +574,7 @@ class Dashboard(App):
         self.edata: dict = {"combos": [], "total_done": 0, "done_combos": 0,
                             "total": 0, "recent": []}
         self.proc: dict = {"coding": False, "eab_driver": False, "harbor": 0, "current": ""}
+        self.coding_model: str | None = None  # selected row in the coding matrix
         self.ldata: dict = {"lines": [], "header": "LIVE — current agent", "task": ""}
         self.tdata: dict = {"lines": [], "header": "CURRENT TASK"}
         self._task_name: str | None = None
@@ -728,18 +729,35 @@ class Dashboard(App):
                     cells.append(Text("—", style=NONE, justify="right"))
             avg = (sum(allvals) / len(allvals)) if allvals else None
             cells.append(reward_text(avg))
-            t.add_row(Text(m, style="bold"), *cells)
+            t.add_row(Text(m, style="bold"), *cells, key=m)
         t.cursor_type = "row"
+        if self.coding_model:  # keep the cursor on the selected model across refreshes
+            try:
+                t.move_cursor(row=t.get_row_index(self.coding_model))
+            except Exception:
+                pass
 
     def _render_coding_tasks(self) -> None:
         t = self.query_one("#codingtasks", DataTable)
         t.clear(columns=True)
         t.add_columns("model", "harness", *TASK_ORDER)
-        for m, h in self._ranked_pairs():
+        pairs = self._ranked_pairs()
+        if self.coding_model:  # follow the selected row in the coding matrix
+            pairs = [p for p in pairs if p[0] == self.coding_model]
+        for m, h in pairs:
             row = [task_text(self.pdata["latest"].get((task, m, h), {}).get("reward"))
                    for task in TASK_ORDER]
             t.add_row(Text(m[:9], style="bold"), h[:6], *row)
         t.cursor_type = "row"
+
+    def on_data_table_row_highlighted(self, event) -> None:
+        """Selecting a row in the coding matrix filters the per-task grid."""
+        if getattr(event.data_table, "id", None) != "coding":
+            return
+        model = str(getattr(event.row_key, "value", "") or "")
+        if model and model != self.coding_model:
+            self.coding_model = model
+            self._safe("render_coding_tasks", self._render_coding_tasks, None)
 
     def _render_eab_combo(self) -> None:
         t = self.query_one("#eabcombo", DataTable)
