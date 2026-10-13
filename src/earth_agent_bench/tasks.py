@@ -103,11 +103,8 @@ def render_instruction(task: Task) -> str:
         '"bytes_read_estimate": 0, "pattern_notes": "one sentence justifying the choice"}.',
         *tail,
         "",
-        "**Access policy (outside AWS; HTTPS only).** Use earthaccess for everything "
-        "(`earthaccess.login()` takes no arguments; never raw CMR or direct URL fetches — "
-        "`open()` returns an authenticated file object). Order: virtualize (DMR++ then "
-        "native parser) → stream via `open()` → Harmony/OPeNDAP (async, last) → download. "
-        "One search, then act and write — do not loop.",
+        "**Access.** Use earthaccess for everything (`earthaccess.login()` takes no "
+        "arguments) — do NOT probe the raw CMR API or fetch granule URLs directly.",
         "",
         f"**Target.** {'; '.join(target)}.",
         "",
