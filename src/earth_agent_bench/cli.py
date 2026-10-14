@@ -642,24 +642,34 @@ def analyze(
     output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory."),
     batch: int = typer.Option(1, "--batch", "-b",
                               help="Rows (model×harness×condition) per judge call; a rolling postmortem is kept across batches."),
+    max_cells: int = typer.Option(0, "--max-cells",
+                                  help="Cap trajectories per call (0 = all); lower for speed."),
     max_steps: int = typer.Option(80, "--max-steps", help="Steps per trajectory (80 ~ all)."),
     width: int = typer.Option(240, "--width", help="Per-line truncation width."),
-    max_tokens: int = typer.Option(32000, "--max-tokens", help="Judge reply budget."),
+    max_tokens: int = typer.Option(32000, "--max-tokens",
+                                   help="Judge reply budget (reasoning models need a lot)."),
+    timeout: int = typer.Option(1200, "--timeout", help="Per-call socket timeout (s)."),
+    reasoning_effort: str = typer.Option("low", "--reasoning-effort",
+                                         help="low|medium|high (low disables GLM thinking, ~7x faster); 'none' leaves the model default."),
+    no_progress: bool = typer.Option(False, "--no-progress", help="Silence the heartbeat."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write payloads only, no judge call."),
 ) -> None:
     """Analyze a run with a judge model: rolling summary + postmortem + results table.
 
     \b
-      eab analyze --name local-pi --judge glm-5.3-flash --batch 1 --output ./
+      eab analyze --name local-pi --judge zai/glm-5.3-flash --batch 1 --output ./
+      eab analyze --name local-pi --judge glm-5.3-flash --max-cells 8   # faster
       eab analyze --name local-pi --dry-run          # write payloads, no judge call
     """
     from .analyze import analyze as run_analyze
 
     res = run_analyze(name, judge, harness=harness, output=output, batch=batch,
-                      max_steps=max_steps, width=width, max_tokens=max_tokens,
-                      dry_run=dry_run)
+                      max_steps=max_steps, width=width, max_cells=max_cells,
+                      max_tokens=max_tokens, timeout=timeout,
+                      reasoning_effort=None if reasoning_effort == "none" else reasoning_effort,
+                      dry_run=dry_run, progress=not no_progress)
     console.print(f"[green]{res['rows']} rows → {res['batches']} batch(es)[/green]  "
-                  f"({res['cells']} cells)")
+                  f"({res['cells']} cells, {res['elapsed']:.0f}s)")
     console.print(f"[dim]payloads + per-batch drafts:[/dim] {res['dir']}")
     if res["analysis"]:
         console.print(f"[green]analysis[/green] {res['analysis']}  (judge={judge})")

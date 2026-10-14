@@ -16,6 +16,7 @@ condensed to fit a prompt.
 from __future__ import annotations
 
 import json
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -184,15 +185,20 @@ def build_payload(name: str, batch_cells: list[dict], all_cells: list[dict],
     return "\n".join(parts)
 
 
-def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int = 1800) -> str:
+def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int = 1200,
+               on_progress=None, reasoning_effort: str | None = "low") -> str:
     """Send the payload to a judge model on the gateway; return its reply (streamed).
 
-    ``model`` may be a roster id (resolved via models.yaml) or a raw gateway id.
-    Streamed (SSE) so long reasoning generations don't hit the proxy's idle
-    timeout (HTTP 524). ``max_tokens`` must be generous — reasoning models spend a
-    lot before the answer.
+    ``model`` may be a roster id (resolved via models.yaml) or a raw gateway id
+    (e.g. ``zai/glm-5.3-flash``). Streamed (SSE) so long generations don't hit the
+    proxy's idle timeout (HTTP 524). ``on_progress(chars_out, chars_reasoning,
+    elapsed_s)`` is called every ~10 s so the caller can show a heartbeat.
+
+    NOTE: many ``glm-*`` "flash" models are **reasoning** models — they spend
+    ``max_tokens`` on hidden ``reasoning_content`` before any answer (we measured
+    ~27 K reasoning tokens per batch on ``glm-5.3-flash``). ``reasoning_effort="low"``
+    disables it (~7x faster); pass ``None`` to leave the model's default on.
     """
-    import json
     import os
     from urllib.request import Request, urlopen
 
@@ -203,6 +209,8 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
            or os.environ.get("LITELLM_API_KEY") or "")
     body = {"model": resolved, "messages": [{"role": "user", "content": payload}],
             "max_tokens": max_tokens, "temperature": 0, "stream": True}
+    if reasoning_effort:
+        body["reasoning_effort"] = reasoning_effort
     req = Request(f"{gateway_base()}/v1/chat/completions",
                   data=json.dumps(body).encode(),
                   headers={"Content-Type": "application/json",
@@ -211,6 +219,8 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
                            "Authorization": f"Bearer {key}"},
                   method="POST")
     parts: list[str] = []
+    n_out = n_reason = 0
+    started = last = time.time()
     with urlopen(req, timeout=timeout) as response:  # noqa: S310
         for raw in response:
             line = raw.decode("utf-8", "replace").strip()
@@ -224,21 +234,35 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
             except Exception:
                 continue
             delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
+            if delta.get("reasoning_content"):
+                n_reason += len(delta["reasoning_content"])
             if delta.get("content"):
-                parts.append(delta["content"])
+                c = delta["content"]
+                parts.append(c)
+                n_out += len(c)
+            if on_progress and time.time() - last >= 10:
+                on_progress(n_out, n_reason, time.time() - started)
+                last = time.time()
     return "".join(parts)
 
 
 def analyze(name: str, judge: str, harness: str | None = None, output: Path = Path("."),
-            batch: int = 1, max_steps: int = 80, width: int = 240,
-            max_tokens: int = 32000, dry_run: bool = False) -> dict:
+            batch: int = 1, max_steps: int = 80, width: int = 240, max_cells: int = 0,
+            max_tokens: int = 32000, timeout: int = 1200, reasoning_effort: str | None = "low",
+            dry_run: bool = False, progress: bool = True) -> dict:
     """Analyze a run in batches of rows, maintaining a rolling postmortem.
 
     Splits the run's rows (model × harness × condition) into batches of ``batch``;
     each judge call receives the postmortem so far + the batch's trajectories and
     returns the **updated complete postmortem**. The last one is written to
     ``analysis-<name>.md``; per-batch drafts go to ``analysis-<name>/batch-NN.*``.
+
+    ``max_cells`` caps trajectories per call (0 = all); lower it to trade
+    completeness for speed on big rows. ``progress`` streams a heartbeat so long
+    reasoning-model calls don't look hung.
     """
+    from rich.console import Console
+
     cells = collect_cells(name, harness)
     if not cells:
         raise SystemExit(f"no cells for run '{name}'"
@@ -249,21 +273,42 @@ def analyze(name: str, judge: str, harness: str | None = None, output: Path = Pa
 
     outdir = output / f"analysis-{name}"
     outdir.mkdir(parents=True, exist_ok=True)
+    con = Console(stderr=True) if progress else None
     result = {"name": name, "cells": len(cells), "rows": len(rows),
-              "batches": len(batches), "dir": str(outdir), "analysis": None}
+              "batches": len(batches), "dir": str(outdir), "analysis": None,
+              "elapsed": 0.0}
 
     summary = ""
+    t_start = time.time()
     for i, chunk in enumerate(batches):
         batch_cells = [c for _, cs in chunk for c in cs]
+        if max_cells and len(batch_cells) > max_cells:
+            batch_cells = batch_cells[:max_cells]
         batch_rows = [f"{k[0]}/{k[1]}/{k[2]}" for k, _ in chunk]
         prompt = build_payload(name, batch_cells, cells, batch_rows, summary,
                                max_steps=max_steps, width=width)
         (outdir / f"batch-{i:02d}.payload.md").write_text(prompt + "\n")
         if dry_run:
             continue
-        summary = call_judge(judge, prompt, max_tokens=max_tokens)
-        (outdir / f"batch-{i:02d}.summary.md").write_text(summary + "\n")
+        if con:
+            con.print(f"[cyan]batch {i + 1}/{len(batches)}[/cyan] "
+                      f"{', '.join(batch_rows)} · ~{len(prompt) // 4:,} tok in "
+                      f"· {len(batch_cells)} traj"
+                      + (f" (of {len([c for _, cs in chunk for c in cs])})"
+                         if max_cells else ""))
+        t0 = time.time()
 
+        def _beat(n_out, n_reason, el):
+            if con:
+                con.print(f"  [dim]… {n_out:,} out · {n_reason:,} reasoning · {el:.0f}s[/dim]")
+
+        summary = call_judge(judge, prompt, max_tokens=max_tokens, timeout=timeout,
+                             on_progress=_beat, reasoning_effort=reasoning_effort)
+        (outdir / f"batch-{i:02d}.summary.md").write_text(summary + "\n")
+        if con:
+            con.print(f"  [green]done[/green] {len(summary):,} chars in {time.time() - t0:.0f}s")
+
+    result["elapsed"] = time.time() - t_start
     if not dry_run:
         analysis_path = output / f"analysis-{name}.md"
         analysis_path.write_text(summary + "\n")
