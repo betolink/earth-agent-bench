@@ -324,6 +324,23 @@ def _newest_agent_file() -> Path | None:
     return Path(max(files, key=lambda f: os.path.getmtime(f)))
 
 
+def _cell_agent_file(cell: dict) -> Path | None:
+    """Newest agent transcript for a specific cell (task/model/harness/condition)."""
+    model, harness = cell.get("model"), cell.get("harness")
+    cond, short = cell.get("condition"), cell.get("task")
+    if not (model and harness and cond and short):
+        return None
+    pat = str(EAB / "runs" / "harbor"
+              / f"eab-*-{model}-{harness}-{cond}-*" / "*" / "agent" / "*.txt")
+    files = []
+    for f in glob.glob(pat):
+        job_dir = Path(f).parents[2].name if len(Path(f).parents) > 2 else ""
+        ref = parse_job_dir(job_dir)
+        if FULL2SHORT.get(ref.task, ref.task) == short:
+            files.append(f)
+    return Path(max(files, key=lambda f: os.path.getmtime(f))) if files else None
+
+
 def _tail(path: Path, max_bytes: int = 300_000, max_lines: int = 120) -> list[str]:
     """Last N lines of a (possibly large) text file, dropping a partial tail line."""
     size = path.stat().st_size
@@ -459,24 +476,32 @@ def _job_info(job_dir: str) -> dict:
             "harness": ref.harness, "condition": ref.condition}
 
 
-def collect_live() -> dict:
-    """Tail the newest agent transcript and condense it for the LIVE view."""
-    path = _newest_agent_file()
+def collect_live(cell: dict | None = None) -> dict:
+    """Tail the agent transcript to show. With ``cell``, pin to that cell; else newest."""
+    pinned = bool(cell)
+    path = _cell_agent_file(cell) if cell else _newest_agent_file()
     if path is None:
-        return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent", "path": "", "task": ""}
+        if pinned:
+            label = f"{cell.get('model')}/{cell.get('condition')}/{cell.get('task')}"
+            return {"lines": ["(no transcript yet — cell not started)"],
+                    "header": f"LIVE (pinned) — {label}", "path": "",
+                    "task": cell.get("task", ""), "cell": cell}
+        return {"lines": ["(no agent output yet)"], "header": "LIVE — current agent",
+                "path": "", "task": "", "cell": {}}
     job_dir = path.parents[2].name if len(path.parents) > 2 else ""
     info = _job_info(job_dir)
-    header = (f"LIVE — {info['task']} · {info['model']} · {info['harness']} · {info['condition']}"
-              if info["task"] else "LIVE — current agent")
-    cell = {"model": info["model"], "harness": info["harness"], "condition": info["condition"],
-            "task": FULL2SHORT.get(info["task"], info["task"])}
+    tag = "LIVE (pinned) — " if pinned else "LIVE — "
+    header = (f"{tag}{info['task']} · {info['model']} · {info['harness']} · {info['condition']}"
+              if info["task"] else f"{tag}current agent")
+    cellinfo = {"model": info["model"], "harness": info["harness"], "condition": info["condition"],
+                "task": FULL2SHORT.get(info["task"], info["task"])}
     try:
         lines = [x for x in (_condense(line) for line in _tail(path)) if x][-40:]
     except OSError as e:
         return {"lines": [f"(read error: {e})"], "header": header, "path": str(path),
-                "task": info["task"], "cell": cell}
+                "task": info["task"], "cell": cellinfo}
     return {"lines": lines or ["(waiting for output…)"], "header": header,
-            "path": str(path), "task": info["task"], "cell": cell}
+            "path": str(path), "task": info["task"], "cell": cellinfo}
 
 
 def collect_task(task: str) -> dict:
@@ -563,6 +588,7 @@ class Dashboard(App):
         Binding("-", "slower", "Interval -"),
         Binding("s", "toggle_auto", "Auto-refresh"),
         Binding("n", "next_active", "Next active cell"),
+        Binding("a", "live_auto", "Live: auto-follow"),
         Binding("ctrl+l", "show_logs", "Logs"),
     ]
 
@@ -578,6 +604,7 @@ class Dashboard(App):
                             "total": 0, "recent": []}
         self.proc: dict = {"coding": False, "eab_driver": False, "harbor": 0, "current": ""}
         self.coding_model: str | None = None  # selected row in the coding matrix
+        self.live_cell: dict | None = None    # pinned live cell (None = follow newest)
         self.ldata: dict = {"lines": [], "header": "LIVE — current agent", "task": ""}
         self.tdata: dict = {"lines": [], "header": "CURRENT TASK"}
         self._task_name: str | None = None
@@ -637,7 +664,7 @@ class Dashboard(App):
         self._safe("render_coding", self._render_coding, None)
         self._safe("render_coding_tasks", self._render_coding_tasks, None)
         self._safe("render_eab_combo", self._render_eab_combo, None)
-        self.ldata = self._safe("live_collect", collect_live, self.ldata)
+        self.ldata = self._safe("live_collect", lambda: collect_live(self.live_cell), self.ldata)
         self._safe("render_live", self._render_live, None)
         self._safe("render_task", self._maybe_task, None)
         self.next_refresh = time.time() + self.interval
@@ -654,7 +681,7 @@ class Dashboard(App):
 
     def _tick_live(self) -> None:
         # fast path: refresh only the live agent pane (and the current-job line)
-        self.ldata = self._safe("live_collect", collect_live, self.ldata)
+        self.ldata = self._safe("live_collect", lambda: collect_live(self.live_cell), self.ldata)
         self._safe("render_live", self._render_live, None)
         self._safe("task", self._maybe_task, None)
         self._safe("procs", lambda: self.proc.update(collect_processes()), None)
@@ -772,6 +799,26 @@ class Dashboard(App):
             self.coding_model = model
             self._safe("render_coding_tasks", self._render_coding_tasks, None)
 
+    def on_data_table_cell_highlighted(self, event) -> None:
+        """Focusing a cell in the EAB combo grid pins the live view to it."""
+        if getattr(event.data_table, "id", None) != "eabcombo":
+            return
+        coord = getattr(event, "coordinate", None)
+        if coord is None:
+            return
+        shorts = [s for _, s in EAB_CODE_MAP]
+        col = coord.column - 3            # skip model/harness/cond
+        if not (0 <= col < len(shorts) and 0 <= coord.row < len(self.edata["combos"])):
+            return
+        combo = self.edata["combos"][coord.row]
+        self.live_cell = {"model": combo["model"], "harness": combo["harness"],
+                          "condition": combo["condition"], "task": shorts[col]}
+        self.ldata = self._safe("live_collect",
+                                lambda: collect_live(self.live_cell), self.ldata)
+        self._safe("render_live", self._render_live, None)
+        self._safe("render_eab_combo", self._render_eab_combo, None)
+        self._update_status(time.time())
+
     def _render_eab_combo(self) -> None:
         t = self.query_one("#eabcombo", DataTable)
         t.clear(columns=True)
@@ -796,7 +843,7 @@ class Dashboard(App):
             row.append(Text(f"{combo['done']}/{EAB_TASKS}",
                             style=GREEN if combo["done"] >= EAB_TASKS else NONE))
             t.add_row(*row)
-        t.cursor_type = "row"
+        t.cursor_type = "cell"
         t.zebra_stripes = True
 
     def _render_live(self) -> None:
@@ -846,7 +893,15 @@ class Dashboard(App):
             return
         t = self.query_one("#eabcombo", DataTable)
         nxt = next((r for r in rows if r > t.cursor_row), rows[0])
-        t.move_cursor(row=nxt)
+        t.move_cursor(row=nxt, column=3)   # land on the first task column
+
+    def action_live_auto(self) -> None:
+        """Unpin the live view so it follows the newest transcript again."""
+        self.live_cell = None
+        self.ldata = self._safe("live_collect", lambda: collect_live(None), self.ldata)
+        self._safe("render_live", self._render_live, None)
+        self._safe("render_eab_combo", self._render_eab_combo, None)
+        self._update_status(time.time())
 
     def action_refresh(self) -> None:
         log.info("manual refresh")
