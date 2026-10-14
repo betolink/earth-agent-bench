@@ -468,12 +468,15 @@ def collect_live() -> dict:
     info = _job_info(job_dir)
     header = (f"LIVE — {info['task']} · {info['model']} · {info['harness']} · {info['condition']}"
               if info["task"] else "LIVE — current agent")
+    cell = {"model": info["model"], "harness": info["harness"], "condition": info["condition"],
+            "task": FULL2SHORT.get(info["task"], info["task"])}
     try:
         lines = [x for x in (_condense(line) for line in _tail(path)) if x][-40:]
     except OSError as e:
-        return {"lines": [f"(read error: {e})"], "header": header, "path": str(path), "task": info["task"]}
+        return {"lines": [f"(read error: {e})"], "header": header, "path": str(path),
+                "task": info["task"], "cell": cell}
     return {"lines": lines or ["(waiting for output…)"], "header": header,
-            "path": str(path), "task": info["task"]}
+            "path": str(path), "task": info["task"], "cell": cell}
 
 
 def collect_task(task: str) -> dict:
@@ -543,6 +546,7 @@ class Dashboard(App):
     #livebox { width: 70%; }
     #taskbox { width: 30%; }
     .panel-title { text-style: bold; background: $panel; padding: 0 1; }
+    #live_title { background: $accent; color: $text; text-style: bold; }
     DataTable { height: 1fr; }
     #coding { height: auto; max-height: 12; }
     #eabcombo { height: 1fr; }
@@ -680,9 +684,15 @@ class Dashboard(App):
                                  for c in cells[:6])
             if len(cells) > 6:
                 shown += f"  (+{len(cells) - 6} more)"
-            t.append(f"   {shown}\n", style=RUN)
+            t.append(f"   {shown}", style=RUN)
         else:
-            t.append(f"   {p.get('current') or '—'}\n")
+            t.append(f"   {p.get('current') or '—'}")
+        live = self.ldata.get("cell") or {}
+        if live.get("model"):
+            t.append("   │ live ▶ "
+                     f"{live['model'][:9]}/{live['condition'][:4]}/{live['task'][:16]}",
+                     style="bold black on bright_green")
+        t.append("\n")
         t.append("EAB run: ", style="bold")
         t.append(f"{e.get('run_name') or 'unnamed'} · {e.get('run_start') or '?'}", style=RUN)
         t.append("   |   progress: ")
@@ -767,20 +777,20 @@ class Dashboard(App):
         t.clear(columns=True)
         shorts = [short for _, short in EAB_CODE_MAP]
         t.add_columns("model", "harness", "cond", *shorts, "done")
-        cur = self.proc.get("current_cell") or {}
         active = {(c["model"], c["harness"], c["condition"], c["task"])
                   for c in (self.proc.get("current_cells") or [])}
+        live = self.ldata.get("cell") or {}
+        live_key = (live.get("model"), live.get("harness"), live.get("condition"),
+                    live.get("task"))
         for combo in self.edata["combos"]:
             row = [Text(combo["model"][:9], style="bold"), combo["harness"][:6],
                    cond_text(combo["condition"])]
             for sh in shorts:
-                is_active = (combo["model"], combo["harness"],
-                             combo["condition"], sh) in active
-                if is_active:
-                    style = "bold cyan" if (cur and combo["model"] == cur.get("model")
-                                            and combo["condition"] == cur.get("condition")
-                                            and sh == cur.get("task")) else "cyan"
-                    row.append(Text("▶", style=style))
+                key = (combo["model"], combo["harness"], combo["condition"], sh)
+                if key in active:
+                    # the cell the LIVE pane is showing gets a solid background
+                    row.append(Text("▶", style="bold black on bright_green"
+                                    if key == live_key else "bold cyan"))
                 else:
                     row.append(eab_task_text(*combo["tasks"].get(sh, (None, None))))
             row.append(Text(f"{combo['done']}/{EAB_TASKS}",
