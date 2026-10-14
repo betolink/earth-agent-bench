@@ -180,3 +180,44 @@ Two changes were tested on a fresh `tiel-coder-35b / pi` run (`schema-test-tiel-
   section in the body.
 - **Open:** the 600 s cap is likely too low for virtualization on this model;
   consider a larger cap or a "virtualize only if quick, else Harmony/OPeNDAP" rule.
+
+---
+
+## Headline result: skills work — `tiel-pi` baseline vs skills (2026-10-14)
+
+After the **instrumentation fix** (see `docs/reports/instrumentation-fix.md` — it
+was recording **no access events**, so `access_pattern` was always 0) and the
+settled setup (goal = the code · `Slice` · neutral wording · earthaccess +
+scope-the-request skill), the skills condition finally shows a real effect.
+
+Run `tiel-pi` (stamp `20261013-164623`), model **tiel-coder-35b**, harness **pi**:
+
+| metric | baseline | **skills** |
+|---|---|---|
+| mean reward | 0.322 | **0.590** |
+| nonzero | 13/18 | 16/18 |
+| timeouts | 13/18 | 11/18 |
+| **access_pattern** | 0.33 | **0.56** |
+| **skill body read** | 6/18 | **17/18** |
+| earthaccess calls | 6,794 | 11,868 |
+| **`virtualize(`** | **0** | **653** |
+| harmony | 0 | 850 |
+| **raw CMR** | 1,486 | **260** |
+| exec `ok` | 5 | 8 |
+| code sanctioned | 4 T / 3 F / 9 – | 11 T / 6 – |
+
+**Findings**
+- **The skill works.** With it the agent **reads the skill (17/18)** and
+  **virtualizes** (`653` calls vs **0** at baseline) → `access_pattern` **0.33 →
+  0.56** and the reward nearly **doubles (0.32 → 0.59)**.
+- **Raw CMR collapsed** (1,486 → 260) — the earthaccess mandate landed.
+- **Baseline never virtualizes (0)** — without the skill the agent's prior is
+  discovery + CMR; the *scope-the-request / virtualize-first* skill is what drives
+  the better route.
+- Completion is still imperfect (11–13/18 timeouts), but the **route quality** —
+  the scored surface — improved materially.
+
+**Caveat:** this effect only appeared once **both** (a) the instrumentation was
+fixed (so `access_pattern` could score) **and** (b) the skill reached the model
+(injected description + the task's "read the skills"). Earlier "skills vs
+baseline" deltas were flat because neither held.
