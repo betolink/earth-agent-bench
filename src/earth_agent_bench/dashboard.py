@@ -811,8 +811,11 @@ class Dashboard(App):
         if not (0 <= col < len(shorts) and 0 <= coord.row < len(self.edata["combos"])):
             return
         combo = self.edata["combos"][coord.row]
-        self.live_cell = {"model": combo["model"], "harness": combo["harness"],
-                          "condition": combo["condition"], "task": shorts[col]}
+        new_cell = {"model": combo["model"], "harness": combo["harness"],
+                    "condition": combo["condition"], "task": shorts[col]}
+        if new_cell == self.live_cell:      # no change -> avoid re-render churn
+            return
+        self.live_cell = new_cell
         self.ldata = self._safe("live_collect",
                                 lambda: collect_live(self.live_cell), self.ldata)
         self._safe("render_live", self._render_live, None)
@@ -821,6 +824,10 @@ class Dashboard(App):
 
     def _render_eab_combo(self) -> None:
         t = self.query_one("#eabcombo", DataTable)
+        try:                                  # preserve focus across refreshes
+            coord = t.cursor_coordinate
+        except Exception:
+            coord = None
         t.clear(columns=True)
         shorts = [short for _, short in EAB_CODE_MAP]
         t.add_columns("model", "harness", "cond", *shorts, "done")
@@ -845,6 +852,12 @@ class Dashboard(App):
             t.add_row(*row)
         t.cursor_type = "cell"
         t.zebra_stripes = True
+        if coord is not None and t.row_count:   # restore the cursor position
+            try:
+                t.move_cursor(row=min(coord.row, t.row_count - 1),
+                              column=min(coord.column, len(shorts) + 3 - 1))
+            except Exception:
+                pass
 
     def _render_live(self) -> None:
         self.query_one("#live_title", Static).update(self.ldata.get("header", "LIVE — current agent"))
