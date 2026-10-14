@@ -142,27 +142,45 @@ def _results_table(cells: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def build_payload(name: str, cells: list[dict], max_cells: int = 12,
-                  max_steps: int = 200, width: int = 240) -> str:
-    """The full judge prompt: context → ask → run table → condensed trajectories."""
-    chosen = cells[:max_cells]
+def _group_rows(cells: list[dict]) -> list[tuple[tuple, list[dict]]]:
+    """Cells grouped into rows (model × harness × condition), ordered."""
+    buckets: dict[tuple, list[dict]] = defaultdict(list)
+    for c in cells:
+        buckets[(c["model"], c["harness"], c["condition"])].append(c)
+    return [(k, buckets[k]) for k in sorted(buckets)]
+
+
+def build_payload(name: str, batch_cells: list[dict], all_cells: list[dict],
+                  batch_rows: list[str], prior_summary: str = "",
+                  max_steps: int = 80, width: int = 240) -> str:
+    """The judge prompt for one batch: context → task → prior draft → rows → ATIF.
+
+    The whole-run table is included every call; the trajectories are just this
+    batch's cells. ``prior_summary`` is the rolling postmortem so far.
+    """
     parts = [
-        "# Benchmark analysis request",
+        "# Benchmark analysis — update the running postmortem",
         "",
         "## Context",
         CONTEXT,
-        "## What we want",
+        "## Your task",
         ASK,
-        "## Run",
-        f"`{name}` — {len(cells)} cells"
-        + (f" (showing {len(chosen)} trajectories)" if len(chosen) < len(cells) else ""),
+        "Return the **complete** postmortem (headline · routes taken · failure modes · "
+        "condition effect · recommendations · results table). Keep all prior findings "
+        "and extend/revise them with this batch — never drop rows you already analyzed.",
         "",
-        _results_table(cells),
+        "## Current postmortem (draft so far)",
+        prior_summary.strip() or "(none yet — start it)",
         "",
-        "## Trajectories (ATIF, condensed)",
+        f"## Run `{name}` — batch: {', '.join(batch_rows)}",
+        "",
+        "### Whole-run results so far",
+        _results_table(all_cells),
+        "",
+        "### This batch's trajectories (ATIF, condensed)",
         "",
     ]
-    parts += [_cell_block(c, max_steps, width) for c in chosen]
+    parts += [_cell_block(c, max_steps, width) for c in batch_cells]
     return "\n".join(parts)
 
 
@@ -212,27 +230,42 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
 
 
 def analyze(name: str, judge: str, harness: str | None = None, output: Path = Path("."),
-            max_cells: int = 12, max_steps: int = 200, width: int = 240,
-            max_tokens: int = 32000,
-            dry_run: bool = False) -> dict:
-    """Collect a run, build the payload, call the judge, write payload + analysis."""
+            batch: int = 1, max_steps: int = 80, width: int = 240,
+            max_tokens: int = 32000, dry_run: bool = False) -> dict:
+    """Analyze a run in batches of rows, maintaining a rolling postmortem.
+
+    Splits the run's rows (model × harness × condition) into batches of ``batch``;
+    each judge call receives the postmortem so far + the batch's trajectories and
+    returns the **updated complete postmortem**. The last one is written to
+    ``analysis-<name>.md``; per-batch drafts go to ``analysis-<name>/batch-NN.*``.
+    """
     cells = collect_cells(name, harness)
     if not cells:
         raise SystemExit(f"no cells for run '{name}'"
                          + (f" / harness '{harness}'" if harness else ""))
-    payload = build_payload(name, cells, max_cells=max_cells,
-                            max_steps=max_steps, width=width)
+    rows = _group_rows(cells)
+    batches = ([rows] if batch <= 0 or batch >= len(rows)
+               else [rows[i:i + batch] for i in range(0, len(rows), batch)])
 
-    output.mkdir(parents=True, exist_ok=True)
-    payload_path = output / f"payload-{name}.md"
-    payload_path.write_text(payload + "\n")
+    outdir = output / f"analysis-{name}"
+    outdir.mkdir(parents=True, exist_ok=True)
+    result = {"name": name, "cells": len(cells), "rows": len(rows),
+              "batches": len(batches), "dir": str(outdir), "analysis": None}
 
-    result = {"name": name, "cells": len(cells), "payload": str(payload_path),
-              "analysis": None}
-    if dry_run:
-        return result
-    analysis = call_judge(judge, payload, max_tokens=max_tokens)
-    analysis_path = output / f"analysis-{name}.md"
-    analysis_path.write_text(analysis + "\n")
-    result["analysis"] = str(analysis_path)
+    summary = ""
+    for i, chunk in enumerate(batches):
+        batch_cells = [c for _, cs in chunk for c in cs]
+        batch_rows = [f"{k[0]}/{k[1]}/{k[2]}" for k, _ in chunk]
+        prompt = build_payload(name, batch_cells, cells, batch_rows, summary,
+                               max_steps=max_steps, width=width)
+        (outdir / f"batch-{i:02d}.payload.md").write_text(prompt + "\n")
+        if dry_run:
+            continue
+        summary = call_judge(judge, prompt, max_tokens=max_tokens)
+        (outdir / f"batch-{i:02d}.summary.md").write_text(summary + "\n")
+
+    if not dry_run:
+        analysis_path = output / f"analysis-{name}.md"
+        analysis_path.write_text(summary + "\n")
+        result["analysis"] = str(analysis_path)
     return result

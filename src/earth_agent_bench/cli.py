@@ -636,28 +636,31 @@ def archive(
 @app.command("analyze")
 def analyze(
     name: str = typer.Option(..., "--name", "-n", help="Run name to analyze."),
-    judge: str = typer.Option("glm-5.3", "--judge", "-j", help="Judge model (gateway id)."),
+    judge: str = typer.Option("glm-5.3-flash", "--judge", "-j", help="Judge model (roster id or gateway id)."),
     harness: Optional[str] = typer.Option(None, "--harness", "-H",
                                           help="Filter to one harness."),
     output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory."),
-    max_cells: int = typer.Option(12, "--max-cells", help="Trajectories to include."),
+    batch: int = typer.Option(1, "--batch", "-b",
+                              help="Rows (model×harness×condition) per judge call; a rolling postmortem is kept across batches."),
+    max_steps: int = typer.Option(80, "--max-steps", help="Steps per trajectory (80 ~ all)."),
     width: int = typer.Option(240, "--width", help="Per-line truncation width."),
-    max_steps: int = typer.Option(200, "--max-steps", help="Steps per trajectory (200 ~ all; bound size with --width)."),
-    max_tokens: int = typer.Option(32000, "--max-tokens", help="Judge reply budget (reasoning models need a lot)."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Write the payload only."),
+    max_tokens: int = typer.Option(32000, "--max-tokens", help="Judge reply budget."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Write payloads only, no judge call."),
 ) -> None:
-    """Send a run's trajectories to a judge model for a summary + postmortem + analysis.
+    """Analyze a run with a judge model: rolling summary + postmortem + results table.
 
     \b
-      eab analyze --name local-pi --judge glm-5.3 --harness pi --output ./
-      eab analyze --name local-pi --dry-run          # write the payload, no judge call
+      eab analyze --name local-pi --judge glm-5.3-flash --batch 1 --output ./
+      eab analyze --name local-pi --dry-run          # write payloads, no judge call
     """
     from .analyze import analyze as run_analyze
 
-    res = run_analyze(name, judge, harness=harness, output=output,
-                      max_cells=max_cells, max_steps=max_steps, width=width,
-                      max_tokens=max_tokens, dry_run=dry_run)
-    console.print(f"[green]payload[/green]  {res['payload']}  ({res['cells']} cells)")
+    res = run_analyze(name, judge, harness=harness, output=output, batch=batch,
+                      max_steps=max_steps, width=width, max_tokens=max_tokens,
+                      dry_run=dry_run)
+    console.print(f"[green]{res['rows']} rows → {res['batches']} batch(es)[/green]  "
+                  f"({res['cells']} cells)")
+    console.print(f"[dim]payloads + per-batch drafts:[/dim] {res['dir']}")
     if res["analysis"]:
         console.print(f"[green]analysis[/green] {res['analysis']}  (judge={judge})")
 
