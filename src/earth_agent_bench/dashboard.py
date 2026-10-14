@@ -169,7 +169,7 @@ def collect_processes() -> dict:
     driver = _pgrep("scripts/eab-full-run.sh")
     harbor = _pgrep("harbor run")
     current = ""
-    current_cell: dict | None = None
+    cells: dict[tuple, dict] = {}
     for line in harbor:
         toks = line.split()
         model = harness = cond = task = ""
@@ -190,10 +190,15 @@ def collect_processes() -> dict:
         if task:
             current = task
             if model and harness and cond:
-                current_cell = {"model": model, "harness": harness,
-                                "condition": cond, "task": FULL2SHORT.get(task, task)}
+                short = FULL2SHORT.get(task, task)
+                cells[(model, harness, cond, short)] = {
+                    "model": model, "harness": harness,
+                    "condition": cond, "task": short}
+    current_cells = list(cells.values())
     return {"coding": bool(runner), "eab_driver": bool(driver),
-            "harbor": len(harbor), "current": current, "current_cell": current_cell}
+            "harbor": len(harbor), "current": current,
+            "current_cell": current_cells[-1] if current_cells else None,
+            "current_cells": current_cells}
 
 
 def collect_coding() -> dict:
@@ -553,6 +558,7 @@ class Dashboard(App):
         Binding("+", "faster", "Interval +"),
         Binding("-", "slower", "Interval -"),
         Binding("s", "toggle_auto", "Auto-refresh"),
+        Binding("n", "next_active", "Next active cell"),
         Binding("ctrl+l", "show_logs", "Logs"),
     ]
 
@@ -667,12 +673,16 @@ class Dashboard(App):
         t.append("WAITING/RUNNING" if p.get("eab_driver") else "idle",
                  style=RUN if p.get("eab_driver") else IDLE)
         t.append(f"   |   harbor jobs: {p.get('harbor', 0)}\n")
-        t.append("current: ", style="bold")
-        cc = p.get("current_cell") or {}
-        if cc:
-            t.append(f"{cc['model']}/{cc['harness']}/{cc['condition']} · {cc['task']}\n", style=RUN)
+        t.append(f"active cells: {p.get('harbor', 0)}", style="bold")
+        cells = p.get("current_cells") or []
+        if cells:
+            shown = "  ·  ".join(f"{c['model'][:9]}/{c['condition'][:4]}/{c['task'][:16]}"
+                                 for c in cells[:6])
+            if len(cells) > 6:
+                shown += f"  (+{len(cells) - 6} more)"
+            t.append(f"   {shown}\n", style=RUN)
         else:
-            t.append(f"{p.get('current') or '—'}\n")
+            t.append(f"   {p.get('current') or '—'}\n")
         t.append("EAB run: ", style="bold")
         t.append(f"{e.get('run_name') or 'unnamed'} · {e.get('run_start') or '?'}", style=RUN)
         t.append("   |   progress: ")
@@ -758,17 +768,21 @@ class Dashboard(App):
         shorts = [short for _, short in EAB_CODE_MAP]
         t.add_columns("model", "harness", "cond", *shorts, "done")
         cur = self.proc.get("current_cell") or {}
+        active = {(c["model"], c["harness"], c["condition"], c["task"])
+                  for c in (self.proc.get("current_cells") or [])}
         for combo in self.edata["combos"]:
             row = [Text(combo["model"][:9], style="bold"), combo["harness"][:6],
                    cond_text(combo["condition"])]
             for sh in shorts:
-                is_current = (bool(cur)
-                              and combo["model"] == cur.get("model")
-                              and combo["harness"] == cur.get("harness")
-                              and combo["condition"] == cur.get("condition")
-                              and sh == cur.get("task"))
-                row.append(Text("▶", style="bold cyan") if is_current
-                           else eab_task_text(*combo["tasks"].get(sh, (None, None))))
+                is_active = (combo["model"], combo["harness"],
+                             combo["condition"], sh) in active
+                if is_active:
+                    style = "bold cyan" if (cur and combo["model"] == cur.get("model")
+                                            and combo["condition"] == cur.get("condition")
+                                            and sh == cur.get("task")) else "cyan"
+                    row.append(Text("▶", style=style))
+                else:
+                    row.append(eab_task_text(*combo["tasks"].get(sh, (None, None))))
             row.append(Text(f"{combo['done']}/{EAB_TASKS}",
                             style=GREEN if combo["done"] >= EAB_TASKS else NONE))
             t.add_row(*row)
@@ -809,6 +823,20 @@ class Dashboard(App):
     # ---- actions ----
     def action_show_logs(self) -> None:
         self.push_screen(LogScreen(self.edata.get("log", "")))
+
+    def action_next_active(self) -> None:
+        """Jump the combo-grid cursor to the next row with an executing cell."""
+        active = {(c["model"], c["harness"], c["condition"], c["task"])
+                  for c in (self.proc.get("current_cells") or [])}
+        shorts = [s for _, s in EAB_CODE_MAP]
+        rows = [i for i, combo in enumerate(self.edata["combos"])
+                if any((combo["model"], combo["harness"], combo["condition"], sh) in active
+                       for sh in shorts)]
+        if not rows:
+            return
+        t = self.query_one("#eabcombo", DataTable)
+        nxt = next((r for r in rows if r > t.cursor_row), rows[0])
+        t.move_cursor(row=nxt)
 
     def action_refresh(self) -> None:
         log.info("manual refresh")

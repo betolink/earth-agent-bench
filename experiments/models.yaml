@@ -149,6 +149,15 @@ models:
     litellm_model: zai/glm-5.3-flash
     context: null
 
+  qwen3.8-flash:
+    tier: frontier_open
+    display_name: Qwen3.8 Flash (OpenCode Go)
+    litellm_model: opencode-go/qwen3.8-flash
+    context: null
+    notes:
+      - OpenCode Go tier; non-training, 0-day retention
+      - ~$0.15/M in, $0.47/M out, $0.016/M cached-read; heavy prefix caching
+
   claude-sonnet-5-5:
     tier: closed_reference
     display_name: Claude Sonnet 5.5 (reference)

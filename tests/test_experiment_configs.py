@@ -18,10 +18,10 @@ def harnesses():
 
 def test_roster_size_and_tiers(models):
     roster = models["models"]
-    assert len(roster) == 11
+    assert len(roster) == 12
     tiers = [m["tier"] for m in roster.values()]
     assert tiers.count("local") == 7
-    assert tiers.count("frontier_open") == 2
+    assert tiers.count("frontier_open") == 3
     assert tiers.count("closed_reference") == 2
 
 
