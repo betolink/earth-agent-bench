@@ -109,6 +109,9 @@ def run(
         None, help="Task .yaml/.md for a single run; omit to run the full sweep."),
     name: Optional[str] = typer.Option(
         None, "--name", "-n", help="Experiment name (used as the run identity)."),
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c",
+        help="Run-config YAML (default experiments/run.yaml); a bare name resolves under experiments/."),
     model: Optional[str] = typer.Option(None, help="Model id (single-run only)."),
     harness: Optional[str] = typer.Option(None, help="Harness (single-run only)."),
     condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
@@ -121,15 +124,22 @@ def run(
 
     \b
       eab run --name experiment-1               # full sweep, named
+      eab run --name smart-ext --config smart-external.yml
       eab run task.yaml --model m --harness pi  # one task
     """
     if task is None:  # full sweep
         import os
         import subprocess
+
+        from .runconfig import run_config_path
+
         env = dict(os.environ)
         if name:
             env["EAB_RUN_NAME"] = name
-        console.print(f"[green]full sweep[/green] name={name or '(run.yaml default)'}")
+        if config:
+            env["EAB_RUN_CONFIG"] = str(run_config_path(config))
+        console.print(f"[green]full sweep[/green] name={name or '(run.yaml default)'} "
+                      f"config={config or '(default)'}")
         raise typer.Exit(code=subprocess.call(
             ["bash", "scripts/eab-full-run.sh"], cwd=REPO_ROOT, env=env))
     if not model or not harness:
@@ -813,11 +823,18 @@ def doctor(
 @app.command("config")
 def config(
     as_shell: bool = typer.Option(False, "--shell", help="Emit shell var assignments (for scripts)."),
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c",
+        help="Run-config YAML (default experiments/run.yaml); a bare name resolves under experiments/."),
 ) -> None:
-    """Show/validate the benchmark run config (experiments/run.yaml + env + roster)."""
+    """Show/validate the benchmark run config (run config + env + roster)."""
     from .runconfig import load_run_config, resolve_run_stamp, resolve_run_tasks
 
-    c = load_run_config()
+    try:
+        c = load_run_config(config)
+    except FileNotFoundError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=1) from error
     if c["unknown_models"]:
         console.print(f"[red]unknown model ids (not in experiments/models.yaml): "
                       f"{c['unknown_models']}[/red]")
@@ -834,7 +851,7 @@ def config(
     n_tasks = len(resolve_run_tasks(c["tasks"]))
     rows = len(c["models"]) * len(c["harnesses"]) * len(c["conditions"])
     cells = rows * n_tasks * c["trials"]
-    table = Table(title="EAB run config (experiments/run.yaml, env-overridable)")
+    table = Table(title=f"EAB run config ({c['config_path']}, env-overridable)")
     table.add_column("field")
     table.add_column("value")
     table.add_row("run", c["name"] + "  (the whole experiment)")

@@ -18,6 +18,33 @@ CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 HARNESSES_YAML = REPO_ROOT / "experiments" / "harnesses.yaml"
 TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
 
+# Select an alternate run-config file (e.g. experiments/smart-external.yml):
+# `eab run --config smart-external.yml` or EAB_RUN_CONFIG=… .
+RUN_CONFIG_ENV = "EAB_RUN_CONFIG"
+
+
+def run_config_path(explicit: str | Path | None = None) -> Path:
+    """Resolve the run-config YAML: explicit arg > $EAB_RUN_CONFIG > experiments/run.yaml.
+
+    A bare name (no suffix) is looked up under ``experiments/`` as ``<name>.yaml``
+    or ``<name>.yml``. An explicit path that doesn't exist raises, so a typo fails
+    loudly instead of silently falling back to the default config.
+    """
+    raw = str(explicit or os.environ.get(RUN_CONFIG_ENV) or "").strip()
+    if not raw:
+        return RUN_YAML
+    p = Path(raw)
+    candidates = [p, Path.cwd() / p, REPO_ROOT / p]
+    if not p.suffix:
+        candidates += [REPO_ROOT / "experiments" / f"{raw}.yaml",
+                       REPO_ROOT / "experiments" / f"{raw}.yml"]
+    for c in candidates:
+        if c.is_file():
+            return c
+    raise FileNotFoundError(
+        f"run config not found: {raw!r} "
+        f"(looked in ./, {REPO_ROOT}, and {REPO_ROOT / 'experiments'})")
+
 
 def _csv(value: str) -> list[str]:
     """Split a comma-separated string into a trimmed, non-empty list."""
@@ -58,19 +85,21 @@ def task_ids() -> list[str]:
     return sorted(p.stem for p in TASKS_DIR.rglob("*.yaml"))
 
 
-def load_run_config() -> dict:
-    """Resolve the run matrix: env overrides > ``experiments/run.yaml`` > defaults.
+def load_run_config(config: str | Path | None = None) -> dict:
+    """Resolve the run matrix: env overrides > run config > defaults.
 
-    Returns a dict with ``name``, ``models``, ``harnesses``, ``conditions``,
-    ``tasks``, ``trials``, ``concurrency``, the ``roster`` and any
-    ``unknown_models`` (ids not present in ``experiments/models.yaml``).
+    ``config`` selects the run-config YAML (else ``$EAB_RUN_CONFIG``, else
+    ``experiments/run.yaml``). Returns a dict with ``name``, ``models``,
+    ``harnesses``, ``conditions``, ``tasks``, ``trials``, ``concurrency``,
+    ``config_path``, the ``roster`` and any ``unknown_models``.
 
     Example::
 
-        cfg = load_run_config()          # honours EAB_MODELS / EAB_CONCURRENCY / …
-        cfg["models"], cfg["conditions"]
+        cfg = load_run_config()                     # honours EAB_MODELS / EAB_CONCURRENCY / …
+        cfg = load_run_config("smart-external.yml") # a named config under experiments/
     """
-    cfg = _load(RUN_YAML)
+    path = run_config_path(config)
+    cfg = _load(path)
     roster = _load(MODELS_YAML).get("models", {})
     conditions_all = _load(CONDITIONS_YAML).get("order", [])
     name = os.environ.get("EAB_RUN_NAME") or cfg.get("name", "eab-full")
@@ -83,6 +112,7 @@ def load_run_config() -> dict:
     concurrency = int(os.environ.get("EAB_CONCURRENCY", cfg.get("concurrency", 1)))
     return {
         "name": name,
+        "config_path": str(path),
         "models": models,
         "harnesses": harnesses,
         "conditions": conds,
@@ -117,6 +147,7 @@ def write_manifest(cfg: dict, stamp: str, **extra) -> Path:
         "stamp": stamp,
         "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "git_sha": sha,
+        "config_path": cfg.get("config_path"),
         "models": cfg.get("models"),
         "harnesses": cfg.get("harnesses"),
         "conditions": cfg.get("conditions"),
