@@ -3,6 +3,7 @@ xarray
 dask[distributed]
 h5netcdf
 netCDF4
+pyhdf
 fsspec
 s3fs
 zarr

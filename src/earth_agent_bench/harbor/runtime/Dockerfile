@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates curl bash \
+    && apt-get install -y --no-install-recommends git ca-certificates curl bash libhdf4-alt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY agent-requirements.txt /tmp/agent-requirements.txt

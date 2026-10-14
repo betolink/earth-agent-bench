@@ -10,7 +10,9 @@ instrumentation must never break the agent.
 
 from __future__ import annotations
 
+import functools
 import importlib
+import inspect
 import json
 import os
 import sys
@@ -89,6 +91,17 @@ def _wrap(original, name: str, service: str | None, pattern: str | None):
                 event["concept_id"] = kwargs["concept_id"]
             _record(event)
 
+    # Preserve introspection so agents can discover the real API: without this the
+    # wrapper advertises (*args, **kwargs) and drops the docstring, which forces
+    # every agent to reverse-engineer signatures by trial and error.
+    try:
+        functools.update_wrapper(logged, original)
+    except Exception:
+        pass
+    try:
+        logged.__signature__ = inspect.signature(original)  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        pass
     return logged
 
 
