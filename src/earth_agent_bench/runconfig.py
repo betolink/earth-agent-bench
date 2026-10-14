@@ -164,6 +164,17 @@ def resolve_run_stamp(name: str) -> str:
     return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
+def run_name_for_stamp(stamp: str, names: dict[str, str] | None = None) -> str:
+    """The run a cell's per-job stamp belongs to (the nearest preceding run stamp).
+
+    Job dirs carry a per-job stamp (when the job ran), not the run stamp, so map a
+    cell back to its run by the latest manifest stamp <= the cell's stamp.
+    """
+    names = load_manifest_names() if names is None else names
+    prior = [s for s in names if s and s <= stamp]
+    return names[max(prior)] if prior else ""
+
+
 def resolve_run_tasks(sel) -> list[Path]:
     """Resolve the *run* task selection (run.yaml `tasks`) into benchmark task YAMLs.
 

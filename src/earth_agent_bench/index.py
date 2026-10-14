@@ -90,7 +90,7 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
     runs_dir = Path(runs_dir or tj.RUNS_DIR)
     roster = load_roster()
     try:
-        from .runconfig import load_manifest_names
+        from .runconfig import load_manifest_names, run_name_for_stamp
         names = load_manifest_names()
     except Exception:
         names = {}
@@ -116,7 +116,8 @@ def index_records(runs_dir: Path | None = None) -> list[dict]:
             r = reward.get("reward")
             records.append({
                 "task": task, "model": model, "harness": harness,
-                "condition": condition, "stamp": stamp, "run_name": names.get(stamp, ""),
+                "condition": condition, "stamp": stamp,
+                "run_name": run_name_for_stamp(stamp, names),
                 "trial": trial_dir.name,
                 "status": _classify(r, exc), "reward": r, "exception": exc,
                 "components": {c: reward.get(c) for c in COMPONENTS},

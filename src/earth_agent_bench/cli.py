@@ -478,6 +478,7 @@ def trajectory(
              "Default: full bundle (metadata + trajectory)."),
     latest: bool = typer.Option(True, "--latest/--all", help="Newest trial, or every match."),
     list_only: bool = typer.Option(False, "--list", help="List matching trials."),
+    validate: bool = typer.Option(False, "--validate", help="Validate the ATIF trajectory."),
     out: Optional[Path] = typer.Option(None, "--out", "-o", help="Write to a file."),
 ) -> None:
     """Dump a cell's trajectory + metadata (model params, task, environment).
@@ -508,6 +509,23 @@ def trajectory(
         where = f"{task_id} / {model} / {harness}" + (f" / {condition}" if condition else "")
         console.print(f"[red]no trials[/red] for {where}")
         raise typer.Exit(code=1)
+
+    if validate:
+        from .trajectory import validate_atif
+
+        table = Table(title=f"ATIF validation — {task_id} · {model} · {harness}")
+        for col in ("stamp", "condition", "valid", "errors"):
+            table.add_column(col)
+        for t in trials:
+            traj = t.dir / "agent" / "trajectory.json"
+            if not traj.exists():
+                table.add_row(t.stamp, t.condition, "-", "no trajectory")
+                continue
+            ok, errors = validate_atif(traj)
+            table.add_row(t.stamp, t.condition, "✓" if ok else "✗",
+                          "; ".join(errors[:2]) or "-")
+        console.print(table)
+        return
 
     if list_only:
         table = Table(title=f"{task_id} · {model} · {harness}")
@@ -613,6 +631,34 @@ def archive(
     verb = "would archive" if dry_run else "archived"
     console.print(f"[green]{verb}[/green] {len(result['moved'])} items for "
                   f"{stamp} -> {result['dest']}")
+
+
+@app.command("analyze")
+def analyze(
+    name: str = typer.Option(..., "--name", "-n", help="Run name to analyze."),
+    judge: str = typer.Option("glm-5.3", "--judge", "-j", help="Judge model (gateway id)."),
+    harness: Optional[str] = typer.Option(None, "--harness", "-H",
+                                          help="Filter to one harness."),
+    output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory."),
+    max_cells: int = typer.Option(12, "--max-cells", help="Trajectories to include."),
+    max_steps: int = typer.Option(40, "--max-steps", help="Steps per trajectory."),
+    max_tokens: int = typer.Option(32000, "--max-tokens", help="Judge reply budget (reasoning models need a lot)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Write the payload only."),
+) -> None:
+    """Send a run's trajectories to a judge model for a summary + postmortem + analysis.
+
+    \b
+      eab analyze --name local-pi --judge glm-5.3 --harness pi --output ./
+      eab analyze --name local-pi --dry-run          # write the payload, no judge call
+    """
+    from .analyze import analyze as run_analyze
+
+    res = run_analyze(name, judge, harness=harness, output=output,
+                      max_cells=max_cells, max_steps=max_steps,
+                      max_tokens=max_tokens, dry_run=dry_run)
+    console.print(f"[green]payload[/green]  {res['payload']}  ({res['cells']} cells)")
+    if res["analysis"]:
+        console.print(f"[green]analysis[/green] {res['analysis']}  (judge={judge})")
 
 
 @app.command("dashboard")

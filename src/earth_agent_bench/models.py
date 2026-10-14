@@ -89,7 +89,8 @@ def discover_models() -> list[dict]:
     g = gateway()
     base = (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
             or g["base_url"]).rstrip("/")
-    key = os.environ.get("LITELLM_API_KEY", "")
+    key = (os.environ.get("LITE_LLM_API_KEY")
+           or os.environ.get("LITELLM_API_KEY") or "")
     url = f"{base}{g.get('discover_endpoint', '/v1/models')}"
     headers = {"User-Agent": "earth-agent-bench/0.1"}
     if key:
@@ -134,7 +135,8 @@ def gateway_chat(model: str, messages: list[dict], tools: list[dict] | None = No
     g = gateway()
     base = (os.environ.get("LITE_LLM_ENDPOINT") or os.environ.get("LITELLM_BASE_URL")
             or g["base_url"]).rstrip("/")
-    key = os.environ.get("LITELLM_API_KEY", "")
+    key = (os.environ.get("LITE_LLM_API_KEY")
+           or os.environ.get("LITELLM_API_KEY") or "")
     body: dict = {"model": model, "messages": messages, "max_tokens": max_tokens,
                   "temperature": 0}
     if tools:

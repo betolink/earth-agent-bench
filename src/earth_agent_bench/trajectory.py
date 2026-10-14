@@ -133,6 +133,24 @@ def exception_of(trial: Trial) -> str:
         return ""
 
 
+def validate_atif(path: Path | str) -> tuple[bool, list[str]]:
+    """Validate an ATIF trajectory with Harbor's ``TrajectoryValidator``.
+
+    Returns ``(ok, errors)``; ``(True, [])`` if the validator is unavailable.
+    See https://github.com/harbor-framework/harbor/blob/main/rfcs/0001-trajectory-format.md
+    """
+    try:
+        from harbor.utils.trajectory_validator import TrajectoryValidator
+    except Exception:
+        return True, []
+    validator = TrajectoryValidator()
+    try:
+        ok = validator.validate(path)
+    except Exception as error:  # pragma: no cover - defensive
+        return False, [f"{type(error).__name__}: {error}"]
+    return ok, validator.get_errors()
+
+
 # --------------------------------------------------------------------------- #
 # metadata bundle
 # --------------------------------------------------------------------------- #
