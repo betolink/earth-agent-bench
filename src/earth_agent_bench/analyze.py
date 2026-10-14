@@ -62,6 +62,41 @@ Cover:
 Be specific and evidence-based; do not restate the prompt.
 """
 
+VERIFY_ASK = """\
+You are fact-checking a benchmark postmortem against authoritative data.
+
+You get (1) a DRAFT postmortem and (2) a FACTS bundle computed directly from the
+run: the results table and a per-cell evidence index (status, reward, component
+scores, the observed access route, exec status, code-check flags, efficiency).
+
+Do this:
+1. For every **numeric** claim (means, counts, "X of Y", timeouts, scores), check it
+   against the facts; correct any mismatch.
+2. For every **per-cell** claim (which route a cell took, its status/reward), check it
+   against the per-cell evidence; correct any mismatch.
+3. For **causal** claims ("because…", "caused by…"), you CANNOT confirm them from the
+   facts alone — keep one only if consistent with the observed evidence, and mark it
+   "(hypothesis)" when it goes beyond what the facts show.
+4. Return a short **Corrections** list (what changed and why), then the
+   **corrected, complete postmortem**.
+
+Never invent cells, routes, or numbers not present in the facts.
+"""
+
+
+def _signature(batches: list, judge: str, max_steps: int, width: int, max_cells: int,
+               reasoning_effort: str | None) -> str:
+    """Stable hash of the batch structure + params — detects a stale resume."""
+    import hashlib
+
+    src = json.dumps({
+        "judge": judge, "max_steps": max_steps, "width": width,
+        "max_cells": max_cells, "reasoning_effort": reasoning_effort,
+        "batches": [[[k[0], k[1], k[2], sorted(c.get("trial", "") for c in cs)]
+                     for k, cs in chunk] for chunk in batches],
+    }, sort_keys=True)
+    return hashlib.sha256(src.encode()).hexdigest()[:16]
+
 
 def collect_cells(name: str, harness: str | None = None) -> list[dict]:
     """Cells of a run (index records whose `run_name` == name), optional harness filter."""
@@ -185,6 +220,67 @@ def build_payload(name: str, batch_cells: list[dict], all_cells: list[dict],
     return "\n".join(parts)
 
 
+def _read_json(path: Path) -> dict:
+    try:
+        return json.loads(Path(path).read_text())
+    except Exception:
+        return {}
+
+
+def build_evidence(cells: list[dict]) -> str:
+    """Compact, code-derived facts: results table + per-cell route/status evidence.
+
+    Deliberately small (~300-500 B/cell) so the verify pass never re-reads the
+    trajectories.
+    """
+    lines = ["### Results table (authoritative)", _results_table(cells), "",
+             "### Per-cell evidence (authoritative)", ""]
+    for c in sorted(cells, key=lambda c: (c["model"], c["condition"], c["task"])):
+        comp = c.get("components") or {}
+        det = _read_json(tj.REPO_ROOT / c["details_path"]) if c.get("details_path") else {}
+        obs = det.get("access_pattern_details") or {}
+        cc = det.get("code_check") or {}
+        eff = det.get("efficiency_metrics") or {}
+        lines.append(
+            f"- {c['task']} · {c['model']}/{c['harness']}/{c['condition']} — "
+            f"reward={c['reward']} status={c['status']} "
+            f"ap={comp.get('access_pattern')} sd={comp.get('service_discovery')} "
+            f"repr={comp.get('representation')} eff={comp.get('efficiency')} "
+            f"val={comp.get('validation')}")
+        lines.append(
+            f"    observed={obs.get('observed_patterns')} "
+            f"class={obs.get('observed_classifications')} gold={obs.get('primary_gold')} "
+            f"best={obs.get('best_available')} gap={obs.get('gap_reason')!r}")
+        lines.append(
+            f"    exec={det.get('exec_status')} sanctioned={cc.get('sanctioned')} "
+            f"earthaccess={cc.get('uses_earthaccess')} virtualize={cc.get('uses_virtualize')} "
+            f"open={cc.get('uses_open')} raw_cmr={cc.get('raw_cmr')} "
+            f"raw_fetch={cc.get('raw_url_fetch')} bytes={eff.get('bytes_read')} "
+            f"objects={eff.get('objects_read')} runtime={eff.get('runtime_seconds')}")
+        if c.get("exception"):
+            lines.append(f"    exception={c['exception']}")
+    return "\n".join(lines)
+
+
+def verify(name: str, judge: str, cells: list[dict], draft: str,
+           reasoning_effort: str | None = "high", max_tokens: int = 32000,
+           timeout: int = 1200, on_progress=None) -> tuple[str, str]:
+    """Fact-check + merge the draft against a compact evidence bundle.
+
+    Returns ``(payload, corrected)``. Input is bounded by the draft + the evidence
+    index (~10-20K tokens) — the trajectories are NOT re-sent.
+    """
+    payload = "\n".join([
+        "# Verify & correct the postmortem", "", VERIFY_ASK,
+        "## FACTS (authoritative — trust these over the draft)", "",
+        build_evidence(cells), "",
+        "## DRAFT postmortem (to correct)", "", draft,
+    ])
+    corrected = call_judge(judge, payload, max_tokens=max_tokens, timeout=timeout,
+                           on_progress=on_progress, reasoning_effort=reasoning_effort)
+    return payload, corrected
+
+
 def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int = 1200,
                on_progress=None, reasoning_effort: str | None = "low") -> str:
     """Send the payload to a judge model on the gateway; return its reply (streamed).
@@ -257,7 +353,8 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
 def analyze(name: str, judge: str, harness: str | None = None, output: Path = Path("."),
             batch: int = 1, max_steps: int = 80, width: int = 240, max_cells: int = 0,
             max_tokens: int = 32000, timeout: int = 1200, reasoning_effort: str | None = "low",
-            dry_run: bool = False, progress: bool = True) -> dict:
+            dry_run: bool = False, progress: bool = True, resume: bool = True,
+            verify_pass: bool = False, verify_effort: str | None = "high") -> dict:
     """Analyze a run in batches of rows, maintaining a rolling postmortem.
 
     Splits the run's rows (model × harness × condition) into batches of ``batch``;
@@ -265,9 +362,14 @@ def analyze(name: str, judge: str, harness: str | None = None, output: Path = Pa
     returns the **updated complete postmortem**. The last one is written to
     ``analysis-<name>.md``; per-batch drafts go to ``analysis-<name>/batch-NN.*``.
 
-    ``max_cells`` caps trajectories per call (0 = all); lower it to trade
-    completeness for speed on big rows. ``progress`` streams a heartbeat so long
-    reasoning-model calls don't look hung.
+    **Resume**: a completed batch is a non-empty ``batch-NN.summary.md``; with
+    ``resume`` (default) an interrupted run continues from the last one, using its
+    summary as the rolling draft. A ``meta.json`` signature of (params + cells per
+    batch) guards against resuming on changed inputs.
+
+    ``verify_pass`` adds a final reasoning-``verify_effort`` call that fact-checks
+    the merged postmortem against a compact evidence index (results table + per-cell
+    route/status) — it does **not** re-read the trajectories.
     """
     from rich.console import Console
 
@@ -285,13 +387,45 @@ def analyze(name: str, judge: str, harness: str | None = None, output: Path = Pa
     if con:
         from .wiring import gateway_base, litellm_model
         con.print(f"[dim]judge={litellm_model(judge)} @ {gateway_base()}[/dim]")
+
+    sig = _signature(batches, judge, max_steps, width, max_cells, reasoning_effort)
+    meta_path = outdir / "meta.json"
+    prev = _read_json(meta_path)
+    start, summary = 0, ""
+    if resume and not dry_run and prev.get("signature") == sig:
+        for i in range(len(batches)):
+            f = outdir / f"batch-{i:02d}.summary.md"
+            if f.is_file() and f.read_text().strip():
+                start, summary = i + 1, f.read_text()
+            else:
+                break
+    elif resume and not dry_run and prev and prev.get("signature") != sig:
+        if con:
+            con.print("[yellow]inputs changed since the last run — starting fresh[/yellow]")
+
+    if not dry_run:
+        meta_path.write_text(json.dumps({
+            "signature": sig, "judge": judge, "batch": batch, "max_steps": max_steps,
+            "width": width, "max_cells": max_cells, "reasoning_effort": reasoning_effort,
+            "rows": [[k[0], k[1], k[2]] for k, _ in rows], "batches": len(batches),
+        }, indent=2) + "\n")
+
     result = {"name": name, "cells": len(cells), "rows": len(rows),
               "batches": len(batches), "dir": str(outdir), "analysis": None,
-              "elapsed": 0.0}
+              "verified": None, "resumed_from": start, "elapsed": 0.0}
+    if con and start:
+        con.print(f"[green]resuming[/green] — {start}/{len(batches)} batch(es) already done")
 
-    summary = ""
+    def _beat(n_out, n_reason, el):
+        if con:
+            con.print(f"  [dim]… {n_out:,} out · {n_reason:,} reasoning · {el:.0f}s[/dim]")
+
     t_start = time.time()
     for i, chunk in enumerate(batches):
+        if i < start:
+            if con:
+                con.print(f"[dim]batch {i + 1}/{len(batches)} — cached[/dim]")
+            continue
         batch_cells = [c for _, cs in chunk for c in cs]
         if max_cells and len(batch_cells) > max_cells:
             batch_cells = batch_cells[:max_cells]
@@ -308,20 +442,32 @@ def analyze(name: str, judge: str, harness: str | None = None, output: Path = Pa
                       + (f" (of {len([c for _, cs in chunk for c in cs])})"
                          if max_cells else ""))
         t0 = time.time()
-
-        def _beat(n_out, n_reason, el):
-            if con:
-                con.print(f"  [dim]… {n_out:,} out · {n_reason:,} reasoning · {el:.0f}s[/dim]")
-
         summary = call_judge(judge, prompt, max_tokens=max_tokens, timeout=timeout,
                              on_progress=_beat, reasoning_effort=reasoning_effort)
         (outdir / f"batch-{i:02d}.summary.md").write_text(summary + "\n")
         if con:
             con.print(f"  [green]done[/green] {len(summary):,} chars in {time.time() - t0:.0f}s")
 
+    if dry_run:
+        result["elapsed"] = time.time() - t_start
+        return result
+
+    analysis_path = output / f"analysis-{name}.md"
+    analysis_path.write_text(summary + "\n")
+    result["analysis"] = str(analysis_path)
+
+    if verify_pass and summary.strip():
+        if con:
+            con.print(f"[cyan]verify[/cyan] fact-checking against the evidence index "
+                      f"(reasoning={verify_effort})")
+        vpayload, corrected = verify(name, judge, cells, summary,
+                                     reasoning_effort=verify_effort, max_tokens=max_tokens,
+                                     timeout=timeout, on_progress=_beat)
+        (outdir / "verify.payload.md").write_text(vpayload + "\n")
+        (outdir / "verify.summary.md").write_text(corrected + "\n")
+        vpath = output / f"analysis-{name}-verified.md"
+        vpath.write_text(corrected + "\n")
+        result["verified"] = str(vpath)
+
     result["elapsed"] = time.time() - t_start
-    if not dry_run:
-        analysis_path = output / f"analysis-{name}.md"
-        analysis_path.write_text(summary + "\n")
-        result["analysis"] = str(analysis_path)
     return result

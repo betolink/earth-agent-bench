@@ -682,15 +682,27 @@ def analyze(
     timeout: int = typer.Option(1200, "--timeout", help="Per-call socket timeout (s)."),
     reasoning_effort: str = typer.Option("low", "--reasoning-effort",
                                          help="low|medium|high (low disables GLM thinking, ~7x faster); 'none' leaves the model default."),
+    verify_pass: bool = typer.Option(False, "--verify",
+                                     help="Final fact-check pass (reasoning on) against the evidence index."),
+    verify_effort: str = typer.Option("medium", "--verify-effort",
+                                      help="Reasoning effort for the --verify pass (high over-reasons on glm flash)."),
+    fresh: bool = typer.Option(False, "--fresh",
+                               help="Ignore cached batches; restart from batch 1."),
     no_progress: bool = typer.Option(False, "--no-progress", help="Silence the heartbeat."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write payloads only, no judge call."),
 ) -> None:
     """Analyze a run with a judge model: rolling summary + postmortem + results table.
 
     \b
-      eab analyze --name local-pi --judge zai/glm-5.3-flash --batch 1 --output ./
-      eab analyze --name local-pi --judge glm-5.3-flash --max-cells 8   # faster
+      eab analyze --name local-pi --judge glm-5.3-flash --batch 1 --output ./
+      eab analyze --name local-pi --judge glm-5.3-flash --max-steps 60 --width 200
+      eab analyze --name local-pi --verify           # + fact-check pass
+      eab analyze --name local-pi                    # resumes from the last batch
       eab analyze --name local-pi --dry-run          # write payloads, no judge call
+
+    Interrupted runs resume automatically: a completed batch is a non-empty
+    batch-NN.summary.md, and the rolling draft continues from it. Use --fresh to
+    ignore the cache.
     """
     from .analyze import analyze as run_analyze
 
@@ -698,12 +710,18 @@ def analyze(
                       max_steps=max_steps, width=width, max_cells=max_cells,
                       max_tokens=max_tokens, timeout=timeout,
                       reasoning_effort=None if reasoning_effort == "none" else reasoning_effort,
-                      dry_run=dry_run, progress=not no_progress)
+                      dry_run=dry_run, progress=not no_progress, resume=not fresh,
+                      verify_pass=verify_pass,
+                      verify_effort=None if verify_effort == "none" else verify_effort)
     console.print(f"[green]{res['rows']} rows → {res['batches']} batch(es)[/green]  "
                   f"({res['cells']} cells, {res['elapsed']:.0f}s)")
+    if res.get("resumed_from"):
+        console.print(f"[dim]resumed from batch {res['resumed_from']}[/dim]")
     console.print(f"[dim]payloads + per-batch drafts:[/dim] {res['dir']}")
     if res["analysis"]:
         console.print(f"[green]analysis[/green] {res['analysis']}  (judge={judge})")
+    if res.get("verified"):
+        console.print(f"[green]verified[/green] {res['verified']}")
 
 
 @app.command("dashboard")
