@@ -706,7 +706,7 @@ def config(
     as_shell: bool = typer.Option(False, "--shell", help="Emit shell var assignments (for scripts)."),
 ) -> None:
     """Show/validate the benchmark run config (experiments/run.yaml + env + roster)."""
-    from .runconfig import load_run_config, resolve_run_tasks
+    from .runconfig import load_run_config, resolve_run_stamp, resolve_run_tasks
 
     c = load_run_config()
     if c["unknown_models"]:
@@ -716,6 +716,7 @@ def config(
         raise typer.Exit(code=1)
     if as_shell:
         print(f'EAB_RUN_NAME="{c["name"]}"')
+        print(f'RUN_START="{resolve_run_stamp(c["name"])}"')
         print(f'MODELS="{" ".join(c["models"])}"')
         print(f'HARNESSES="{" ".join(c["harnesses"])}"')
         print(f'CONDITIONS="{" ".join(c["conditions"])}"')

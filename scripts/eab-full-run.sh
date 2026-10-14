@@ -11,7 +11,14 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."   # earth-agent-bench repo root
 
-RUN_START="${EAB_RUN_START:-$(date -u +%Y%m%d-%H%M%S)}"
+# Run stamp — deterministic per run name, so `eab run --name X` always maps to
+# the SAME run (relaunch resumes it). Precedence: EAB_RUN_START, else the name's
+# existing stamp (from its manifest), else now.
+RUN_START="${EAB_RUN_START:-}"
+if [ -z "$RUN_START" ]; then
+  RUN_START="$(.venv/bin/eab config --shell 2>/dev/null | sed -n 's/^RUN_START="\(.*\)"$/\1/p')"
+fi
+[ -z "$RUN_START" ] && RUN_START="$(date -u +%Y%m%d-%H%M%S)"
 LOG="runs/eab-full-${RUN_START}.log"
 echo "EAB full run log: $LOG  (run_start=$RUN_START)" | tee -a "$LOG"
 

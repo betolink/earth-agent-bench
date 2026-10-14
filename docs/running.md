@@ -129,6 +129,12 @@ start time). `eab config`, `eab index` (`run_name`) and `eab trajectory` surface
 it, so cells are attributable. Bump the name when the setup changes (timeout,
 sampling) so runs stay comparable.
 
+**The name is deterministic.** `eab run --name X` resolves the stamp from X's
+manifest (or mints one the first time), so relaunching the same name **resumes the
+same run** — adding rows (e.g. a new model) to a run means running them under the
+same name, and the dashboard shows all its rows. Use a new name only for a
+genuinely new run (`EAB_RUN_START` overrides the resolution).
+
 **Pause / resume** — stop and restart without losing completed cells:
 
 ```bash

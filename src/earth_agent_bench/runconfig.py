@@ -145,6 +145,25 @@ def load_manifest_names() -> dict[str, str]:
     return out
 
 
+def resolve_run_stamp(name: str) -> str:
+    """The stamp for a run *name* — deterministic, so `--name X` always maps to one run.
+
+    If a manifest ``<name>-<stamp>.json`` exists, reuse its stamp (relaunching the
+    same name resumes the same run); otherwise mint a fresh ``YYYYMMDD-HHMMSS``.
+    """
+    import datetime
+    import glob
+    import re
+    stamps = []
+    for p in glob.glob(str(MANIFESTS_DIR / f"{name}-*.json")):
+        match = re.search(r"-(\d{8}-\d{6})\.json$", Path(p).name)
+        if match:
+            stamps.append(match.group(1))
+    if stamps:
+        return max(stamps)
+    return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
 def resolve_run_tasks(sel) -> list[Path]:
     """Resolve the *run* task selection (run.yaml `tasks`) into benchmark task YAMLs.
 
