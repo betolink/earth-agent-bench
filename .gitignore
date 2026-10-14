@@ -221,6 +221,8 @@ __marimo__/
 harbor/generated/
 # run outputs: single-run workspaces (eab run) + Harbor jobs (eab harbor run)
 runs/
+# generated analysis output (eab analyze --output ./)
+analysis/
 
 # benchmark dashboard runtime log
 tools/dashboard.log
