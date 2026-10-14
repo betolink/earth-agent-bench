@@ -38,6 +38,37 @@ DEFAULT_SERVICES = REPO_ROOT / "benchmark" / "oracles" / "services.yaml"
 DEFAULT_EVAL_SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
 
 
+def _load_env() -> None:
+    """Populate os.environ from <repo>/.env and $PWD/.env (existing vars win).
+
+    Convenience so `eab …` picks up LITE_LLM_ENDPOINT / LITE_LLM_API_KEY /
+    EARTHDATA_TOKEN without a manual `set -a; . ./.env`. Real environment
+    variables always take precedence (setdefault).
+    """
+    import os
+
+    seen: set[Path] = set()
+    for path in (REPO_ROOT / ".env", Path.cwd() / ".env"):
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            if key:
+                os.environ.setdefault(key, val.strip().strip('"').strip("'"))
+
+
+@app.callback()
+def _startup() -> None:
+    """earth-agent-bench CLI (loads <repo>/.env into the environment first)."""
+    _load_env()
+
+
+
 def _oracle(parquet: Path) -> VirtualizabilityOracle:
     """Build a VirtualizabilityOracle from the parquet path (exits on missing file)."""
     try:

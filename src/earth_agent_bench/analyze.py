@@ -221,7 +221,15 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
     parts: list[str] = []
     n_out = n_reason = 0
     started = last = time.time()
-    with urlopen(req, timeout=timeout) as response:  # noqa: S310
+    try:
+        response = urlopen(req, timeout=timeout)  # noqa: S310
+    except OSError as e:
+        base = gateway_base()
+        raise SystemExit(
+            f"cannot reach the LiteLLM gateway at {base}: {e}\n"
+            "Set LITE_LLM_ENDPOINT (and LITE_LLM_API_KEY) — e.g. source your .env:\n"
+            "  set -a; . ./.env; set +a") from None
+    with response:
         for raw in response:
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):
@@ -274,6 +282,9 @@ def analyze(name: str, judge: str, harness: str | None = None, output: Path = Pa
     outdir = output / f"analysis-{name}"
     outdir.mkdir(parents=True, exist_ok=True)
     con = Console(stderr=True) if progress else None
+    if con:
+        from .wiring import gateway_base, litellm_model
+        con.print(f"[dim]judge={litellm_model(judge)} @ {gateway_base()}[/dim]")
     result = {"name": name, "cells": len(cells), "rows": len(rows),
               "batches": len(batches), "dir": str(outdir), "analysis": None,
               "elapsed": 0.0}
