@@ -71,8 +71,13 @@ def collect_cells(name: str, harness: str | None = None) -> list[dict]:
     return cells
 
 
-def _condense_steps(traj: dict, max_steps: int = 40, width: int = 240) -> list[str]:
-    """Compact ATIF trajectory: instruction + per-step reasoning/tool/observation."""
+def _condense_steps(traj: dict, max_steps: int = 200, width: int = 240) -> list[str]:
+    """Compact ATIF trajectory: instruction + per-step reasoning/tool/observation.
+
+    ``max_steps`` defaults high (200) so a whole trajectory is kept — the judge
+    needs the *middle* (route decision, pivots, loops), not just head+tail. Bound
+    the size with ``width`` (per-line truncation) instead of dropping steps.
+    """
     out: list[str] = []
     for step in (traj.get("steps") or [])[:max_steps]:
         src = step.get("source", "")
@@ -100,7 +105,7 @@ def _condense_steps(traj: dict, max_steps: int = 40, width: int = 240) -> list[s
     return out
 
 
-def _cell_block(cell: dict, max_steps: int) -> str:
+def _cell_block(cell: dict, max_steps: int, width: int = 240) -> str:
     """One cell: header + condensed ATIF trajectory."""
     head = (f"### {cell['task']} · {cell['model']} · {cell['harness']} · "
             f"{cell['condition']} — reward={cell['reward']} status={cell['status']}")
@@ -114,7 +119,7 @@ def _cell_block(cell: dict, max_steps: int) -> str:
         note = "" if ok else f", INVALID ATIF: {errors[:2]}"
         lines.append(f"(ATIF {traj.get('schema_version')}, "
                      f"agent={traj.get('agent', {}).get('name')}{note})")
-        lines += _condense_steps(traj, max_steps=max_steps)
+        lines += _condense_steps(traj, max_steps=max_steps, width=width)
     else:
         lines.append("(no trajectory)")
     return "\n".join(lines)
@@ -138,7 +143,7 @@ def _results_table(cells: list[dict]) -> str:
 
 
 def build_payload(name: str, cells: list[dict], max_cells: int = 12,
-                  max_steps: int = 40) -> str:
+                  max_steps: int = 200, width: int = 240) -> str:
     """The full judge prompt: context → ask → run table → condensed trajectories."""
     chosen = cells[:max_cells]
     parts = [
@@ -157,7 +162,7 @@ def build_payload(name: str, cells: list[dict], max_cells: int = 12,
         "## Trajectories (ATIF, condensed)",
         "",
     ]
-    parts += [_cell_block(c, max_steps) for c in chosen]
+    parts += [_cell_block(c, max_steps, width) for c in chosen]
     return "\n".join(parts)
 
 
@@ -207,14 +212,16 @@ def call_judge(model: str, payload: str, max_tokens: int = 32000, timeout: int =
 
 
 def analyze(name: str, judge: str, harness: str | None = None, output: Path = Path("."),
-            max_cells: int = 12, max_steps: int = 40, max_tokens: int = 32000,
+            max_cells: int = 12, max_steps: int = 200, width: int = 240,
+            max_tokens: int = 32000,
             dry_run: bool = False) -> dict:
     """Collect a run, build the payload, call the judge, write payload + analysis."""
     cells = collect_cells(name, harness)
     if not cells:
         raise SystemExit(f"no cells for run '{name}'"
                          + (f" / harness '{harness}'" if harness else ""))
-    payload = build_payload(name, cells, max_cells=max_cells, max_steps=max_steps)
+    payload = build_payload(name, cells, max_cells=max_cells,
+                            max_steps=max_steps, width=width)
 
     output.mkdir(parents=True, exist_ok=True)
     payload_path = output / f"payload-{name}.md"

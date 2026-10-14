@@ -641,7 +641,8 @@ def analyze(
                                           help="Filter to one harness."),
     output: Path = typer.Option(Path("."), "--output", "-o", help="Output directory."),
     max_cells: int = typer.Option(12, "--max-cells", help="Trajectories to include."),
-    max_steps: int = typer.Option(40, "--max-steps", help="Steps per trajectory."),
+    width: int = typer.Option(240, "--width", help="Per-line truncation width."),
+    max_steps: int = typer.Option(200, "--max-steps", help="Steps per trajectory (200 ~ all; bound size with --width)."),
     max_tokens: int = typer.Option(32000, "--max-tokens", help="Judge reply budget (reasoning models need a lot)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Write the payload only."),
 ) -> None:
@@ -654,7 +655,7 @@ def analyze(
     from .analyze import analyze as run_analyze
 
     res = run_analyze(name, judge, harness=harness, output=output,
-                      max_cells=max_cells, max_steps=max_steps,
+                      max_cells=max_cells, max_steps=max_steps, width=width,
                       max_tokens=max_tokens, dry_run=dry_run)
     console.print(f"[green]payload[/green]  {res['payload']}  ({res['cells']} cells)")
     if res["analysis"]:
