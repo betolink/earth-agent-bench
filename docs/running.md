@@ -54,7 +54,7 @@ Use an alternate selection file with `--config <name>` or `EAB_RUN_CONFIG`.
 **One cell** (isolated Harbor job):
 
 ```bash
-eab harbor run benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml \
+eab harbor run benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml \
     --model tiel-coder-35b --harness pi --condition baseline
 # add --dry-run to only generate + print the command
 ```
@@ -77,6 +77,11 @@ eab harbor run --models tiel-coder-35b,ornith-1.5-9b --harnesses pi,opencode
 eab harbor run --conditions baseline             # one condition across the matrix
 eab harbor run all --models all --conditions baseline --dry-run   # preview
 ```
+
+The task argument selects a suite or a set: `all` (28: both suites), `access-pattern` / `benchmark` (18 grounded),
+`evals` / `correctness` (10 screen), or ids/paths/globs from either suite
+(`eab harbor run evals`, `eab harbor run 01_hls_open_vs_download`). Omitting it
+uses `run.yaml`'s `tasks` selection.
 
 `eab harbor run` expands the cartesian product (task × model × harness ×
 condition), applies the `harnesses.yaml` crossing restrictions, and prints what
@@ -200,7 +205,7 @@ reviewer reading traces for shortcuts.
   error`. A timed-out cell is *uninformative about capability*, not a wrong answer.
 - **Time.** One cell is up to 720 s agent + 600 s verifier. A full
   `18 tasks × models × harnesses × conditions` matrix is many hours on a single
-  GPU; screen candidate models on `experiments/evals/tasks` first.
+  GPU; screen candidate models on `benchmark/tasks/correctness` first.
 - **Conditions.** `baseline` → `mcp` → `skills` → `mcp-skills`.
 - **Out-of-region.** Tasks must be winnable over **HTTPS** only (no S3 / `C1`); a
   task whose best pattern is unreachable is a task bug, not a model failure.

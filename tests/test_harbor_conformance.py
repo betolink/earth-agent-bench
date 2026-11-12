@@ -23,8 +23,8 @@ from earth_agent_bench.harbor.config import (
 from earth_agent_bench.harbor.dataset import write_dataset
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BENCH_TASK = "benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml"
-EVAL_TASK = "experiments/evals/tasks/01_hls_open_vs_download.md"
+BENCH_TASK = "benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml"
+EVAL_TASK = "benchmark/tasks/correctness/01_hls_open_vs_download.md"
 
 
 def _task_config(package: Path):
@@ -60,7 +60,9 @@ def test_benchmark_package_carries_interop_metadata(tmp_path):
     assert metadata["access_pattern_gold"] == ["C1"]
     assert metadata["collections"] == ["TEMPO_NO2_L3"]
     assert config.task.keywords
-    assert config.source == "benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml"
+    assert config.source == (
+        "benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml"
+    )
 
 
 def test_eval_package_carries_interop_metadata(tmp_path):
@@ -68,7 +70,7 @@ def test_eval_package_carries_interop_metadata(tmp_path):
     config = _task_config(package)
     assert config.metadata["suite"] == "correctness"
     assert config.metadata["answer_type"] == "label"
-    assert config.source == "experiments/evals/tasks/01_hls_open_vs_download.md"
+    assert config.source == "benchmark/tasks/correctness/01_hls_open_vs_download.md"
 
 
 def test_verifier_is_isolated_and_artifacts_are_declared(tmp_path):

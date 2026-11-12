@@ -47,13 +47,27 @@ def resolve_selection(
 def resolve_task_paths(tasks: str | None, cfg: dict) -> list[Path]:
     """Task files for a matrix run.
 
-    An explicit ``tasks`` argument expands like ``eab harbor run <refs>`` (ids,
-    paths, aliases, globs, ``all`` = benchmark + eval). Omitting it uses
-    ``run.yaml``'s selection, where ``all`` means the 18 grounded tasks.
+    Selection keywords (in ``run.yaml`` or as the CLI argument):
+
+    - ``all`` → both suites (18 grounded + 10 evals)
+    - ``benchmark`` / ``access-pattern`` → the 18 grounded tasks (the default)
+    - ``evals`` / ``eval`` / ``correctness`` → the 10 correctness evals
+    - anything else → ids, paths, aliases, or globs (both suites)
+
+    An explicit ``tasks`` argument overrides ``run.yaml``; ``run.yaml`` defaults
+    to ``access-pattern`` so the main matrix stays the 18 grounded tasks.
     """
-    if tasks is None:
-        return resolve_run_tasks(cfg.get("tasks", "all"))
-    return resolve_tasks(tasks)
+    selection = tasks if tasks is not None else cfg.get("tasks", "access-pattern")
+    if isinstance(selection, list):
+        selection = ",".join(str(item) for item in selection)
+    token = str(selection).strip().lower()
+    if token == "all":
+        return resolve_tasks("all")
+    if token in {"benchmark", "access-pattern", "benchmark/tasks/access-pattern"}:
+        return resolve_run_tasks("all")
+    if token in {"evals", "eval", "correctness", "benchmark/tasks/correctness"}:
+        return resolve_tasks("benchmark/tasks/correctness")
+    return resolve_tasks(str(selection))
 
 
 def resolve_cells(

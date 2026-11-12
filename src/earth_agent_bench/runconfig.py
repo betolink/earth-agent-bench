@@ -16,7 +16,7 @@ RUN_YAML = REPO_ROOT / "experiments" / "run.yaml"
 MODELS_YAML = REPO_ROOT / "experiments" / "models.yaml"
 CONDITIONS_YAML = REPO_ROOT / "experiments" / "conditions.yaml"
 HARNESSES_YAML = REPO_ROOT / "experiments" / "harnesses.yaml"
-TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
+TASKS_DIR = REPO_ROOT / "benchmark" / "tasks" / "access-pattern"
 
 # Select an alternate run-config file (e.g. experiments/smart-external.yml):
 # `EAB_RUN_CONFIG=experiments/smart-external.yml` (or `eab config --config ...`).
@@ -81,7 +81,7 @@ def restricted_models(harness: str) -> set[str]:
 
 
 def task_ids() -> list[str]:
-    """Task ids (yaml stems) from benchmark/tasks/."""
+    """Task ids (yaml stems) from benchmark/tasks/access-pattern/."""
     return sorted(p.stem for p in TASKS_DIR.rglob("*.yaml"))
 
 

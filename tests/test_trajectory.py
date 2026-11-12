@@ -81,6 +81,6 @@ def test_artifact_formats(tmp_path, monkeypatch):
 
 
 def test_resolve_task_id():
-    # real benchmark task ids live in benchmark/tasks/**.yaml
+    # real benchmark task ids live in benchmark/tasks/access-pattern/**.yaml
     assert tj.resolve_task_id("a1-tempo-no2-florida-2024") == "a1-tempo-no2-florida-2024"
     assert tj.resolve_task_id("a1").startswith("a1-")

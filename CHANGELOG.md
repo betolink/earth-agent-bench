@@ -50,6 +50,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Optional task `labels:` block (data type, level, length class, infeasible,
   difficulty) feeding Harbor metadata.
 
+### Changed
+- **Single task root.** All task definitions now live under
+  `benchmark/tasks/`, split by what they assess:
+  `access-pattern/` (18 grounded tasks) and `correctness/` (10 single-value
+  evals + `suite.yaml`). `experiments/` now holds only configuration. The
+  matrix accepts `all`/`benchmark`, `evals`/`correctness`, or ids/paths/globs.
+
 ### Docs
 - **Full documentation pass.** README rewritten around the Harbor-only workflow
   (master model config, matrix runs, live web viewer, `pass`/`score`); new

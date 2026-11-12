@@ -11,7 +11,7 @@ condition matrix. Do not read one number as the other.
 
 | | Access-pattern benchmark | Correctness eval |
 |---|---|---|
-| Where | `benchmark/tasks/*.yaml` (18) | `experiments/evals/tasks/*.md` + `suite.yaml` (10) |
+| Where | `benchmark/tasks/access-pattern/` (18) | `benchmark/tasks/correctness/` (10) |
 | Question | did the agent pick **and execute** the best access route? | did the agent produce the **single correct value**? |
 | Gold | `pattern_tiers` (C1/S1/…) + per-collection services | one typed answer (`label`/`boolean`/`integer`/`string`) |
 | Judge | observed instrumented behavior → `pass` + weighted `score` | deterministic typed equality, LLM-free |
