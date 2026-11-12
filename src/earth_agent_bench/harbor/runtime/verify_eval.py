@@ -33,8 +33,9 @@ def main() -> int:
 
     logs = Path(args.logs)
     logs.mkdir(parents=True, exist_ok=True)
-    (logs / "reward.json").write_text(json.dumps({"reward": result.reward}))
-    (logs / "reward.txt").write_text(f"{result.reward}\n")
+    passed = float(result.reward)
+    (logs / "reward.json").write_text(json.dumps({"reward": passed, "pass": passed}))
+    (logs / "reward.txt").write_text(f"{passed}\n")
     (logs / "details.json").write_text(json.dumps(result.model_dump(), indent=2))
 
     print(json.dumps(result.model_dump(), indent=2))

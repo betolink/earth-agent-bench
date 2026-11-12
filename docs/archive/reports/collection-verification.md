@@ -121,5 +121,5 @@ A/B (C1), CMR `has_transforms` (S1), CMR RelatedUrls (S2/S3).
 2. **`services` availability** in the task YAMLs still needs the same correction
    (used by `service_discovery`), not just `pattern_tiers`.
 3. Persist `access_events.jsonl` and record selected collections (see
-   `docs/reports/eab-grounded-sweep-observations.md`).
+   `docs/archive/reports/eab-grounded-sweep-observations.md`).
 

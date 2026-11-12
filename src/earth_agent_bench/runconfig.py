@@ -19,7 +19,7 @@ HARNESSES_YAML = REPO_ROOT / "experiments" / "harnesses.yaml"
 TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
 
 # Select an alternate run-config file (e.g. experiments/smart-external.yml):
-# `eab run --config smart-external.yml` or EAB_RUN_CONFIG=… .
+# `EAB_RUN_CONFIG=experiments/smart-external.yml` (or `eab config --config ...`).
 RUN_CONFIG_ENV = "EAB_RUN_CONFIG"
 
 

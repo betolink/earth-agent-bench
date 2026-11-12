@@ -18,7 +18,6 @@ from .oracles.services import ServiceCatalog
 from .oracles.virtualizability import VirtualizabilityOracle
 from .schemas import RunObservation
 from .scoring import score_run
-from .sweep import SweepSpec, run_sweep
 from .tasks import DEFAULT_TASKS_DIR, load_all, load_task, render_instruction
 
 app = typer.Typer(help="earth-agent-bench: access-pattern selection benchmark tooling")
@@ -103,78 +102,6 @@ def validate(
     console.print(table)
 
 
-@app.command()
-def run(
-    task: Optional[Path] = typer.Argument(
-        None, help="Task .yaml/.md for a single run; omit to run the full sweep."),
-    name: Optional[str] = typer.Option(
-        None, "--name", "-n", help="Experiment name (used as the run identity)."),
-    config: Optional[Path] = typer.Option(
-        None, "--config", "-c",
-        help="Run-config YAML (default experiments/run.yaml); a bare name resolves under experiments/."),
-    model: Optional[str] = typer.Option(None, help="Model id (single-run only)."),
-    harness: Optional[str] = typer.Option(None, help="Harness (single-run only)."),
-    condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
-    trial: int = typer.Option(1),
-    runs_root: Path = typer.Option(REPO_ROOT / "runs", help="Where run workspaces live"),
-    timeout: int = typer.Option(600, help="Per-run timeout in seconds (default 600 = 10 min)"),
-    dry_run: bool = typer.Option(False, help="Print workspace/env/command only"),
-) -> None:
-    """Run a single task, or (no task) the full EAB sweep under --name.
-
-    \b
-      eab run --name experiment-1               # full sweep, named
-      eab run --name smart-ext --config smart-external.yml
-      eab run task.yaml --model m --harness pi  # one task
-    """
-    if task is None:  # full sweep
-        import os
-        import subprocess
-
-        from .runconfig import run_config_path
-
-        env = dict(os.environ)
-        if name:
-            env["EAB_RUN_NAME"] = name
-        if config:
-            env["EAB_RUN_CONFIG"] = str(run_config_path(config))
-        console.print(f"[green]full sweep[/green] name={name or '(run.yaml default)'} "
-                      f"config={config or '(default)'}")
-        raise typer.Exit(code=subprocess.call(
-            ["bash", "scripts/eab-full-run.sh"], cwd=REPO_ROOT, env=env))
-    if not model or not harness:
-        console.print("[red]--model and --harness are required for a single run[/red]")
-        raise typer.Exit(code=1)
-    from .runner import RunSpec, execute
-
-    spec = RunSpec(
-        task_path=task, model_id=model, harness=harness,
-        condition=condition, trial=trial, runs_root=runs_root,
-        timeout_s=timeout,
-    )
-    raise typer.Exit(code=execute(spec, dry_run=dry_run))
-
-
-@app.command()
-def sweep(
-    tasks: str = typer.Argument(..., help="Comma-separated task paths/dirs/globs, or 'all'"),
-    models: str = typer.Option("all", help="Comma-separated model ids or 'all'"),
-    harnesses: str = typer.Option("all", help="Comma-separated harnesses or 'all'"),
-    conditions: str = typer.Option("all", help="Comma-separated conditions or 'all'"),
-    trial: int = typer.Option(1),
-    runs_root: Path = typer.Option(REPO_ROOT / "runs", help="Where run workspaces live"),
-    timeout: int = typer.Option(600, help="Per-run timeout in seconds (default 600 = 10 min)"),
-    dry_run: bool = typer.Option(False, help="Print every cell without executing"),
-    continue_on_error: bool = typer.Option(True, help="Keep going after a failed cell"),
-) -> None:
-    """Run the cartesian product of tasks x models x harnesses x conditions."""
-    spec = SweepSpec(
-        tasks=tasks, models=models, harnesses=harnesses, conditions=conditions,
-        trial=trial, runs_root=runs_root, dry_run=dry_run,
-        continue_on_error=continue_on_error, timeout_s=timeout,
-    )
-    raise typer.Exit(code=run_sweep(spec))
-
 
 @harbor_app.command("generate")
 def harbor_generate(
@@ -193,14 +120,48 @@ def harbor_generate(
         console.print(f"[green]generated[/green] {package}")
 
 
+@harbor_app.command("dataset")
+def harbor_dataset(
+    tasks: str = typer.Argument(
+        "all", help="Comma-separated paths / ids / sphere aliases, or 'all'"
+    ),
+    condition: str = typer.Option("baseline", help="baseline | mcp | skills | mcp-skills"),
+    out: Path = typer.Option(REPO_ROOT / "harbor" / "generated"),
+) -> None:
+    """Write a digest-pinned Harbor dataset.toml (+ metric) for the task suite."""
+    from .harbor import resolve_tasks
+    from .harbor.dataset import write_dataset
+
+    path = write_dataset(list(resolve_tasks(tasks)), condition=condition, out_root=out)
+    console.print(f"[green]wrote[/green] {path}")
+
+
 @harbor_app.command("run")
 def harbor_run(
-    tasks: str = typer.Argument(
-        ..., help="Paths / ids / sphere aliases, or 'pilot'"
+    tasks: Optional[str] = typer.Argument(
+        None, help="Paths / ids / aliases, 'all'. Omit to use the tasks in experiments/run.yaml."
     ),
-    model: str = typer.Option(..., help="Model id from experiments/models.yaml"),
-    harness: str = typer.Option(..., help="pi | opencode | codex-cli | claude-code"),
-    condition: str = typer.Option("baseline"),
+    model: Optional[str] = typer.Option(
+        None, "--model", help="One model id (single-cell shorthand for --models)."
+    ),
+    harness: Optional[str] = typer.Option(
+        None, "--harness", help="One harness (single-cell shorthand for --harnesses)."
+    ),
+    condition: Optional[str] = typer.Option(
+        None, "--condition", help="One condition (single-cell shorthand for --conditions)."
+    ),
+    models: Optional[str] = typer.Option(
+        None, "--models", help="Comma-separated roster ids, or 'all'. Default: run.yaml."
+    ),
+    harnesses: Optional[str] = typer.Option(
+        None, "--harnesses", help="Comma-separated harness ids, or 'all'. Default: run.yaml."
+    ),
+    conditions: Optional[str] = typer.Option(
+        None, "--conditions", help="Comma-separated conditions, or 'all'. Default: run.yaml."
+    ),
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help="Alternate run-config YAML (default experiments/run.yaml)."
+    ),
     out: Path = typer.Option(REPO_ROOT / "harbor" / "generated"),
     jobs_dir: Path = typer.Option(REPO_ROOT / "runs" / "harbor"),
     job_name: Optional[str] = typer.Option(
@@ -209,31 +170,46 @@ def harbor_run(
     force: bool = typer.Option(
         False, "--force", help="Delete an existing job directory of the same name first"
     ),
-    dry_run: bool = typer.Option(False, help="Print the harbor command only"),
+    dry_run: bool = typer.Option(False, help="Print the harbor commands only"),
 ) -> None:
-    """Generate packages and a JobConfig, then invoke the harbor CLI."""
-    from .harbor import resolve_tasks, run_harbor
+    """Run one cell, or the selected model × harness × condition × task matrix.
 
-    code = 0
-    for task_path in resolve_tasks(tasks):
-        code = (
-            run_harbor(
-                task_path, model, harness, condition, out, jobs_dir, dry_run,
-                job_name=job_name, force=force,
-            )
-            or code
-        )
-        if code != 0:
-            break
-    raise typer.Exit(code=code)
+    Selection precedence: explicit flags > env (EAB_MODELS/EAB_HARNESSES/
+    EAB_CONDITIONS/EAB_TASKS) > experiments/run.yaml.
+
+    \b
+      eab harbor run atmo-1 --model tiel-coder-35b --harness pi
+      eab harbor run --models tiel-coder-35b,ornith-1.5-9b --harnesses pi,opencode
+      eab harbor run all --conditions baseline --dry-run
+    """
+    from .harbor import run_matrix
+
+    use_models = models or model
+    use_harnesses = harnesses or harness
+    use_conditions = conditions or condition
+    raise typer.Exit(code=run_matrix(
+        tasks=tasks,
+        models=use_models,
+        harnesses=use_harnesses,
+        conditions=use_conditions,
+        config=config,
+        out=out,
+        jobs_dir=jobs_dir,
+        dry_run=dry_run,
+        job_name=job_name,
+        force=force,
+    ))
 
 
 @app.command()
 def instruction(
     task_path: Path = typer.Argument(..., help="Path to a task YAML file"),
+    access_policy: bool = typer.Option(
+        True, "--policy/--no-policy", help="State the access policy the verifier enforces."
+    ),
 ) -> None:
     """Render the agent-facing instruction for a task."""
-    console.print(render_instruction(load_task(task_path)))
+    console.print(render_instruction(load_task(task_path), access_policy=access_policy))
 
 
 @app.command()
@@ -331,6 +307,34 @@ def _find_gold(task_id: str, suite: Path):
             return gold
     console.print(f"[red]Eval task '{task_id}' not found in {suite}[/red]")
     raise typer.Exit(code=1)
+
+
+@models_app.command("list")
+def models_list(
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help="Run config to mark selected models (default run.yaml)."
+    ),
+) -> None:
+    """List the roster and which models experiments/run.yaml selects."""
+    from .models import load_models
+    from .runconfig import load_run_config
+
+    roster = load_models().get("models", {})
+    selected = set(load_run_config(config).get("models", []))
+    table = Table(title=f"Model roster ({len(roster)}) — edit experiments/models.yaml")
+    table.add_column("id")
+    table.add_column("tier")
+    table.add_column("served as")
+    table.add_column("run.yaml")
+    for model_id, spec in sorted(roster.items()):
+        mark = "[green]yes[/green]" if model_id in selected else "[dim]no[/dim]"
+        table.add_row(
+            model_id,
+            str(spec.get("tier", "")),
+            str(spec.get("litellm_model", "")),
+            mark,
+        )
+    console.print(table)
 
 
 @models_app.command("discover")
@@ -485,28 +489,6 @@ def exec_cmd(
     raise typer.Exit(code=0 if res.status == "ok" else 1)
 
 
-@app.command("postmortem")
-def postmortem(
-    model: str = typer.Argument(..., help="Roster model id, e.g. tiel-coder-35b."),
-    harness: str = typer.Option("pi", help="Harness whose runs to inspect."),
-    run_start: Optional[str] = typer.Option(None, "--run-start", help="Run stamp (YYYYMMDD-HHMMSS); default latest."),
-    out: Path = typer.Option(REPO_ROOT / "improvements", help="Improvements root."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print the skill instead of writing it."),
-) -> None:
-    """Generate a per-model self-improvement skill from its failure postmortem."""
-    from .postmortem import build_digest, render_skill, write_skill
-
-    digest = build_digest(model, harness=harness, run_start=run_start)
-    if dry_run:
-        console.print(render_skill(digest))
-        return
-    path = write_skill(digest, out)
-    console.print(
-        f"[green]wrote[/green] {path}  "
-        f"(timeouts={len(digest.timeouts)} wrong={len(digest.wrong)} solved={len(digest.solved)})"
-    )
-
-
 @app.command("trajectory")
 def trajectory(
     task: str = typer.Option(..., "--task", "-t", help="Task id or unique prefix (e.g. a3)."),
@@ -626,7 +608,7 @@ def index(
     \b
       eab index                 # -> runs/index.jsonl  (one object per trial)
       eab index -f csv          # -> runs/index.csv    (flattened, for spreadsheets)
-      jq 'select(.condition=="improve")' runs/index.jsonl
+      jq 'select(.condition=="skills")' runs/index.jsonl
     """
     from .index import index_records, load_sampling, write_index
 
@@ -650,10 +632,10 @@ def archive(
                                        help="Archive folder name (default run-<date>-incomplete)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would move."),
 ) -> None:
-    """Archive the active run (the newest one) under runs/archive/<name>/.
+    """Archive the newest Harbor jobs under runs/archive/<name>/.
 
-    The run is auto-detected from the newest ``runs/eab-full-*.log``; no stamp
-    needed. Moves its job dirs, log and manifest out of the active tree.
+    The stamp is auto-detected from the newest job directory; no stamp needed.
+    Moves its job dirs (and any log/manifest) out of the active tree.
 
     \b
       eab archive --dry-run                 # preview
@@ -665,13 +647,51 @@ def archive(
 
     stamp = latest_stamp()
     if not stamp:
-        console.print("[red]no active run found (no runs/eab-full-*.log)[/red]")
+        console.print("[red]no job directories found under runs/harbor[/red]")
         raise typer.Exit(code=1)
     name = name or load_manifest_names().get(stamp) or f"run-{stamp.split('-')[0]}-incomplete"
     result = archive_run(name, stamp, dry_run=dry_run)
     verb = "would archive" if dry_run else "archived"
     console.print(f"[green]{verb}[/green] {len(result['moved'])} items for "
                   f"{stamp} -> {result['dest']}")
+
+
+@app.command("view")
+def view(
+    folder: Optional[Path] = typer.Argument(
+        None, help="Job directory root (default runs/harbor)."
+    ),
+    mode: str = typer.Option("jobs", "--mode", "-m", help="jobs | tasks"),
+    port: str = typer.Option("8080-8089", "--port", "-p", help="Port or port range."),
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind address."),
+    no_build: bool = typer.Option(
+        False, "--no-build", help="Skip building the viewer frontend if static files are missing."
+    ),
+) -> None:
+    """Open Harbor's web viewer to inspect runs live (trajectories, rewards, logs).
+
+    \b
+      eab view                    # runs/harbor, jobs mode
+      eab view runs/archive       # an archived tree
+      eab view harbor/generated --mode tasks --port 8090
+    """
+    import subprocess
+
+    from .harbor.jobs import _harbor_cli
+
+    root = folder or (REPO_ROOT / "runs" / "harbor")
+    if mode not in {"jobs", "tasks"}:
+        console.print("[red]--mode must be 'jobs' or 'tasks'[/red]")
+        raise typer.Exit(code=2)
+    command = [
+        _harbor_cli(), "view", str(root),
+        "--port", port, "--host", host,
+        "--jobs" if mode == "jobs" else "--tasks",
+    ]
+    if no_build:
+        command.append("--no-build")
+    console.print(f"[green]serving[/green] {root}  mode={mode}  http://{host}:{port.split('-')[0]}/")
+    raise typer.Exit(code=subprocess.call(command))
 
 
 @app.command("analyze")
@@ -732,22 +752,6 @@ def analyze(
         console.print(f"[green]analysis[/green] {res['analysis']}  (judge={judge})")
     if res.get("verified"):
         console.print(f"[green]verified[/green] {res['verified']}")
-
-
-@app.command("dashboard")
-def dashboard(
-    interval: int = typer.Option(300, help="Refresh interval in seconds."),
-) -> None:
-    """Launch the live Textual dashboard (coding suite + earth-agent-bench runs)."""
-    try:
-        from .dashboard import main as dash_main
-    except Exception as error:  # textual not installed
-        console.print(
-            f"[red]dashboard unavailable:[/red] {error}\n"
-            "Install the UI extra:  [bold]pip install 'textual>=0.80'[/bold]"
-        )
-        raise typer.Exit(code=2) from error
-    dash_main(interval=interval)
 
 
 @app.command("doctor")

@@ -149,7 +149,10 @@ def test_eval_verifier_grades_answer(tmp_path):
     (workspace / "output" / "answer.txt").write_text("  Open \n")
     run = _run_verifier(package, workspace, logs)
     assert run.returncode == 0, run.stderr
-    assert json.loads((logs / "reward.json").read_text())["reward"] == 1.0
+    rewards = json.loads((logs / "reward.json").read_text())
+    assert rewards["reward"] == 1.0
+    assert rewards["pass"] == 1.0
+    assert (logs / "reward.txt").read_text().strip() == "1.0"
 
     (workspace / "output" / "answer.txt").write_text("download")
     _run_verifier(package, workspace, logs)
@@ -299,7 +302,8 @@ def test_benchmark_instruction_uses_absolute_output_path(tmp_path):
     assert "/app/output/" in (package / "instruction.md").read_text()
 
 
-def test_benchmark_verifier_scores_access_summary(tmp_path):
+def test_benchmark_verifier_ignores_self_report(tmp_path):
+    """A self-reported summary without instrumented evidence must not score."""
     package = generate_package(BENCH_TASK, "baseline", tmp_path)
     workspace = tmp_path / "ws"
     (workspace / "output").mkdir(parents=True)
@@ -315,8 +319,10 @@ def test_benchmark_verifier_scores_access_summary(tmp_path):
     run = _run_verifier(package, workspace, logs)
     assert run.returncode == 0, run.stderr
     rewards = json.loads((logs / "reward.json").read_text())
-    assert rewards["access_pattern"] == 0.7
-    assert rewards["reward"] > 0.5
+    details = json.loads((logs / "details.json").read_text())
+    assert rewards["access_pattern"] == 0.0
+    assert rewards["pass"] == 0.0
+    assert details["uncovered"] is True
 
 
 def test_benchmark_verifier_runs_access_py_and_checks_code(tmp_path):

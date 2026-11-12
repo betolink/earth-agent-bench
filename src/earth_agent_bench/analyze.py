@@ -40,7 +40,7 @@ earth-agent-bench (EAB) grades whether an agent picks and executes the best
   (`earthaccess.open`), then **Harmony / OPeNDAP** (async, queued — heavier),
   then download.
 - Conditions: `baseline` (no help) · `mcp` · `skills` (mounted guidance) ·
-  `mcp-skills` · `improve` (a per-model self-improvement skill).
+  `mcp-skills`.
 """
 
 ASK = """\

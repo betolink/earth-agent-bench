@@ -14,8 +14,6 @@ import yaml
 from ..models import load_models
 from ..wiring import (
     gateway_base,
-    improvement_dir,
-    improvement_mounted,
     llm_api_key_ref,
     missing_credentials,
     skills_mounted,
@@ -137,12 +135,7 @@ def write_job_config(
     if kwargs:
         agent["kwargs"] = _subst_gateway(kwargs)
     if skills_mounted(condition):
-        skill_paths = [str(SKILLS_DIR.resolve())]
-        if improvement_mounted(condition):
-            imp = improvement_dir(model_id)
-            if imp is not None:
-                skill_paths.append(str(imp.resolve()))
-        agent["skills"] = skill_paths
+        agent["skills"] = [str(SKILLS_DIR.resolve())]
 
     config = {
         "job_name": job_name or _job_name(task_path, model_id, harness, condition),

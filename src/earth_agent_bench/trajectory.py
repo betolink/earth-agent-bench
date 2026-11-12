@@ -164,7 +164,7 @@ def _read_json(path: Path) -> dict:
 
 
 def load_conditions() -> dict:
-    """The condition semantics (mcp/skills/improvement + wiring) from conditions.yaml."""
+    """The condition semantics (mcp/skills + wiring) from conditions.yaml."""
     try:
         import yaml
         return yaml.safe_load((REPO_ROOT / "experiments" / "conditions.yaml").read_text())
@@ -243,10 +243,8 @@ def build_bundle(trial: Trial, task_id: str, model: str, harness: str,
         "environment": {
             "mcp": cond.get("mcp"),
             "skills": cond.get("skills"),
-            "improvement": cond.get("improvement"),
             "mcp_servers": wiring.get("mcp_servers", {}).get(trial.condition, []),
             "skills_mounted": wiring.get("skills_mounted", {}).get(trial.condition),
-            "improvement_mounted": wiring.get("improvement_mounted", {}).get(trial.condition),
             "agent_timeout_sec": (toml.get("agent") or {}).get("timeout_sec"),
             "env_vars": list(((toml.get("environment") or {}).get("env") or {}).keys()),
         },

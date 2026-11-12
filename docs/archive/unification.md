@@ -84,7 +84,7 @@ Add `runtime` to suites/jobs, with two providers:
 | `harbor-docker` (default) | Harbor builds the task's `environment/Dockerfile` | current behaviour; SWE/Terminal need this |
 | `sbx` | agent runs inside a Docker Sandbox kit (mixins) | credential proxy, MCP/skills as kit-args |
 
-Select via `suite.toml` or `eab run --runtime sbx`.
+Select via `suite.toml` or the Harbor job config's runtime provider.
 
 ### Why sbx matters here
 - **Credential proxy:** the LiteLLM key and `EARTHDATA_TOKEN` never enter the
@@ -107,7 +107,7 @@ conditions, credential proxy).
 - **Roster** — `experiments/models.yaml` (single source of truth). Local models
   namespaced `local/…`; add `serving:`/`findings:` blocks.
 - **Harnesses** — `experiments/harnesses.yaml`; real wiring in `harbor/harbor.yaml`
-  (+ `scripts/patch-harbor.sh` for the codex/claude model-id fixes).
+  (agent kwargs + gateway base URL per adapter).
 - **Conditions** — `experiments/conditions.yaml`; unchanged semantically, wired
   either via Harbor `[[environment.mcp_servers]]`/`--skill` or sbx kit-args.
 - **Instrumentation** — `eab_instrument.py` (access events) for earthdata; token
@@ -118,9 +118,9 @@ conditions, credential proxy).
 ```bash
 eab doctor                                   # gateway + models + mcp preflight
 eab serve --models lfm2.5-2.6b,deepseek-qwen3.5-9b-mtp   # serving probe
-eab run --suite earthdata --conditions all --models ...
-eab run --suite coding   --models tiel-coder-35b --harnesses pi,opencode
-eab run --suite agentic  --models ... --conditions baseline --runtime sbx
+eab harbor run all --condition ... --model ... --harness ...
+eab harbor run all --model tiel-coder-35b --harness pi   # per suite package set
+eab harbor dataset all                                    # publish this suite
 eab report --by suite,model,harness          # one table across everything
 ```
 
@@ -137,7 +137,7 @@ Every run writes a record:
 ## 9. Migration plan (phased)
 
 **Phase 0 — foundations (done / trivial).**
-- Roster + harness wiring + `patch-harbor.sh` (done).
+- Roster + harness wiring (done; agent kwargs live in `harbor/harbor.yaml`).
 - `eab models doctor`, `eab mcp doctor`, `eab report` (done).
 
 **Phase 1 — suite layer (small).**
@@ -146,7 +146,7 @@ Every run writes a record:
    → `suites/coding/suite.toml`.
 3. Convert intelligence-index `tasks/*.json` + `check` specs → Harbor packages
    under `suites/agentic/` (grader = content_check).
-4. `eab run --suite …` selects the suite's tasks + grader; tag runs with `suite`.
+4. Each suite publishes its own Harbor dataset (`eab harbor dataset`), tagged by `suite` in `[metadata]`.
 
 **Phase 2 — serving probe.**
 5. Port `bench-models.py` → `probes/serving/`. `eab serve`. Same results store.
@@ -180,7 +180,7 @@ Every run writes a record:
 
 ## 11. Definition of done
 
-- `eab run --suite <s> --runtime <r>` runs any of the three suites on the shared
+- `eab harbor run` runs any of the three suites on the shared
   roster/harnesses/conditions.
 - `eab serve` characterizes a model's ctx/throughput into the same store.
 - `eab report` renders one cross-suite matrix.

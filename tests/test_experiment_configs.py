@@ -47,10 +47,9 @@ def test_crossing_rules(harnesses, models):
 
 def test_conditions_complete():
     conditions = yaml.safe_load((EXPERIMENTS / "conditions.yaml").read_text())["conditions"]
-    assert set(conditions) == {"baseline", "mcp", "skills", "mcp-skills", "improve"}
+    assert set(conditions) == {"baseline", "mcp", "skills", "mcp-skills"}
     assert conditions["mcp-skills"] == {"mcp": True, "skills": True,
                                         "description": "combined intervention"}
-    assert conditions["improve"]["improvement"] is True
 
 
 def test_gateway_example_covers_roster(models):

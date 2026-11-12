@@ -27,6 +27,7 @@ from .jobs import (
     run_harbor,
     write_job_config,
 )
+from .matrix import resolve_cells, resolve_selection, run_matrix
 from .packages import (
     EVAL_ABS_NOTE,
     HARBOR_OUTPUT_CONTRACT,
@@ -48,6 +49,9 @@ __all__ = [
     "find_gold",
     "generate_package",
     "load_harbor_config",
+    "resolve_cells",
+    "resolve_selection",
+    "run_matrix",
     "render_harbor_command",
     "resolve_task",
     "resolve_tasks",

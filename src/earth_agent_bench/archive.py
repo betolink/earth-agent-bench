@@ -1,8 +1,8 @@
 """Archive a run's artifacts out of the active tree.
 
 A run is identified by its stamp (``YYYYMMDD-HHMMSS``). Archiving moves its
-Harbor job directories, run log and manifest into
-``runs/archive/<name>/`` so the dashboard/index only show active runs::
+Harbor job directories (and any run log/manifest) into
+``runs/archive/<name>/`` so the index/report only show active runs::
 
     eab archive --name run-20261011-incomplete --stamp 20261011-005413
 
@@ -26,12 +26,13 @@ _STAMP = re.compile(r"-(\d{8}-\d{6})$")
 
 
 def latest_stamp() -> str:
-    """Stamp of the newest ``runs/eab-full-*.log``, or ''."""
-    logs = sorted(glob.glob(str(RUNS / "eab-full-*.log")))
-    if not logs:
-        return ""
-    match = _STAMP.search(Path(logs[-1]).stem)
-    return match.group(1) if match else ""
+    """Stamp of the newest Harbor job directory, or ''."""
+    stamps = []
+    for path in glob.glob(str(RUNS / "harbor" / "eab-*")):
+        ref = parse_job_dir(Path(path).name)
+        if ref.stamp:
+            stamps.append(ref.stamp)
+    return max(stamps) if stamps else ""
 
 
 def _job_dirs_since(stamp: str) -> list[str]:

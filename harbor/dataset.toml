@@ -1,0 +1,126 @@
+[dataset]
+name = "eab/earth-agent-bench"
+version = "0.1.0"
+description = "NASA Earthdata access-pattern selection benchmark: did the agent choose and execute the best access route for a named collection?"
+keywords = [ "earthdata", "geospatial", "access-pattern", "harbor",]
+[[dataset.authors]]
+name = "earth-agent-bench contributors"
+
+
+[[tasks]]
+name = "earth-agent-bench/a1-tempo-no2-florida-2024"
+digest = "sha256:670ae68e664c7462e06ace8184f6a0ba7a767c6ec51140eeb7f4e91a1dcfcf8c"
+
+[[tasks]]
+name = "earth-agent-bench/a2-emit-methane-permian-2024"
+digest = "sha256:928e679b7bdca411d9b607cf58500321df94d2d9a5ead3021a6ac8fc41d7f021"
+
+[[tasks]]
+name = "earth-agent-bench/a3-maiac-aod-eastern-us-2023"
+digest = "sha256:89e63023fd3d49c70b43759122079486675801dc069e4c075bce5fab5570d164"
+
+[[tasks]]
+name = "earth-agent-bench/b1-pnw-wildfire-recovery-2020-2023"
+digest = "sha256:2e45840e9af14b404cb9901abcd2057b4fec81307b4231812fa76eef0616fd50"
+
+[[tasks]]
+name = "earth-agent-bench/b2-amazon-gpp-soilmoisture-2023"
+digest = "sha256:24cf95e1baf180a88f23ea4f56c4a56b8cc751aa34aeae9c465d3c2a62bd9853"
+
+[[tasks]]
+name = "earth-agent-bench/b3-gedi-landsat-canopy-2019-2023"
+digest = "sha256:f3411e50a3bc07975a6ada94ecbb3020503414a81c3a34bf67886e0fc5eea15e"
+
+[[tasks]]
+name = "earth-agent-bench/c1-itslive-jakobshavn-2015-2024"
+digest = "sha256:59dd8964bf3387e0d4f978c647dc918169a2858089adff5cf3d38b1cf4bfcea6"
+
+[[tasks]]
+name = "earth-agent-bench/c2-prefire-modis-greenland-2024"
+digest = "sha256:290fd3e134b52b1e25911ae64f87c41e30298529375ae34faa6e320318885952"
+
+[[tasks]]
+name = "earth-agent-bench/c3-amsr2-beaufort-2024"
+digest = "sha256:caacf20ae15f3267206f8ccfe47fad97c625cc77c2a6cf227b81c0f5ede33c8a"
+
+[[tasks]]
+name = "earth-agent-bench/l1-phoenix-lst-uhi-2015-2024"
+digest = "sha256:d90fe12da0e9949cfc5a02eef02deabb409700dd8fb37462277aab5c12649e85"
+
+[[tasks]]
+name = "earth-agent-bench/l2-black-marble-ian-2022"
+digest = "sha256:2fbaa65f5494d5436a722298d82e71997d57828354a247b0618de8e53b0cc1d7"
+
+[[tasks]]
+name = "earth-agent-bench/l3-iowa-drought-2022"
+digest = "sha256:10a53135377c250227472bb7ac6b2a0fb988427ec6d4bdd1a436a5368e703ff8"
+
+[[tasks]]
+name = "earth-agent-bench/o1-chlorophyll-ca-current-2023"
+digest = "sha256:e22f48676fc4fe4b1d538e8d1c1036eb43301a2e24b46710cdbba41e72e0ecc8"
+
+[[tasks]]
+name = "earth-agent-bench/o2-mur-sst-gbr-2024"
+digest = "sha256:fa5e6058c62428e928a604f4bbff580085f62a7115778307539e55863bee71b5"
+
+[[tasks]]
+name = "earth-agent-bench/o3-swot-altimetry-gulfstream-2023"
+digest = "sha256:5039931e0eafd6077239304674204e80545100d1aeb720398b1026147af0d793"
+
+[[tasks]]
+name = "earth-agent-bench/s1-turkiye-earthquake-2023"
+digest = "sha256:7d354f6156d188ef3dad74971f2e32ad6affa3b66c0c394698f39b71e395c5b6"
+
+[[tasks]]
+name = "earth-agent-bench/s2-reykjanes-inflation-2023-2024"
+digest = "sha256:b3f7ff6cbd3fe84e481d8c4ff11c78fc5811d16caa7acd0d406c79d56ad8759f"
+
+[[tasks]]
+name = "earth-agent-bench/s3-central-valley-subsidence-2015-2024"
+digest = "sha256:4070cd53dfcc3bc02fe9d2d46c9ffaa802b8a010e93d677832a2e154e867a386"
+
+[[tasks]]
+name = "earth-agent-bench/01_hls_open_vs_download"
+digest = "sha256:3c7f8168e1b3df7f0afa58d9ec3e5e41ceb585cde7d3048e0550f2d539913d45"
+
+[[tasks]]
+name = "earth-agent-bench/02_atl06_download_vs_open"
+digest = "sha256:b8998c10d020ec38ec8f6ee9dfa4602ba543ff094a215f3b7d8fcb14c9f4e40c"
+
+[[tasks]]
+name = "earth-agent-bench/03_emit_virtualize"
+digest = "sha256:50207ad77680e7e254b3731e53d5659169619b18bd27ed437d6926ac32346fff"
+
+[[tasks]]
+name = "earth-agent-bench/04_mur_concat_dim"
+digest = "sha256:98646dbcf7b0c197d9adeeeb110dcc98d790268a653cfa1174b1fd42b79871e6"
+
+[[tasks]]
+name = "earth-agent-bench/05_emit_default_parser"
+digest = "sha256:dcb48a2f2fcbcdefc3f1ccb0e3b856a402cb4d131d6da616e54036518276897f"
+
+[[tasks]]
+name = "earth-agent-bench/06_fallback_parser"
+digest = "sha256:9a8d3c227a259151ee26e3679d164523f44b89ef4f015b1657e154c362952343"
+
+[[tasks]]
+name = "earth-agent-bench/07_datalinks_access"
+digest = "sha256:4d6ae04d1119698516fe9f50a2973884cb7d00f2fa9a9a81560bc035d2d2861f"
+
+[[tasks]]
+name = "earth-agent-bench/08_mur_cloud_hosted"
+digest = "sha256:129167416ad74a17d104af08835ae766531b27705156bf64552418f814c8a09e"
+
+[[tasks]]
+name = "earth-agent-bench/09_atl06_search_count"
+digest = "sha256:c7320f04ec1e175ef01f1a92cc6b1ee5219fbeee0b87e3b291e1933b529c7fec"
+
+[[tasks]]
+name = "earth-agent-bench/10_hlss30_concept_id"
+digest = "sha256:38509b2effd0bf957b092c1dafd003a25b1ea6b68533abf049b3268976d169f8"
+
+
+[[files]]
+path = "metric.py"
+digest = "sha256:2ca6c67a8574ab20ba3f6c58530f1df4e075322e5289d1863e9d01d2665f721f"
+

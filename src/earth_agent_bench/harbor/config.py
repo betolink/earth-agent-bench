@@ -56,3 +56,25 @@ def agent_timeout_sec() -> float:
 def verifier_timeout_sec() -> float:
     """Verifier execution cap in seconds."""
     return float(load_harbor_config().get("verifier_timeout_sec", 600.0))
+
+
+def verifier_environment_mode() -> str:
+    """Harbor verifier mode: 'separate' (trusted container) or 'shared'."""
+    return str(load_harbor_config().get("verifier_environment_mode", "separate"))
+
+
+def resources() -> dict:
+    """Container resource caps baked into generated task.toml files."""
+    return dict(load_harbor_config().get("resources", {}))
+
+
+def instruction_access_policy() -> bool:
+    """Whether rendered instructions state the access policy the verifier enforces."""
+    return bool(load_harbor_config().get("instruction_access_policy", True))
+
+
+def artifact_sources() -> list[str]:
+    """Container paths collected into the trial artifacts dir (and the verifier)."""
+    return list(load_harbor_config().get(
+        "artifacts", ["/app/output", "/app/work", "/app/access.py", "/logs/agent"]
+    ))

@@ -1,14 +1,15 @@
 """Score access-pattern selection from the deliverable the agent produced.
 
-v2 contract: the deliverable is ``access.py`` (the access code), run at a demo
-scope. The verifier:
+v3 contract: verification runs in its own container. The verifier:
 
-  1. finds ``access.py`` and runs it under the executor (``ok|error|timeout|oom``);
-  2. reads the observed access events written by ``eab_instrument``;
-  3. applies a code check (sanctioned: uses earthaccess, not raw CMR/URL fetches);
-  4. scores the components and writes ``/logs/verifier/{reward,details}.json``.
-
-Falls back to the agent's ``output/access_summary.json`` when no events exist.
+  1. re-runs ``access.py`` under the executor with a *fresh* trusted access log
+     (``ok|error|timeout|oom``), so the evidence is produced in a container the
+     agent never touched;
+  2. falls back to the agent's collected events (``/logs/agent``) only when the
+     deliverable is missing or produced no events;
+  3. never trusts the agent's self-reported ``access_summary.json``;
+  4. writes ``/logs/verifier/{reward,details}.json`` with a ``pass`` (headline,
+     all-or-nothing) and a ``score`` (weighted partial credit).
 """
 
 from __future__ import annotations
@@ -21,8 +22,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from earth_agent_bench.harbor_verify import find, read_events, roots, summarize_events
-from earth_agent_bench.schemas import RunObservation
+from earth_agent_bench.harbor_verify import (
+    find,
+    read_events,
+    roots,
+    summarize_events,
+)
 from earth_agent_bench.scoring import score_run
 from earth_agent_bench.scoring.service_discovery import SERVICE_ALIASES
 from earth_agent_bench.tasks import load_task
@@ -75,16 +80,43 @@ def code_check(script: Path) -> dict:
     return check
 
 
-def run_deliverable(script: Path, timeout: float, mem_mb: int) -> str:
-    """Run ``access.py`` under the executor; return the exec status."""
+def run_deliverable(script: Path, timeout: float, mem_mb: int, log: Path) -> str:
+    """Run ``access.py`` under the executor; return the exec status.
+
+    ``EAB_ACCESS_LOG`` points at a verifier-owned file so the events we grade
+    cannot be pre-seeded by the agent.
+    """
     try:
         from earth_agent_bench.executor import run_script
     except ImportError:  # local dev
         sys.path.insert(0, str(HERE.parents[3]))
         from earth_agent_bench.harbor.runtime.executor import run_script
-    result = run_script(script, workdir=script.parent, timeout_s=timeout,
-                        mem_mb=mem_mb or None)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    result = run_script(
+        script,
+        workdir=script.parent,
+        timeout_s=timeout,
+        mem_mb=mem_mb or None,
+        env={"EAB_ACCESS_LOG": str(log)},
+    )
     return result.status
+
+
+def pass_gate(task, observation, exec_status: str, check: dict) -> tuple[float, dict]:
+    """All-or-nothing pass: sanctioned code, good pattern, real access, exec ok."""
+    accepted = set(task.pattern_tiers.best) | set(task.pattern_tiers.acceptable)
+    sanctioned = bool(check.get("sanctioned"))
+    pattern_ok = any(pattern in accepted for pattern in observation.observed_patterns)
+    accessed = bool(observation.validation_passed)
+    executed = exec_status == "ok"
+    passed = executed and sanctioned and pattern_ok and accessed
+    reasons = {
+        "executed": executed,
+        "sanctioned": sanctioned,
+        "pattern_ok": pattern_ok,
+        "accessed": accessed,
+    }
+    return (1.0 if passed else 0.0), reasons
 
 
 def main() -> int:
@@ -101,92 +133,87 @@ def main() -> int:
     roots_list = roots(args.workspace, args.search_root)
     task = load_task(args.task)
 
-    # 1) run the agent's deliverable (demo scope) under the executor
     script = find(roots_list, "access.py", "work/access.py", "output/access.py")
     check: dict = {}
     exec_status = "missing"
+    events: list[dict] = []
+    events_source = "none"
+
     if script is not None:
         check = code_check(script)
-        exec_status = run_deliverable(script, args.run_timeout, args.run_mem_mb)
-
-    # 2) observed access events (from the run above, or the agent's own run)
-    events = read_events(
-        find(
-            roots_list,
-            "access_events.jsonl",
-            "output/access_events.jsonl",
-            "agent/access_events.jsonl",
+        trusted_log = Path(args.logs) / "access_events.jsonl"
+        exec_status = run_deliverable(
+            script, args.run_timeout, args.run_mem_mb, trusted_log
         )
-    )
+        events = read_events(trusted_log if trusted_log.exists() else None)
+        events_source = "verifier-run"
+
+    if not events:
+        # Real instrumented events from the agent's own run (never its summary).
+        agent_log = find(roots_list, "agent/access_events.jsonl", "access_events.jsonl")
+        events = read_events(agent_log)
+        if events:
+            events_source = f"agent-run:{agent_log}"
+
     observed = summarize_events(events)
-    obs_path = find(roots_list, "observation.json", "output/observation.json")
-    summary_path = find(roots_list, "output/access_summary.json")
 
-    if obs_path is not None:
-        observation = RunObservation.model_validate(json.loads(obs_path.read_text()))
-    else:
-        summary = json.loads(summary_path.read_text()) if summary_path else {}
-        declared_services = (summary.get("data_access_pattern")
-                            or summary.get("access_services_used", []))
-        candidate_patterns = observed["patterns"] or classify(declared_services)
-        dominant = dominant_pattern(candidate_patterns, task.pattern_tiers)
-        patterns = [dominant] if dominant else []
-        services = list(dict.fromkeys([*observed["services"], *declared_services]))
-        collections = list(
-            dict.fromkeys([*observed["short_names"], *summary.get("collections", [])])
-        )
-        representation = observed["representation"]
-        if representation == "unknown" and any(p[0] in "CT" for p in patterns):
-            representation = "lazy"
-        output_dir = (
-            summary_path.parent if summary_path else Path(args.workspace) / "output"
-        )
-        artifacts = (
-            [
-                path for path in output_dir.glob("*")
-                if path.is_file() and path.name != "access_summary.json"
-            ]
-            if output_dir.exists()
-            else []
-        )
-        observation = RunObservation(
-            task_id=task.task_id,
-            observed_patterns=patterns,
-            collection_short_names=collections,
-            discovered_services=services,
-            representation=representation,
-            validation_passed=observed["data_access"] or bool(artifacts),
-            metrics={
-                "bytes_read": int(summary.get("bytes_read_estimate", 0) or 0),
-                "objects_read": int(observed["objects_read"]),
-                "runtime_seconds": observed["runtime_s"],
-            },
-        )
+    output_dir = find(roots_list, "output")
+    artifacts = (
+        [path for path in output_dir.glob("*")
+         if path.is_file() and path.name not in ("access_summary.json", "access_events.jsonl")]
+        if output_dir is not None and output_dir.is_dir()
+        else []
+    )
+
+    # Build the observation from evidence only: no self-reported patterns.
+    from earth_agent_bench.schemas import RunObservation
+
+    dominant = dominant_pattern(observed["patterns"], task.pattern_tiers)
+    observation = RunObservation(
+        task_id=task.task_id,
+        observed_patterns=[dominant] if dominant else [],
+        collection_short_names=observed["short_names"],
+        discovered_services=observed["services"],
+        representation=observed["representation"],
+        validation_passed=bool(observed["data_access"]),
+        metrics={
+            "bytes_read": 0,
+            "objects_read": int(observed["objects_read"]),
+            "runtime_seconds": observed["runtime_s"],
+        },
+    )
 
     result = score_run(task, observation)
-    reward = result.reward
-    # Code check: an unsanctioned deliverable (raw CMR, no earthaccess) is penalised.
+    score = result.reward
+    passed, pass_reasons = pass_gate(task, observation, exec_status, check)
     if check and not check.get("sanctioned"):
-        reward = round(reward * 0.5, 4)
+        score = round(score * 0.5, 4)
 
     details = result.model_dump()
     details.update({
-        "reward": reward,
+        "reward": passed,
+        "pass": passed,
+        "score": score,
+        "pass_reasons": pass_reasons,
         "exec_status": exec_status,
         "code_check": check,
+        "events_source": events_source,
+        "uncovered": not observed["data_access"],
+        "artifact_count": len(artifacts),
         "script": str(script) if script else None,
     })
-    # Harbor's reward.json must be flat and numeric; keep diagnostics separate.
+    # Harbor's reward files must be flat and numeric; diagnostics stay separate.
     rewards = {
         key: value
         for key, value in details.items()
         if isinstance(value, (int, float)) and not isinstance(value, bool)
     }
+    rewards["pass"] = passed
 
     logs = Path(args.logs)
     logs.mkdir(parents=True, exist_ok=True)
     (logs / "reward.json").write_text(json.dumps(rewards))
-    (logs / "reward.txt").write_text(f"{reward}\n")
+    (logs / "reward.txt").write_text(f"{passed}\n")
     (logs / "details.json").write_text(json.dumps(details, indent=2))
 
     print(json.dumps(details, indent=2))
