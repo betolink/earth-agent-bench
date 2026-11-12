@@ -185,7 +185,7 @@ Two changes were tested on a fresh `tiel-coder-35b / pi` run (`schema-test-tiel-
 
 ## Headline result: skills work — `tiel-pi` baseline vs skills (2026-10-14)
 
-After the **instrumentation fix** (see `docs/reports/instrumentation-fix.md` — it
+After the **instrumentation fix** (see `docs/archive/reports/instrumentation-fix.md` — it
 was recording **no access events**, so `access_pattern` was always 0) and the
 settled setup (goal = the code · `Slice` · neutral wording · earthaccess +
 scope-the-request skill), the skills condition finally shows a real effect.

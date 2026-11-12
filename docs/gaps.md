@@ -16,11 +16,14 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **Status:** resolved. Real Harbor (PyPI `harbor`, v0.24) is a pinned dev
   dependency (`pyproject.toml` + `pixi.toml`); `eab harbor` generates real
   `task.toml` packages, writes a JobConfig, and invokes `harbor run`. Validated
-  end-to-end (`harbor run --dry-run` and live runs) on `pi`. The old
-  guess-encoded command template is gone.
+  end-to-end on `pi` and `opencode` (including the separate verifier container
+  producing trusted access events). The old guess-encoded command template is
+  gone.
 - **Where:** `src/earth_agent_bench/harbor/`, `harbor/harbor.yaml`.
-- **Remaining:** record `harbor --version` in `experiments/harnesses.yaml`; pin
-  the earthaccess fork commit in `harbor/runtime/agent-requirements.txt`.
+- **Remaining:** record `harbor --version` in `experiments/harnesses.yaml`. The
+  earthaccess fork commit and the full agent stack are pinned in
+  `src/earth_agent_bench/harbor/runtime/agent-requirements.txt` (resolved with
+  `uv pip compile`).
 
 ### 2. API model IDs (4 × `confirm_at_pilot`)
 - **What/why:** exact LiteLLM provider strings and context lengths for Claude
@@ -31,11 +34,15 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 
 ### 3. Harness pins + headless verification
 - **What/why:** all four harness versions are unpinned; pi's non-interactive
-  invocation is unverified (`runner.py` prints a verify-at-pilot note);
+  invocation is unverified (the Harbor JobConfig is validated with `--dry-run`);
   skills-mount conventions for opencode/codex/pi are unverified (claude-code's
   `.claude/skills/` is known).
+- **Observed:** `opencode` can exit non-zero (`NonZeroAgentExitCodeError`) even
+  when it wrote a valid deliverable; the separate verifier still scores it. Treat
+  the agent exit code and the verifier `pass` as separate signals (see
+  `docs/running.md` §2).
 - **Where:** `experiments/harnesses.yaml` (`version: null` × 4).
-- **Acceptance:** versions pinned; `eab run` works headlessly for each harness;
+- **Acceptance:** versions pinned; `eab harbor run` works headlessly for each harness;
   skills conditions mount on all four (conventions recorded in harnesses.yaml).
 
 ### 4. Service catalog verification (28 × `verified: false`)
@@ -48,15 +55,16 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
   CMR/DAAC docs and flipped to `verified: true` or corrected; task gold
   `pattern_tiers` re-checked where corrections land.
 
-### 5. Reference solutions per task
-- **What/why:** `solution/reference_workflow.py` is a TODO placeholder in every
-  generated package; the validity rule (each task's expert workflow must achieve
-  its own gold score before the experiment) is unenforceable without them.
-- **Where:** `harbor/runtime/solve.sh` (generated `solution/`);
-  docs/archive/general-plan.md §40.
+### 5. Reference solutions per task — OPEN
+- **What/why:** `solution/solve.sh` is still a placeholder in every generated
+  package; the validity rule (each task's expert workflow must achieve its own
+  gold score before the experiment) is unenforceable without them. AGENTS.md's
+  `[metadata]`/labels and the dataset are in place; only the workflows are missing.
+- **Where:** `src/earth_agent_bench/harbor/runtime/solve.sh` (rendered into the
+  generated `solution/`); docs/archive/general-plan.md §40.
 - **Acceptance:** one expert workflow per task passing primary pattern + science
   gate + efficiency envelopes; recorded reference metrics become the envelope
-  calibration input (see #8).
+  calibration input (see #8). Suggested order: one per sphere (6) first.
 
 ---
 
@@ -71,8 +79,8 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **Remaining:** `bytes_read` is still self-reported; `earthaccess.open → C1` is
   coarse (cannot yet split cloud-native C1 from OPeNDAP S2); HTTP/S3-level
   logging would close both.
-- **Where:** `harbor/runtime/eab_instrument.py`, `harbor/runtime/harbor_verify.py`,
-  `harbor/runtime/verify_benchmark.py`; `docs/tasks-and-evals.md` §9.2.
+- **Where:** `src/earth_agent_bench/harbor/runtime/eab_instrument.py`, `src/earth_agent_bench/harbor/runtime/harbor_verify.py`,
+  `src/earth_agent_bench/harbor/runtime/verify_benchmark.py`; `docs/tasks-and-evals.md` §3.2.
 
 ### 7. Minimal-science-gate depth
 - **What/why:** verifier treats `validation_passed` as "an artifact exists".
@@ -99,6 +107,18 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 
 ---
 
+### 20. Secrets in process argv
+- **What/why:** Harbor injects task env vars into the agent container via
+  `docker compose exec -e VAR=value …`, so `EARTHDATA_TOKEN` and
+  `LITE_LLM_API_KEY` are visible to any host user who can run `ps` while a trial
+  is active. Inference-only keys limit the blast radius but this should still be
+  closed before shared-host runs.
+- **Where:** Harbor's docker environment (`docker compose exec`), not EAB code.
+- **Mitigation:** run on a single-tenant host, use short-lived/scoped LiteLLM
+  keys and an EDL token with a short expiry, or switch the runtime to a
+  credential proxy (the sbx provider idea in `docs/archive/unification.md`).
+- **Acceptance:** no secret appears in host `ps`/process args during a trial.
+
 ## P2 — external dependencies
 
 ### 10. earthaccess-mcp endpoint
@@ -118,13 +138,15 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 
 ## P3 — analysis layer
 
-### 12. Batch orchestration
-- **What/why:** `eab run` / `eab harbor run` execute single runs (or one task
-  list); nothing walks the pilot/full matrices, writes a `RunManifest` per run,
-  or enforces the closed-reference budget guard.
-- **Where:** `experiments/run.yaml` (the matrices `pilot.yaml`/`full.yaml` are archived under `experiments/archive/`).
-- **Acceptance:** one command runs the pilot matrix restartably, skipping
-  completed cells, marking infrastructure failures distinctly.
+### 12. Batch orchestration — PARTIAL
+- **Status:** `eab harbor run` now expands the full model × harness × condition ×
+  task matrix from `experiments/run.yaml` (or `--models/--harnesses/--conditions`),
+  enforcing harness crossing restrictions and printing `--dry-run` plans.
+- **Remaining:** restart/resume that skips completed cells, `RunManifest` per
+  run, and the closed-reference budget guard.
+- **Where:** `src/earth_agent_bench/harbor/matrix.py`, `experiments/run.yaml`.
+- **Acceptance:** relaunching the same selection skips cells whose `result.json`
+  is complete and marks infrastructure failures distinctly.
 
 ### 13. Statistics + result tables
 - **What/why:** the specified outputs (condition comparison, price-tier,
@@ -133,17 +155,20 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 - **Where:** `docs/tasks-and-evals.md` §9–§10; docs/archive/general-plan.md §42.
 - **Acceptance:** `eab`-generated reports from collected runs.
 
-### 14. Harbor packaging depth
-- **What/why:** infrastructure-failure accounting (docs/archive/general-plan.md §51) and
-  live-vs-reproducible modes (§52) are not yet wired into the generated
-  packages.
+### 14. Harbor packaging depth — PARTIAL
+- **Status:** packages now carry `[metadata]` labels, `[task]` authors/keywords,
+  `[[artifacts]]` collection, resource caps, and a separate verifier
+  (`environment_mode = "separate"`); the suite is publishable as a digest-pinned
+  Harbor dataset (`eab harbor dataset`, `harbor/metric.py` selects `pass`).
+- **Remaining:** infrastructure-failure accounting (docs/archive/general-plan.md §51)
+  and live-vs-reproducible modes (§52 / #17).
 - **Acceptance:** failure classification + a reproducible (cached/snapshot)
   mode exist.
 
 ### 15. Executor & profiler wiring — FUTURE (built, not yet used)
-- **What/why:** `harbor/runtime/executor.py` (run a deliverable under a
+- **What/why:** `src/earth_agent_bench/harbor/runtime/executor.py` (run a deliverable under a
   wall/CPU/memory budget and classify `ok|error|timeout|oom`) and
-  `harbor/runtime/profiler.py` (scalene/memray) plus the `verify_exec.py`
+  `src/earth_agent_bench/harbor/runtime/profiler.py` (scalene/memray) plus the `verify_exec.py`
   verifier exist, are unit-tested, and are reachable via `eab exec` — but
   **nothing in the live pipeline uses them**: no task verifier invokes
   `verify_exec`, `scoring/` grades observed access behavior only, and the agent
@@ -153,7 +178,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
   post-correctness pass — explicit `timeout`/`oom` outcomes and line-level
   efficiency attribution. Follow the two-pass rule (never grade from the
   instrumented run; profiling perturbs timing 2–10×).
-- **Where:** `harbor/runtime/{executor,profiler,verify_exec}.py`,
+- **Where:** `src/earth_agent_bench/harbor/runtime/{executor,profiler,verify_exec}.py`,
   `docs/executor.md`, `tests/test_executor.py`.
 - **Acceptance (when promoted):** code-deliverable verifiers call `verify_exec`;
   a profile artifact is recorded per *correct* cell; efficiency is reported
@@ -165,12 +190,39 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
   for policy gradient. EAB is the *environment/eval* half (~60% there); the
   *RL/training* half (OpenEnv, token-capturing vLLM, TRL/GRPO, trainable weights,
   training GPUs) is ~0%.
-- **Where:** `docs/rl-fineenvs-assessment.md` (full gap analysis + path).
+- **Where:** `docs/archive/rl-fineenvs-assessment.md` (full gap analysis + path).
 - **Acceptance (if pursued):** OpenEnv + Harbor env server deployed; a trainable
   HF model served on capturing vLLM; EAB reward ported to a scalar fn; a 2-update
   smoke passing before any long run.
 
 ---
+
+## Deferred interoperability (post-pilot)
+
+### 17. Sealed / offline mode
+- **What/why:** Axis-Spatial-style aggregators run in sealed sandboxes with the
+  data handed over in a folder. EAB is deliberately live (access-pattern
+  selection over HTTPS), so it cannot yet be ingested there.
+- **Plan:** a `--mode sealed` package variant: pre-fetched demo granule(s) in
+  `/home/user/input` + CMR/service fixtures (cassettes or a stub sidecar), with
+  `network_mode = "no-network"` (or `"allowlist"` for Earthdata hosts). Same
+  verifier, recorded events only.
+- **Acceptance:** one task per sphere runs with no network and grades identically
+  to the live mode.
+
+### 18. Infeasible-task variants
+- **What/why:** the Axis index includes ~1 in 8 tasks the data cannot answer and
+  grades refusal both ways; EAB has none.
+- **Plan:** `labels.infeasible: true` + a gold that expects a refusal (no data
+  access + an explicit refusal summary); the verifier must fail an attempted
+  answer and pass a refusal.
+- **Acceptance:** ≥1 infeasible task per sphere, validated by the oracle agent.
+
+### 19. Long-horizon tasks
+- **What/why:** long tasks are where agents fail (Axis). EAB's demo-scope design
+  intentionally shortens tasks ("show the route, don't run the study").
+- **Plan:** a separate `benchmark/tasks-long/` suite with a 2-hour budget.
+- **Acceptance:** a parallel suite that does not complicate the pilot matrix.
 
 ## Map of scattered markers → this list
 
@@ -179,11 +231,10 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 | `confirm_at_pilot` (×4) | `experiments/models.yaml` | #2 |
 | `version: null` (×4) | `experiments/harnesses.yaml` | #3 |
 | `verified: false` (×28) | `benchmark/oracles/services.yaml` | #4 |
-| `TODO` reference workflow | `harbor/runtime/solve.sh`, generated `solution/` | #5 |
-| heuristic verifier note | `harbor/README.md` | #6 |
+| `TODO` reference workflow | `src/earth_agent_bench/harbor/runtime/solve.sh`, generated `solution/` | #5 |
 | `status: pending` | `mcp/manifest.yaml` | #10 |
 | scaffold skills note | `skills/`, `docs/quickstart.md` §7 | #11 |
-| "still to be built" batch note | `docs/quickstart.md` §6 | #12 |
+| dataset/publish plan | `docs/archive/unification.md` | done (`eab harbor dataset`) |
 | verifier fidelity note | `docs/archive/consolidated-plan.md` §5.2 | #6/#7 |
-| "not yet wired — FUTURE" note | `docs/executor.md`, `harbor/runtime/*` | #15 |
-| RL gap assessment | `docs/rl-fineenvs-assessment.md` | #16 |
+| "not yet wired — FUTURE" note | `docs/executor.md`, `src/earth_agent_bench/harbor/runtime/*` | #15 |
+| RL gap assessment | `docs/archive/rl-fineenvs-assessment.md` | #16 |

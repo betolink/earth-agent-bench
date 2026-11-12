@@ -1,79 +1,57 @@
 # Running the suite & observing progress
 
+Harbor is the **only** execution path. `eab harbor generate|run` builds real
+task packages and a JobConfig, then invokes the `harbor` CLI; there is no
+host-side runner to keep in sync.
+
 ## 0. Prerequisites
 
-Provide the environment contract as **env vars or a secrets file** (never in the
-repo — `.env` is gitignored). Either export them:
+Provide the environment contract as env vars or an env-file (never in the repo —
+`.env` is gitignored):
 
 ```bash
 export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://your-gateway LITE_LLM_API_KEY=...
 ```
 
-or keep them in an env-file and point the driver at it:
-
 ```bash
-cp .env.example .env    # fill it in; gitignored
-EAB_ENV_FILE=.env bash scripts/eab-full-run.sh
-```
-
-Validate before a run:
-
-```bash
-eab doctor          # checks the 3 vars, probes /v1/models, reports log-scope
+cp .env.example .env     # fill it in; gitignored
+eab doctor               # checks the 3 vars, probes /v1/models, reports log-scope
 ```
 
 You also need the `harbor` CLI and the agent harnesses (`pi` / `opencode` /
 `codex` / `claude`). Nothing is hard-coded to a host or path.
 
-## 0.1 Configure which models to benchmark
+## 0.1 Choose what to run — the master config
 
-Two files:
+Two files split "who" from "which", so adding a model never means editing a task:
 
-- **`experiments/models.yaml`** — the **roster**: every available model, keyed by
-  id, with the name your gateway serves and its tier:
-  ```yaml
-  models:
-    my-model-id:
-      tier: local
-      litellm_model: local/My-Model   # must be served by LITE_LLM_ENDPOINT
-  ```
-- **`experiments/run.yaml`** — the **run selection**: which roster ids,
-  harnesses, conditions and tasks to run:
-  ```yaml
-  models: [my-model-id, another-id]
-  harnesses: [pi, opencode, codex-cli]
-  conditions: [baseline, improve, mcp, skills, mcp-skills]
-  tasks: all
-  ```
+| file | question | edit it to… |
+|---|---|---|
+| `experiments/models.yaml` | **who exists** | add/remove models (id, tier, `litellm_model`, quantization, context) |
+| `experiments/run.yaml` | **which to benchmark** | pick roster ids, harnesses, conditions, tasks, trials, concurrency |
 
-- **Parallelism (`concurrency`)** — how many cells run at once: **`1` = sequential**
-  (correct for a single local GPU / single-slot model server), **`>1` = parallel**
-  (for models served remotely through the gateway, where the endpoint handles
-  concurrent requests). Override with `EAB_CONCURRENCY`. (Within a cell, Harbor
-  still runs one trial at a time, and the loop watchdog auto-disables when
-  `concurrency > 1` since it's a single-trial helper.)
+Supporting config:
 
-Everything is **env-overridable**: `EAB_MODELS`, `EAB_HARNESSES`,
-`EAB_CONDITIONS`, `EAB_TASKS`, `EAB_TRIALS` (comma-separated), and
-`EAB_ENV_FILE`. Preview + validate (rejects ids not in the roster):
+- `experiments/harnesses.yaml` — harness ids, versions, and **crossing
+  restrictions** (e.g. `claude-code` only runs `claude-sonnet-5-5`).
+- `experiments/conditions.yaml` — `baseline`, `mcp`, `skills`, `mcp-skills`.
+- `harbor/harbor.yaml` — Harbor agent ids, gateway kwargs, budgets, resources,
+  verifier mode, artifacts.
 
 ```bash
-eab config                 # show the resolved matrix + cell count
-eab config --shell         # the driver reads this
-eab models discover        # list what your gateway actually serves
+eab models list            # roster + tier + served name + whether run.yaml selects it
+eab models discover        # what the gateway actually serves
+eab models reconcile       # roster -> gateway name check
+eab config                 # resolved matrix + cell count
 ```
 
-Then run:
-
-```bash
-bash scripts/eab-full-run.sh                 # honors run.yaml
-# or ad hoc:
-EAB_MODELS=my-model-id EAB_CONDITIONS=baseline,improve bash scripts/eab-full-run.sh
-```
+Selection precedence: explicit flags > env (`EAB_MODELS`, `EAB_HARNESSES`,
+`EAB_CONDITIONS`, `EAB_TASKS`, `EAB_TRIALS`) > `experiments/run.yaml` > defaults.
+Use an alternate selection file with `--config <name>` or `EAB_RUN_CONFIG`.
 
 ## 1. Run
 
-**One cell** (isolated Harbor job — the normal path):
+**One cell** (isolated Harbor job):
 
 ```bash
 eab harbor run benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml \
@@ -81,217 +59,165 @@ eab harbor run benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml \
 # add --dry-run to only generate + print the command
 ```
 
-**Packages only** (no execution): `eab harbor generate <tasks> --condition mcp-skills`.
+Aliases work too (`atmo-1`, `cryo-2`, `l1`, …) as do sphere directories and
+globs.
 
-**Whole grounded sweep** (the driver used for the 540-cell matrix):
+**Packages only** (no execution):
 
 ```bash
-eab run --name experiment-1        # named run (recommended)
-bash scripts/eab-full-run.sh       # same, name from run.yaml
+eab harbor generate all --condition mcp-skills
 ```
 
-`eab run --name <n>` launches the driver with that experiment name (the run's
-identity for the dashboard, manifest and `eab archive`); the stamp is internal.
+**A matrix** (the normal path): omit the task argument to use `run.yaml`, and
+pass comma lists (or `all`) for any axis:
 
-It iterates `18 tasks × {models} × {pi, opencode, codex-cli} × {baseline, improve,
-mcp, skills, mcp-skills}`, one Harbor job per cell, logging to
-`runs/eab-full-<stamp>.log`. It also starts the loop watchdog and reclaims
-root-owned run files after each combo.
+```bash
+eab harbor run                                   # run.yaml selection, all its tasks
+eab harbor run --models tiel-coder-35b,ornith-1.5-9b --harnesses pi,opencode
+eab harbor run --conditions baseline             # one condition across the matrix
+eab harbor run all --models all --conditions baseline --dry-run   # preview
+```
 
-**Direct runner (no Harbor)**: `eab run <path> --model … --harness …` and
-`eab sweep all --models … --harnesses … --conditions all`.
+`eab harbor run` expands the cartesian product (task × model × harness ×
+condition), applies the `harnesses.yaml` crossing restrictions, and prints what
+it skipped. Each cell is a distinct job directory under `runs/harbor/`, so runs
+never collide; with multiple conditions each condition gets its own generated
+package directory (`harbor/generated/<condition>/<task>`), so a `--dry-run`
+command stays valid. Pass `--job-name NAME` for a fixed path and `--force` to
+replace it (multi-cell runs suffix it per cell).
 
-### Naming: run · row · cell · trial
-
-Four levels — keep them straight so a single execution isn't mistaken for the
-whole experiment:
+### Naming: job · cell · trial
 
 | term | what | example |
 |---|---|---|
-| **run** | the whole named experiment (the umbrella) — what `--name` names | `tiel-pi`, `tiel-full` |
-| **row** | one `model × harness × condition` combo (a dashboard row) | `tiel-coder-35b / pi / baseline` |
-| **cell** | one `row × task` — one Harbor job | `a1-tempo … tiel pi baseline` |
-| **trial** | a repeat of a cell (`trials` / `n_attempts`) | trial 2 |
+| **job** | one `harbor run` invocation for a task | `eab-a1-…-pi-baseline-20261112-194331` |
+| **cell** | one task × model × harness × condition | `a1 … / tiel / pi / baseline` |
+| **trial** | a repeat of a cell (`n_attempts`) | trial 2 |
 
-So `eab run --name tiel-pi-baseline` is a **run** whose matrix happens to hold a
-single **row** (`tiel / pi / baseline` × 18 tasks = 18 **cells**). Name a run for
-its **scope** (`tiel-pi`, `tiel-full`, `all-models`), not for one row — running a
-subset is still a run with fewer rows.
+The job name carries the identity (task, model, harness, condition, stamp) and is
+what `eab index`, `eab trajectory`, `eab report` and `eab archive` parse.
 
-`eab config` prints the counts (`rows`, `cells`) and this legend.
+## 2. Verify (what happens after the agent stops)
 
-### Named runs, pause & resume
+The verifier runs in a **separate container** (`verifier_environment_mode:
+separate` in `harbor/harbor.yaml`), so the agent never shares a filesystem with
+the answer key. Declared artifacts (`/app/output`, `/app/work`, `/app/access.py`,
+`/logs/agent`) are re-materialized there at their original paths.
 
-Every run has a **name** (`name:` in `run.yaml`, override `EAB_RUN_NAME`) and a
-stamp. The driver writes `runs/manifests/<name>-<stamp>.json` binding the name to
-the exact config (models/harnesses/conditions/trials/concurrency + git sha +
-start time). `eab config`, `eab index` (`run_name`) and `eab trajectory` surface
-it, so cells are attributable. Bump the name when the setup changes (timeout,
-sampling) so runs stay comparable.
+Then:
 
-**The name is deterministic.** `eab run --name X` resolves the stamp from X's
-manifest (or mints one the first time), so relaunching the same name **resumes the
-same run** — adding rows (e.g. a new model) to a run means running them under the
-same name, and the dashboard shows all its rows. Use a new name only for a
-genuinely new run (`EAB_RUN_START` overrides the resolution).
+1. the deliverable (`access.py`) is re-run under the executor with a
+   verifier-owned access log (`/logs/verifier/access_events.jsonl`);
+2. if that produces no events, the agent's instrumented events under
+   `/logs/agent` are used instead;
+3. the agent's `access_summary.json` is **never** scored;
+4. `reward.json` gets `pass` (all-or-nothing headline) and `score` (weighted),
+   and `reward.txt` gets `pass`.
 
-**Pause / resume** — stop and restart without losing completed cells:
+Harbor's trial status and the verifier's `pass` are separate signals: a harness
+can exit non-zero (`n_errored_trials`, `NonZeroAgentExitCodeError`) after writing
+a valid deliverable, in which case the verifier still re-runs it and scores it.
+Read `verifier/details.json` for `exec_status`, `events_source`, `pass_reasons`
+and `uncovered`; do not treat an agent exit code as the benchmark result.
 
-```bash
-touch runs/PAUSE          # driver pauses after the current cell (no work lost)
-rm    runs/PAUSE          # resumes in place
-# Full stop/resume across restarts: relaunch with the same stamp
-EAB_RUN_START=20261011-005413 bash scripts/eab-full-run.sh
-```
-
-Resume skips any cell whose `result.json` has `n_completed_trials>0`
-(`scripts/done_cells.py`, config-driven). A cell killed mid-flight isn't
-completed, so it re-runs.
-
-### The loop/stall watchdog (`scripts/loop_watchdog.py`)
-
-Harbor can't interrupt an agent mid-run, so a host-side monitor tails the current
-trial and kills its container only when truly stuck:
-
-- **STALL** — no agent output for > `WATCH_STALL` s (default **180**), or
-- **LOOP** — the same command (URLs/tokens normalized) ≥ `WATCH_EXACT` times (default **5**).
-
-Otherwise the trial runs to the **600 s** agent cap. Tune via `WATCH_STALL`,
-`WATCH_EXACT`. Killed trials surface as an errored cell, so prefer raising the
-agent cap or fixing the root cause over aggressive killing.
-
-## 2. Observe — the dashboard
-
+## 3. Publish as a Harbor dataset
 
 ```bash
-eab dashboard                 # refresh every 300s
-eab dashboard --interval 60
+eab harbor dataset all
+# -> harbor/dataset.toml (digest-pinned tasks) + harbor/metric.py
 ```
 
+`metric.py` reports the mean `pass`, so the dataset is pass@1-comparable. Any
+Harbor install can then pull it:
+
+```bash
+harbor datasets download eab/earth-agent-bench
 ```
-┌ status: processes · current job · EAB progress n/540 ───────────────┐
-│ TOP (50%)   coding matrix + EAB combos ×18   │  coding per-task grid │
-├─────────────────────────────────────────────────────────────────────┤
-│ BOTTOM (50%)  LIVE agent stream (70%)        │  CURRENT TASK (30%)   │
-└─────────────────────────────────────────────────────────────────────┘
+
+## 4. Observe live — the Harbor web viewer
+
+Harbor ships a local web viewer (bundled static frontend, no build needed). It
+browses job directories and streams trial trajectories while agents run:
+
+```bash
+eab view                       # runs/harbor, jobs mode -> http://127.0.0.1:8080/
+eab view runs/archive          # an archived tree
+eab view harbor/generated --mode tasks --port 8090   # task definitions
 ```
 
-- **LIVE** (70%) — the running trial's agent stream, condensed to `🧠 thinking /
-  ▶ tool / ✓ done` lines; refreshed every 4 s.
-- **CURRENT TASK** (30%) — the active task's `instruction.md` (what it's solving).
-- **EAB combos** — one row per `model × harness × condition`; cells show
-  `✓` pass · partial = yellow · `✗` fail · `⏱` timeout · `·` pending.
-- **Ctrl+L** — full run log in a popup. Keys: `r` refresh · `+/-` interval · `s`
-  auto · `q` quit. Runs as part of EAB (`earth_agent_bench.dashboard`); the shim
-  `tools/bench_dashboard.py` still works.
+`eab view` is a thin wrapper around `harbor view <folder> --jobs`; use `--host
+0.0.0.0` to reach it from another machine and `--no-build` to skip a frontend
+rebuild. It shows per-trial status, reward, agent trajectory/tool calls, and
+verifier logs.
 
-Also: `eab report` aggregates Harbor runs into a per-model reward + token table;
-raw artifacts are under `runs/harbor/<job>/` (`result.json`, `*/verifier/details.json`).
+For cross-cell numbers, build the index:
 
-## 3. Expectations
+```bash
+eab index                    # -> runs/index.jsonl (one record per trial)
+eab index -f csv             # -> runs/index.csv
+eab report --model tiel-coder-35b
+```
+
+Cross-cell queries (the filesystem under `runs/harbor/` is the source of truth):
+
+```bash
+jq 'select(.condition=="skills") | {task,reward}' runs/index.jsonl
+jq -s 'group_by(.model) | map({model: .[0].model, mean: (map(.reward)|add/length)})' runs/index.jsonl
+```
+
+Each record: `task, model, harness, condition, stamp, trial, status
+(solved|partial|fail|timeout|error), reward, components{...}, tokens, cost_usd,
+steps, times, duration_sec` + artifact paths.
+
+## 5. Inspect a cell (trajectory + metadata)
+
+```bash
+eab trajectory -t a3 -m tiel-coder-35b -H pi > traj.json
+eab trajectory -t a3 -m tiel-coder-35b -H pi --list
+eab trajectory -t a3 -m tiel-coder-35b -H pi -f atif > t.json
+# other single artifacts: -f result|reward|details|stdout|raw|session
+```
+
+The bundle carries the run identity, agent/model params, condition wiring, the
+exact instruction, metrics, verifier details, and the ATIF trajectory. Raw
+artifacts live under
+`runs/harbor/<job>/<task>__<id>/`: `agent/trajectory.json`, `verifier/*`,
+`artifacts/`, `result.json`.
+
+## 6. Analyse a whole run
+
+```bash
+eab analyze --model tiel-coder-35b --harness pi
+```
+
+Sends the run's trajectories to a judge model in batches and writes a rolling
+postmortem plus a fact-checked final report. This is the closest analogue to a
+reviewer reading traces for shortcuts.
+
+## 7. Expectations
 
 - **Coverage, not just pass/fail.** Outcomes are `solved | partial | timeout |
-  stuck`. Watch `AgentTimeoutError`/watchdog kills — a cell that times out is
-  *uninformative about capability*, not a wrong answer.
-- **Time.** One cell is up to 600 s agent + verifier; the full grounded sweep
-  (5 conditions) is ~540 jobs → many hours to a few days on a single GPU. Expect
-  the first `baseline` cells per harness within a couple of hours (`improve` is
-  last, after the model's skill is generated).
-- **Conditions.** `baseline` (no help) → `mcp` (CMR/earthaccess MCP) → `skills`
-  (mounted SKILL.md files) → `mcp-skills` (both) → **`improve`** (skills + mcp + a
-  model-specific self-improvement skill). `improve` runs **last**: the driver
-  auto-generates the skill from the model's earlier (non-improve) runs right
-  before it, so the improve cells actually mount it. Manually:
-
-  ```bash
-  eab postmortem <model> --harness all    # -> improvements/<model>/self-improvement/SKILL.md
-  eab harbor run <task> --model <model> --harness pi --condition improve
-  ```
-
-  `--harness all` aggregates every harness's runs; the default (`pi`) uses only
-  that harness. A model with no `improvements/<model>/` dir runs `improve` as
-  `mcp-skills` (no model skill).
-
+  error`. A timed-out cell is *uninformative about capability*, not a wrong answer.
+- **Time.** One cell is up to 720 s agent + 600 s verifier. A full
+  `18 tasks × models × harnesses × conditions` matrix is many hours on a single
+  GPU; screen candidate models on `experiments/evals/tasks` first.
+- **Conditions.** `baseline` → `mcp` → `skills` → `mcp-skills`.
 - **Out-of-region.** Tasks must be winnable over **HTTPS** only (no S3 / `C1`); a
   task whose best pattern is unreachable is a task bug, not a model failure.
 - **Code deliverables** can be graded/sized with the executor:
   `eab exec program.py --timeout 60 --mem-mb 512 --profile scalene` (see
   [executor](executor.md)).
 
-## 4. Housekeeping
+## 8. Housekeeping
 
-- Containers run as **root**, so run artifacts land `root:root`. Reclaim with
-  `scripts/fix-perms.sh` (no sudo needed) — the driver already calls it per combo.
+- Containers run as **root**, so run artifacts can land `root:root`. Reclaim
+  with `scripts/fix-perms.sh`.
 - Observability that reads **LiteLLM spend/logs** needs a log/admin-scoped key
   (`eab doctor` flags inference-only keys).
-- **Archive a finished/abandoned run** so the dashboard/index only show the active
-  one (the dashboard names the active run from its manifest). The run is
-  auto-detected (newest); no stamp needed:
+- **Archive a finished/abandoned run:**
 
   ```bash
-  eab archive --dry-run          # preview what would move
-  eab archive                    # -> runs/archive/run-<date>-incomplete
+  eab archive --dry-run
+  eab archive
   eab archive --name pilot-1
   ```
-
-  It moves the run's job dirs, log and manifest under `runs/archive/<name>/`.
-
-## 5. Inspect a cell (trajectory + metadata)
-
-Harbor records everything per trial. Resolve any `(model, harness, task,
-condition)` cell without hunting through timestamped dirs:
-
-```bash
-# full bundle: metadata + the trajectory  -> traj.json
-eab trajectory -t a3 -m tiel-coder-35b -H pi > traj.json
-eab trajectory -t a3 -m tiel-coder-35b -H pi -c improve > improve.json
-
-# what exists for this cell (all conditions/runs, newest last)
-eab trajectory -t a3 -m tiel-coder-35b -H pi --list
-
-# just the raw ATIF trajectory (no wrapper)
-eab trajectory -t a3 -m tiel-coder-35b -H pi -f atif > t.json
-# other single artifacts: -f result|reward|details|stdout|raw|session
-```
-
-`--task` accepts a unique prefix (`a3`). `--latest` (default) picks the newest
-run; `--all` emits a JSON array of every match.
-
-The **bundle** contains:
-
-| key | what |
-| --- | --- |
-| `run` | task, model, harness, condition, trial, stamp, times, exception |
-| `agent` | harness name/version, `model_name`, provider, **`params`** (agent kwargs / sampling), `env` (gateway base URL), mounted skills |
-| `condition` | condition semantics (mcp / skills / improvement + description) |
-| `environment` | mcp servers, skills/improvement mounted, agent timeout, task env vars |
-| `task` | id, name, description, **`instruction`** (the exact prompt) |
-| `metrics` | reward + component scores, input/output/cache tokens, cost |
-| `verifier` | `details.json` (observed patterns, best-available, gap reason) |
-| `trajectory` | the **ATIF v1.7** trajectory (`steps[]`, `final_metrics`) |
-
-Raw artifacts are also on disk under
-`runs/harbor/eab-<task>-<model>-<harness>-<cond>-<stamp>/<trial>/`:
-`agent/trajectory.json`, `agent/<harness>.txt`, `agent/<harness>/sessions/*.jsonl`,
-`verifier/*`, `result.json`.
-
-## 6. Query across cells (index)
-
-The filesystem is the source of truth; for cross-cell queries build the derived
-**JSONL** index (one object per trial) — rebuild it any time, it's not authoritative:
-
-```bash
-eab index                    # -> runs/index.jsonl
-eab index -f csv             # -> runs/index.csv (flattened, for spreadsheets)
-
-jq 'select(.condition=="improve") | {task,reward}' runs/index.jsonl
-jq -s 'group_by(.model) | map({model: .[0].model, mean: (map(.reward)|add/length)})' runs/index.jsonl
-```
-
-Each record: `task, model, harness, condition, stamp, trial, status
-(solved|partial|fail|timeout|error), reward, components{...}, tokens, cost_usd,
-steps, times, duration_sec` + paths (`run_dir`, `trajectory`, `reward_path`,
-`details_path`, `result_path`). JSONL keeps the nested `components` intact; use
-`-f csv` when you want a single flat table.
-
-

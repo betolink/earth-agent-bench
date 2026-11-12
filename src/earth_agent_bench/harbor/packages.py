@@ -14,7 +14,11 @@ from .config import (
     EVAL_SUITE,
     RUNTIME_DIR,
     agent_timeout_sec,
+    artifact_sources,
+    instruction_access_policy,
+    resources,
     skills_env_dir,
+    verifier_environment_mode,
     verifier_timeout_sec,
 )
 
@@ -62,28 +66,107 @@ def _describe(task_path: Path, is_eval: bool) -> str:
     return load_task(task_path).title
 
 
-def _render_task_toml(task_id: str, description: str, condition: str) -> str:
-    """Render the generated task.toml (timeouts, skills_dir, MCP, env)."""
+def _toml_value(value) -> str:
+    """Render a scalar or flat list as a TOML value."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(item) for item in value) + "]"
+    return json.dumps(str(value))
+
+
+def _render_table(name: str, fields: dict) -> list[str]:
+    """Render a TOML table, skipping None/empty values."""
+    rendered = [
+        f"{key} = {_toml_value(value)}"
+        for key, value in fields.items()
+        if value is not None and value != [] and value != ""
+    ]
+    if not rendered:
+        return []
+    return ["", f"[{name}]", *rendered]
+
+
+def _benchmark_metadata(task) -> dict:
+    """Flat interoperability metadata for a grounded benchmark task."""
+    preferred = [c for c in task.collections if c.tier == "preferred"] or list(task.collections)
+    labels = task.labels
+    return {
+        "suite": "benchmark",
+        "task_id": task.task_id,
+        "sphere": task.science_sphere,
+        "kind": task.access_requirement.kind,
+        "data_type": labels.data_type,
+        "processing_level": labels.processing_level,
+        "length_class": labels.length_class,
+        "infeasible": labels.infeasible,
+        "difficulty": labels.difficulty,
+        "access_pattern_gold": list(task.gold.primary_patterns),
+        "acceptable_patterns": list(task.gold.acceptable_patterns),
+        "collections": [c.short_name for c in preferred],
+        "concept_ids": [c.concept_id for c in preferred if c.concept_id],
+        "demo_days": (task.access_requirement.demo_scope.days
+                      if task.access_requirement.demo_scope else None),
+        "demo_granules": (task.access_requirement.demo_scope.granules
+                          if task.access_requirement.demo_scope else None),
+    }
+
+
+def _evaluation_metadata(gold) -> dict:
+    """Flat interoperability metadata for a correctness eval task."""
+    return {
+        "suite": "correctness",
+        "task_id": gold.task_id,
+        "answer_type": gold.answer_type,
+        "pinned": bool(gold.pinned),
+        "infeasible": False,
+    }
+
+
+def _render_task_toml(
+    task_id: str,
+    description: str,
+    condition: str,
+    metadata: dict,
+    keywords: list[str],
+    source: str,
+) -> str:
+    """Render the generated task.toml (task, metadata, artifacts, env wiring)."""
     lines = [
         'schema_version = "1.4"',
+        f"source = {_toml_value(source)}",
         "",
         "[task]",
         f'name = "earth-agent-bench/{task_id}"',
         'version = "1.0.0"',
         f"description = {json.dumps(description)}",
+        'authors = [{ name = "earth-agent-bench contributors" }]',
+        f"keywords = {_toml_value(keywords)}",
         "",
-        "[agent]",
-        f"timeout_sec = {agent_timeout_sec()}",
-        "",
-        "[verifier]",
-        f"timeout_sec = {verifier_timeout_sec()}",
-        "",
-        "[environment]",
-        'network_mode = "public"',
-        "build_timeout_sec = 1800.0",
+        "[metadata]",
     ]
-    if skills_mounted(condition):
-        lines.append(f'skills_dir = "{skills_env_dir()}"')
+    lines += [
+        f"{key} = {_toml_value(value)}"
+        for key, value in metadata.items()
+        if value is not None and value != []
+    ]
+    lines += _render_table("agent", {"timeout_sec": agent_timeout_sec()})
+    lines += _render_table("verifier", {
+        "timeout_sec": verifier_timeout_sec(),
+        "environment_mode": verifier_environment_mode(),
+    })
+
+    environment = {
+        "network_mode": "public",
+        "build_timeout_sec": 1800.0,
+        "cpus": resources().get("cpus"),
+        "memory_mb": resources().get("memory_mb"),
+        "storage_mb": resources().get("storage_mb"),
+        "skills_dir": skills_env_dir() if skills_mounted(condition) else None,
+    }
+    lines += _render_table("environment", environment)
 
     for name, url in ready_mcp_urls(mcp_servers_for(condition)).items():
         lines += [
@@ -94,13 +177,15 @@ def _render_task_toml(task_id: str, description: str, condition: str) -> str:
             f'url = "{url}"',
         ]
 
-    lines += [
-        "",
-        "[environment.env]",
-        'EARTHDATA_USERNAME = "${EARTHDATA_USERNAME:-}"',
-        'EARTHDATA_PASSWORD = "${EARTHDATA_PASSWORD:-}"',
-        'EARTHDATA_TOKEN = "${EARTHDATA_TOKEN:-}"',
-    ]
+    lines += _render_table("environment.env", {
+        "EARTHDATA_USERNAME": "${EARTHDATA_USERNAME:-}",
+        "EARTHDATA_PASSWORD": "${EARTHDATA_PASSWORD:-}",
+        "EARTHDATA_TOKEN": "${EARTHDATA_TOKEN:-}",
+    })
+
+    for artifact in artifact_sources():
+        lines += ["", "[[artifacts]]", f"source = {_toml_value(artifact)}"]
+
     return "\n".join(lines) + "\n"
 
 
@@ -168,16 +253,27 @@ def generate_package(
     if is_eval:
         instruction = render_eval_instruction(task_path)
         shutil.copy(RUNTIME_DIR / "verify_eval.py", tests / "verify.py")
-        (tests / "gold.json").write_text(find_gold(task_id).model_dump_json(indent=2))
+        gold = find_gold(task_id)
+        (tests / "gold.json").write_text(gold.model_dump_json(indent=2))
         _vendor_eval(tests)
+        metadata = _evaluation_metadata(gold)
+        keywords = ["earthdata", "correctness", "eval", str(gold.answer_type)]
+        source = f"experiments/evals/tasks/{task_path.name}"
     else:
-        instruction = render_instruction(load_task(task_path))
+        task = load_task(task_path)
+        instruction = render_instruction(task, access_policy=instruction_access_policy())
         shutil.copy(RUNTIME_DIR / "verify_benchmark.py", tests / "verify.py")
         shutil.copy(task_path, tests / "task.yaml")
         _vendor_benchmark(tests)
+        metadata = _benchmark_metadata(task)
+        keywords = ["earthdata", "access-pattern", task.science_sphere,
+                    task.access_requirement.kind]
+        source = f"benchmark/tasks/{task.task_id}.yaml"
 
     (package / "instruction.md").write_text(instruction.rstrip() + "\n")
     (package / "task.toml").write_text(
-        _render_task_toml(task_id, _describe(task_path, is_eval), condition)
+        _render_task_toml(
+            task_id, _describe(task_path, is_eval), condition, metadata, keywords, source
+        )
     )
     return package

@@ -1,16 +1,12 @@
 # Quickstart: test the waters, then scale up
 
 This is the operational runbook: prerequisites → one trial run → the four
-knowledge conditions → scaling to the pilot. Two execution paths exist:
-
-- **Direct** (`eab run`) — builds a workspace and launches a harness on your host.
-  Fastest way to test the waters; no Harbor required.
-- **Harbor** (`eab harbor`) — generates Harbor task packages (isolated agent
-  environment + verifier) and invokes the `harbor` CLI. This is the path that
-  scales to the pilot/full matrices.
+knowledge conditions → scaling to the pilot. **Harbor is the only execution
+path**: `eab harbor` generates Harbor task packages (isolated agent environment +
+verifier) and invokes the `harbor` CLI.
 
 Task ids accept aliases everywhere: `cryo-1`, `atmo-2`, `solid-3`, `o1`, `l1`
-(or full ids, or `pilot` / `all` for whole suites).
+(or full ids, or `all` for the whole suite).
 
 ---
 
@@ -72,57 +68,43 @@ key may read LiteLLM **spend/logs**.
    JobConfig and calls `harbor run` (agent/model/endpoint config lives in
    `harbor/harbor.yaml`).
 
-## 2. Quick trial — direct path (one task · one model · one condition)
+## 2. Quick trial — one task · one model · one condition
 
 ```bash
-uv run eab run benchmark/tasks/cryosphere/c1-itslive-jakobshavn-2015-2024.yaml \
-    --model tiel-coder-35b --harness opencode --condition mcp-skills --dry-run
-```
-
-Remove `--dry-run` to launch: the runner creates
-`runs/<task>/<model>/<harness>/<condition>/trial-1/` containing the rendered
-instruction (gold standard hidden), AGENTS.md with an output contract, harness
-MCP/model config, a `manifest.json`, and an `observation.template.json`.
-The agent must write artifacts to `./output/` and an
-`./output/access_summary.json`.
-
-After the run, fill `observation.json` from what the agent *did* (never what it
-claims), then score:
-
-```bash
-cp runs/.../observation.template.json runs/.../observation.json   # edit
-uv run eab score runs/.../observation.json
-```
-
-`observed_patterns` codes: `C1` virtualization · `C2` native zarr · `C3` COG ·
-`S1` Harmony · `S2`/`S3` OPeNDAP/DMR++ · `S4` AppEEARS · `S5` Giovanni ·
-`F1`–`F4` filtered download · `M1`/`M2` full download.
-
-## 3. Quick trial — Harbor path (isolated + auto-scored)
-
-```bash
-uv run eab harbor run cryo-1 --model tiel-coder-35b --harness opencode --dry-run
+uv run eab harbor run cryo-1 --model tiel-coder-35b --harness opencode \
+    --condition mcp-skills --dry-run
 # drop --dry-run to run; add --job-name NAME --force for a stable, overwritable job dir
 ```
+
+## 3. What the run produces
 
 The generated package (see `harbor/README.md`) contains the agent environment
 Dockerfile (earthaccess fork + scientific stack baked in; secrets injected at
 runtime via env templates), condition wiring in `task.toml` (MCP servers,
 skills), and a deterministic verifier that:
 
-- runs in the agent environment (shared) and grades **observed behavior**:
-  `eab_instrument` logs the agent's real `earthaccess` / `harmony` / `pydap` /
-  `s3fs` / `virtualizarr` calls to `/logs/agent/access_events.jsonl`, and the
-  verifier derives patterns/services/representation/validation from them
-  (falling back to `output/access_summary.json`);
-- writes component scores to `/logs/verifier/reward.json` (numeric) and
-  diagnostics to `details.json`;
+- runs in a **separate verifier container** and grades **observed behavior**:
+  it re-runs `access.py` with `eab_instrument` writing a verifier-owned log to
+  `/logs/verifier/access_events.jsonl` (falling back to the agent's instrumented
+  events under `/logs/agent`), and derives patterns/services/representation/
+  validation from them. The agent's `access_summary.json` is never scored;
+- writes `pass` (all-or-nothing headline) and `score` (weighted) to
+  `/logs/verifier/reward.json`, plus diagnostics to `details.json`;
 - for the 10 eval tasks, grades `output/answer.txt` with the deterministic
   `earth_agent_bench.evals.grade`.
 
 `eab harbor run` writes a JobConfig per run and invokes
 `harbor run --config <task>/job.yaml --jobs-dir runs/harbor --yes`; results land
 in `runs/harbor/<job_name>/`.
+
+Watch runs live in Harbor's bundled web viewer:
+
+```bash
+eab view          # http://127.0.0.1:8080/ over runs/harbor
+```
+
+Pick models in `experiments/models.yaml` (the roster) and
+`experiments/run.yaml` (the selection); `eab models list` shows both sides.
 
 ## 4. Running the four knowledge conditions
 
@@ -144,30 +126,32 @@ is pending — until it ships, MCP conditions test discovery-level knowledge onl
 
 - [ ] EDL auth works (`earthaccess.login()` prints `Authenticated: True`)
 - [ ] `eab validate` passes; `eab matrix <short_name>` matches reality
-- [ ] a gateway model completes a task end-to-end in a harness (`eab run`)
-- [ ] the artifact passes the task's minimal science gate
-- [ ] an observation scores, and the pattern recorded matches the trajectory
+- [ ] a gateway model completes a task end-to-end (`eab harbor run …`)
+- [ ] the verifier re-ran the deliverable and observed real access events
+- [ ] `pass`/`score` and the observed pattern match the trajectory
 - [ ] the same task runs under baseline and one MCP/skills condition with only
       that variable changed
-- [ ] (Harbor path) `eab harbor run cryo-1 ... --dry-run` prints a command your
-      installed `harbor` CLI accepts — fix the template in `harbor/harbor.yaml`
+- [ ] `eab harbor run cryo-1 … --dry-run` prints a command your installed
+      `harbor` CLI accepts — adjust the agent mapping in `harbor/harbor.yaml`
       if flags differ
 
-## 6. Scaling up: screen, then the full sweep
+## 6. Scaling up: screen, then the full matrix
 
-Both paths loop naturally once a single run works:
+Once one run works, loop over the matrix (`experiments/run.yaml`: models ×
+harnesses × conditions × tasks):
 
 ```bash
-# direct: repeat eab run per matrix cell
-# harbor: run one benchmark task
-uv run eab harbor run a1-tempo-no2-florida-2024 --model tiel-coder-35b --harness opencode --condition mcp-skills
+uv run eab harbor run --models tiel-coder-35b --harnesses opencode --conditions mcp-skills
 ```
 
-The run matrix lives in `experiments/run.yaml` (models × harnesses × conditions
-× tasks), driven by `eab run --name <experiment>`. **Screen candidate models
-first** on `experiments/evals/tasks` (cheap correctness), then run the full sweep
-on `benchmark/tasks` — see `benchmark/tasks/README.md`. (The old `pilot.yaml` /
-`full.yaml` matrices are archived under `experiments/archive/`.)
+**Screen candidate models first** on `experiments/evals/tasks` (cheap
+correctness), then run the full matrix on `benchmark/tasks` — see
+`benchmark/tasks/README.md`. To publish the suite as a Harbor dataset:
+
+```bash
+uv run eab harbor dataset all
+harbor datasets download eab/earth-agent-bench
+```
 
 ## 7. What exists vs. what is missing
 
@@ -176,25 +160,25 @@ Authoritative backlog with acceptance criteria per gap: **`docs/gaps.md`**.
 **Exists now:** 18 validated tasks + gold standards · 10 eval tasks +
 deterministic grader (`eab eval`) · EDVS parquet oracle + curated service
 catalog + live CMR discovery · scoring CLI + schemas (incl. `RunManifest`) ·
-experiment matrices · 5 skills · MCP wiring (cmr-mcp live) · direct single-run
-runner (`eab run`) · Harbor package generation + JobConfig + instrumented
-auto-scoring verifier (`eab harbor`) · this runbook.
+experiment matrices · 5 skills · MCP wiring (cmr-mcp live) · Harbor package
+generation + JobConfig + isolated instrumented verifier + digest-pinned dataset
+(`eab harbor`) · this runbook.
 
 **Missing before the full run (in priority order):**
 
-1. **Harbor pinning** — adopted and validated; record `harbor --version` in
-   `experiments/harnesses.yaml` and pin the earthaccess fork commit
-   (`harbor/runtime/agent-requirements.txt`).
+1. **Harness pins** — record `harbor --version` and each harness version in
+   `experiments/harnesses.yaml`. The earthaccess fork and agent stack are
+   already pinned in `src/earth_agent_bench/harbor/runtime/agent-requirements.txt`.
 2. **Access instrumentation fidelity** — observed calls are instrumented
-   (`eab_instrument`); remaining: measure `bytes_read` (still self-reported) and
-   disambiguate `earthaccess.open` (cloud C1 vs OPeNDAP S2).
+   (`eab_instrument`); remaining: real `bytes_read` (not self-reported) and
+   disambiguating `earthaccess.open` (cloud C1 vs OPeNDAP S2).
 3. **Minimal-science-gate depth** — programmatic artifact checks per task
-   (variable/extent/units/aggregation), not just artifact presence.
-4. **Reference solutions** — expert workflows per task (`solution/` is a
-   placeholder) to validate gold standards before the experiment.
+   (variable/extent/units/aggregation), not just real-access presence.
+4. **Reference solutions** — expert workflows (`solution/reference_workflow.py`)
+   to validate gold standards before the experiment.
 5. **earthaccess-mcp endpoint** — pending; until then MCP conditions are
    discovery-level only.
 6. **Final skills** — current skills are scaffolds; the full set arrives with
    the earthaccess MCP work.
-7. **Batch orchestration + statistics** — walk the pilot/full matrices, collect
-   `RunManifest`s, produce the condition/tier result tables.
+7. **Batch resume + statistics** — the matrix runs today, but restart/resume,
+   `RunManifest` rollups, and the condition/tier result tables are still to do.

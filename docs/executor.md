@@ -50,9 +50,9 @@ Never grade efficiency from the instrumented run.
 
 ## Scope
 
-Applies where the deliverable is **Python code** (SCI, EAB eval, cobol-style
-tasks). SWE (repo patch) and Terminal (CLI/DB state) have their own graders and
-different failure surfaces.
+Applies where the deliverable is **Python code** — the benchmark's `access.py`
+and the correctness evals. It is available by hand today; no task verifier calls
+it yet (see [gaps](gaps.md) §15).
 
 The profilers ship in the task image (`runtime/agent-requirements.txt`:
 `scalene`, `memray`).

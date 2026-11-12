@@ -50,11 +50,21 @@ def _demo_scope_text(req) -> str:
     return ", ".join(parts) or "the smallest slice that shows the route"
 
 
-def render_instruction(task: Task) -> str:
+ACCESS_POLICY = (
+    "**Access policy.** Reach the data over HTTPS through `earthaccess` — "
+    "virtualization, Harmony, OPeNDAP, or a filtered download. Do not query CMR "
+    "directly or fetch raw URLs; downloading whole collections is the last resort."
+)
+
+
+def render_instruction(task: Task, access_policy: bool = True) -> str:
     """Render the agent-facing instruction.
 
     The goal is the access **code** (``access.py``), not the science: run it once
     on a small slice to prove the route. ``kind: daily`` produces the real result.
+
+    ``access_policy`` states the route constraints the verifier enforces (a raw
+    CMR query halves the score), so the instruction and the grader agree.
     """
     req = task.access_requirement
     bbox = req.spatial_extent.coordinates
@@ -109,5 +119,6 @@ def render_instruction(task: Task) -> str:
         "",
         slice_line,
         "",
+        *(([ACCESS_POLICY, ""]) if access_policy else []),
         "**Skills.** If your environment provides skills, read the relevant ones first.",
     ])

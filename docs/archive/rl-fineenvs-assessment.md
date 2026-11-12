@@ -91,7 +91,7 @@ Verified: `rg` for `openenv|trl|grpo|vllm|logprob|loss_mask|training_trace` over
 
 ## How it composes with EAB
 
-EAB's `conditions` experiment (`baseline` / `improve` / `mcp` / `skills`) is a
+EAB's `conditions` experiment (`baseline` / `mcp` / `skills` / `mcp-skills`) is a
 **knowledge-intervention** axis; FineEnvs is a **policy-training** axis. They are
 complementary, not competing:
 

@@ -100,6 +100,21 @@ class GoldStandard(BaseModel):
     reasoning: str = ""
 
 
+class TaskLabels(BaseModel):
+    """Optional interoperability labels (Harbor dataset metadata).
+
+    Everything here is optional so existing task YAMLs remain valid; the
+    generator derives ``science_sphere`` / ``kind`` / gold patterns on its own.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    data_type: Optional[str] = None          # gridded | point | swath | vector
+    processing_level: Optional[str] = None   # L2 | L3 | L4
+    length_class: Optional[str] = None       # short | long
+    infeasible: bool = False
+    difficulty: Optional[str] = None
+
+
 class Task(BaseModel):
     """A grounded benchmark task definition."""
     model_config = ConfigDict(extra="forbid")
@@ -114,6 +129,7 @@ class Task(BaseModel):
     efficiency_envelopes: dict[str, Envelope] = Field(default_factory=dict)
     validation: ValidationSpec = Field(default_factory=ValidationSpec)
     gold: GoldStandard
+    labels: TaskLabels = Field(default_factory=TaskLabels)
     notes: list[str] = Field(default_factory=list)
 
 
@@ -157,7 +173,7 @@ class VerifierResult(BaseModel):
 
     ``collection_selection`` is intentionally absent: the task hands the agent the
     exact dataset(s), so collection choice is not scored (see
-    docs/reports/collection-verification.md).
+    docs/archive/reports/collection-verification.md).
     """
     reward: float
     service_discovery: float

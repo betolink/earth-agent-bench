@@ -1,3 +1,13 @@
+# Master model roster. Add/remove models HERE, then select which of them to
+# benchmark in experiments/run.yaml (or with `--models` / EAB_MODELS).
+#
+#   eab models list          # roster + which are selected in run.yaml
+#   eab models discover      # gateway model names (what is actually served)
+#   eab models reconcile     # roster -> gateway name check
+#
+# `tier` is local | frontier_open | closed_reference; `litellm_model` is the
+# name your gateway serves. Local models are namespaced `local/...`.
+
 version: 1
 
 gateway:

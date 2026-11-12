@@ -65,11 +65,33 @@ agent_kwargs:
 # Where Harbor copies injected skills inside the environment (absolute path).
 skills_dir: /harbor/skills
 
-# Per-cell budgets baked into generated task.toml files. The agent gets up to
-# 10 minutes; the loop watchdog ends a trial earlier only on a detected loop or a
-# >3-minute stall (see scripts/loop_watchdog.py).
+# Per-cell budgets baked into generated task.toml files.
 agent_timeout_sec: 720.0
 verifier_timeout_sec: 600.0
+
+# State the access-policy rules the verifier enforces (raw CMR halves the score)
+# in the agent-facing instruction, so instruction and grader agree.
+instruction_access_policy: true
+
+# The verifier runs in its own container ("separate") so the agent never shares
+# a filesystem with the answer key. Declared artifacts bridge the two.
+verifier_environment_mode: separate
+
+# Container resource caps. Earthdata tasks can pull meaningful volumes, so the
+# defaults are deliberately generous but bounded.
+resources:
+  cpus: 2
+  memory_mb: 8192
+  storage_mb: 20480
+
+# Paths collected after the agent phase. They land on disk under the trial's
+# artifacts/ dir and are re-materialized at the same paths in the verifier
+# container, so verification is reproducible from the artifacts alone.
+artifacts:
+  - /app/output
+  - /app/work
+  - /app/access.py
+  - /logs/agent
 
 note: >
   The `agents` map is 1:1 with Harbor's built-in adapters. `codex-cli` is the

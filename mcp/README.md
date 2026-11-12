@@ -2,6 +2,10 @@
 
 Machine-readable server manifest: `mcp/manifest.yaml`.
 
+`eab harbor generate`/`run` reads the manifest and declares every **ready**
+server in the generated `task.toml` (`[[environment.mcp_servers]]`) for the
+`mcp` and `mcp-skills` conditions — you do not wire endpoints per run.
+
 | Server | Endpoint | Status |
 |---|---|---|
 | `cmr-mcp` | `https://cmr.earthdata.nasa.gov/mcp/v1` | ready (public, no auth) |

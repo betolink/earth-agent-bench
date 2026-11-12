@@ -2,192 +2,160 @@
 
 Access-pattern selection benchmark for AI agents working with NASA Earthdata.
 
-> **Given a NASA Earthdata collection (with its CMR `concept_id`) and a bounded scientific access requirement, did the agent select and execute the best available access pattern — and could it justify why?**
+> **Given a NASA Earthdata collection (with its CMR `concept_id`) and a bounded
+> access requirement, did the agent select and execute the best access route —
+> and could it justify why?**
 
-The benchmark does not score "amazing science", and it does **not** test
-collection *discovery*: that is handled by the project's **semantic discovery**
-part, which this benchmark does not cover. Each task names the exact dataset(s)
-it must use. Each task wraps a thin, discipline-representative computation
-(right variable, extent, units, trivial aggregation) around the real evaluation
-surface: **access-pattern selection**, service discovery, representation, and
-efficiency.
+EAB does **not** score scientific novelty, and it does **not** test collection
+discovery (that belongs to the project's semantic-discovery work). Each task
+names the dataset it must use and wraps a thin, representative computation
+around the real evaluation surface: **access-pattern selection**, service
+discovery, representation, and efficiency.
 
-## Key concepts
+## What it measures
 
-- **Access-pattern preference** (`C1`…`M2`): **data virtualization first**
-  (`C1` virtual zarr, `C2` native zarr, `C3` COG), then **Harmony** (`S1`), then
-  **OPeNDAP** (`S3` DMR++ / `S2`), then **HTTP subsetting/aggregation** (`T*`,
-  `F*`), and **full download last** (`M1`/`M2`). AppEEARS (`S4`) and Giovanni
-  (`S5`) are not ranked as "good" patterns.
-- **Out-of-region**: direct S3 / cloud-native *storage* is unavailable here, so
-  access goes over **HTTPS** (virtualization, Harmony, OPeNDAP, or filtered
-  download).
-- **Oracles**: an EDVS parquet file decides virtualization (`C1`) availability;
-  live CMR (`has_transforms`, RelatedUrls) decides Harmony (`S1`) and OPeNDAP
-  (`S2`/`S3`); a curated YAML catalog covers the rest.
-- **18 grounded tasks** across atmosphere, cryosphere, biosphere, ocean, solid
-  earth, and land surface — real collections, regions, and event windows, each
-  with a resolved `concept_id`.
+Access patterns are ranked **data virtualization first**, then streaming, then
+server-side subsetting, then download:
 
-## Documentation
+`C1` virtual zarr · `C2` native zarr · `C3` COG · `S1` Harmony · `S2`/`S3`
+OPeNDAP/DMR++ · `F*` filtered download · `M1`/`M2` full download
+(AppEEARS/Giovanni are not ranked as "good" routes).
 
-- **[Quickstart](docs/quickstart.md)** — install, the environment contract
-  (`EARTHDATA_TOKEN`, `LITE_LLM_ENDPOINT`, `LITE_LLM_API_KEY`), and `eab doctor`.
-- **[Adding tasks](docs/adding-tasks.md)** — task YAML structure, the out-of-region
-  rule, how grounded tasks are graded, and a checklist.
-- **[Running & the dashboard](docs/running.md)** — single cells, the full sweep
-  driver, `eab dashboard`, the loop/stall watchdog, and what to expect.
-- **[Executor & profiler](docs/executor.md)** — `eab exec` (`ok|error|timeout|oom`
-  + scalene/memray) for code deliverables.
-- **[Tasks & evals](docs/tasks-and-evals.md)** — full task suite + evaluation spec.
-- **[Reports](docs/reports/)** — grounded-sweep observations and collection
-  verification (what to improve next).
-- **[FineEnvs RL assessment](docs/rl-fineenvs-assessment.md)** — gap to the
-  multi-harness RL recipe (future track).
-- **[Consolidated plan](docs/archive/consolidated-plan.md)** · **[Gaps](docs/gaps.md)**.
+The benchmark runs outside AWS, so direct S3 is unavailable: tasks are won over
+**HTTPS**. An EDVS parquet oracle decides virtualization availability; live CMR
+decides Harmony/OPeNDAP; a curated catalog covers the rest.
 
-## Setup
+## Quickstart
 
 ```bash
 uv sync
-uv run python scripts/build_virtualizability_parquet.py   # fetch EDVS CSV -> parquet
+uv run python scripts/build_virtualizability_parquet.py
+
+export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://... LITE_LLM_API_KEY=...
+uv run eab doctor                                   # validate the contract
+uv run eab validate                                 # 18 task YAMLs
+uv run eab harbor run cryo-1 --model deepseek-flash-4.1 --harness opencode
 ```
 
-## Usage
+Harbor is the **only** execution path: `eab harbor run` generates a standard
+Harbor task package, writes a JobConfig, and invokes the `harbor` CLI. Add
+`--dry-run` to print the command without running.
+
+## Choose models (master config)
+
+Two files, by design:
+
+| File | Question | Edit it to… |
+|---|---|---|
+| `experiments/models.yaml` | **who exists** | add/remove models (`tier`, `litellm_model`, context…) |
+| `experiments/run.yaml` | **which to benchmark** | pick roster ids, harnesses, conditions, tasks |
 
 ```bash
-# the only env you need to run EAB (see docs/quickstart.md#environment-contract)
-export EARTHDATA_TOKEN=... LITE_LLM_ENDPOINT=https://... LITE_LLM_API_KEY=...
-uv run eab doctor                            # validate the contract + probe the gateway
-uv run eab config                            # preview the run matrix: models × harnesses × conditions
-uv run eab trajectory -t a3 -m tiel-coder-35b -H pi   # dump a cell's trajectory + metadata
-uv run eab index                             # build runs/index.jsonl (per-trial metadata)
-uv run eab dashboard                         # live TUI (runs · live agent · current task; Ctrl+L logs)
-uv run eab archive                           # shelve the active run -> runs/archive/<name>
-
-# full sweep, named (the name is the run identity for dashboard/manifest/archive)
-EAB_MODELS=tiel-coder-35b EAB_HARNESSES=pi uv run eab run --name experiment-1
-
-uv run eab validate                          # validate all 18 task YAMLs
-uv run eab matrix TEMPO_NO2_L3               # service availability matrix
-uv run eab matrix MUR-JPL-L4-GLOB-v4.1 --cmr # merge live CMR service discovery
-uv run eab collections --grade B            # list EDVS grade-B collections
-uv run eab instruction benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml
-uv run eab score observation.json            # score a run observation
-
-# single-run trial (direct, no Harbor)
-uv run eab run benchmark/tasks/cryosphere/c1-itslive-jakobshavn-2015-2024.yaml \
-    --model tiel-coder-35b --harness opencode --condition mcp-skills --dry-run
-
-# Harbor path: generate task.toml packages + JobConfig, then run (isolated, auto-scored)
-uv run eab harbor generate cryo-1,atmo-2 --condition mcp-skills
-uv run eab harbor run cryo-1 --model tiel-coder-35b --harness opencode --dry-run
-
-# grade/profile a code deliverable (explicit ok|error|timeout|oom)
-uv run eab exec /app/program.py --timeout 60 --mem-mb 512 --profile scalene
-
-# per-model self-improvement: digest failures -> improvements/<model>/.../SKILL.md
-uv run eab postmortem tiel-coder-35b
-
-# correctness eval suite (single clean value per task)
-uv run eab eval grade 01_hls_open_vs_download runs/.../output/answer.txt
-uv run eab eval report runs/eval-results
+eab models list          # roster + served name + whether run.yaml selects it
+eab models discover      # what the gateway actually serves
+eab harbor run           # run the run.yaml selection
+eab harbor run --models tiel-coder-35b,ornith-1.5-9b --harnesses pi,opencode
+eab harbor run all --conditions baseline --dry-run
 ```
 
-Example run observation for `eab score`:
+`eab harbor run` expands the task × model × harness × condition matrix, applies
+the `harnesses.yaml` crossing restrictions, and reports skipped cells. Env vars
+(`EAB_MODELS`, `EAB_HARNESSES`, `EAB_CONDITIONS`, `EAB_TASKS`) override
+`run.yaml`; flags override both.
 
-```json
-{
-  "task_id": "atmosphere/a1-tempo-no2-florida-2024",
-  "observed_patterns": ["S1"],
-  "collection_short_names": ["TEMPO_NO2_L3"],
-  "discovered_services": ["S1", "S2", "S3"],
-  "representation": "lazy",
-  "validation_passed": true,
-  "metrics": {"bytes_read": 45000000, "objects_read": 12, "runtime_seconds": 180}
-}
+## Inspect runs
+
+Harbor ships a local web viewer (bundled UI) for current and previous runs —
+trajectories, tool calls, rewards, verifier logs, and cross-run comparison:
+
+```bash
+eab view                 # http://127.0.0.1:8080/ over runs/harbor
+eab view runs/archive    # archived runs
+eab view --host 0.0.0.0  # reachable remotely
 ```
 
-Scoring weights (collection choice is **not** scored — the dataset is given):
-**access pattern 45%** · service discovery 15% · representation 15% ·
-efficiency 15% · validation gate 10%.
+For tables and trace review:
 
-## Skills, MCP, and running a trial
+```bash
+eab index                    # runs/index.jsonl (one record per trial)
+eab report --model <id>      # per-model reward + token table
+eab trajectory -t a3 -m <id> -H pi
+eab analyze --model <id> --harness pi   # judge-model postmortem over traces
+eab archive                  # shelve the newest jobs under runs/archive/
+```
 
-- `skills/` — 5 Earthdata skills (core: `data-access-patterns`; plus
-  `data-virtualization`, `earthdata-streaming-vs-download`, `xarray`,
-  `dask-optimization`) mounted in the skills/mcp-skills conditions
-- `improvements/` — per-model self-improvement skills, mounted only by the
-  `improve` condition; generated with `eab postmortem`
-- `mcp/` — MCP server manifest and per-harness wiring; **cmr-mcp is live** at
-  `https://cmr.earthdata.nasa.gov/mcp/v1`, earthaccess-mcp pending
-- **`eab dashboard`** — live TUI: run matrix, current agent stream, active task
-  (see [running](docs/running.md))
-- `docs/quickstart.md` — the runbook: EDL account, gateway setup, a manual quick
-  trial, the knowledge conditions, and the pilot scale-up path
+## Grading
 
-## Experiment configuration
+Benchmark tasks emit two numbers:
 
-Run matrices and roster live in `experiments/`:
+- **`pass`** (headline, all-or-nothing): the verifier re-ran the deliverable in
+  its own container, the code used a sanctioned path, the dominant observed
+  pattern is best/acceptable, and real instrumented access occurred.
+- **`score`** (weighted): access pattern **45%** · service discovery 15% ·
+  representation 15% · efficiency 15% · validation gate 10%. Collection choice
+  is not scored — the dataset is given.
 
-- **7 local + 2 frontier-open + 2 closed-reference models** (see
-  `experiments/models.yaml`), all served by one LiteLLM gateway
-  (`litellm.example.yaml`)
-- **4 harnesses** — pi, opencode, codex cli (crossed with all models) and claude code
-- **5 knowledge conditions** — baseline / mcp / skills / mcp-skills / **improve**
-  (skills + mcp + a model-specific skill generated from its failure postmortem)
+The agent's self-reported summary is never scored; only instrumented access
+events count. Correctness evals are deterministic 0/1 typed-equality.
 
-Open and economical models are the headline: the price-tier and knowledge×tier research
-questions are specified in `docs/tasks-and-evals.md` §10. Every run records a
-`RunManifest` (tokens, cost, tokens/s, quantization) to power the cost tables.
+## Tasks and layout
+
+- **18 grounded tasks** (`benchmark/tasks/`) across atmosphere, cryosphere,
+  biosphere, ocean, solid-earth, and land-surface — real collections, regions,
+  event windows, resolved `concept_id`s.
+- **10 correctness evals** (`experiments/evals/`) — cheap single-value screen.
+- **Scope: NASA Earthdata only.** There is no general coding/reasoning/SWE/
+  Terminal task set in this repo; general capability is out of scope.
+- **Layout: default Harbor.** Every task is a standard Harbor package
+  (`instruction.md`, `task.toml` schema 1.4, `environment/Dockerfile`,
+  `solution/solve.sh`, `tests/test.sh`), extended with `[metadata]` labels,
+  `[[artifacts]]`, resource caps, and `[verifier] environment_mode = "separate"`.
+  See [harbor/README.md](harbor/README.md).
+
+The suite is publishable as a digest-pinned Harbor dataset:
+
+```bash
+eab harbor dataset all
+harbor datasets download eab/earth-agent-bench
+```
+
+## Documentation
+
+- [docs/](docs/README.md) — index of all current docs
+- [Quickstart](docs/quickstart.md) · [Running & observing](docs/running.md) ·
+  [Adding tasks](docs/adding-tasks.md) (both suites) · [Tasks & evals](docs/tasks-and-evals.md)
+- [Harbor packaging](harbor/README.md) · [Executor](docs/executor.md) ·
+  [Gaps](docs/gaps.md)
+- Historical plans and reports: [docs/archive/](docs/archive/)
 
 ## Repository layout
 
 ```
-benchmark/tasks/     18 grounded task definitions (YAML, schema-validated)
+benchmark/tasks/     18 grounded task YAMLs (schema-validated)
 benchmark/oracles/   curated service catalog
 benchmark/data/      virtualizability.parquet (EDVS oracle)
-experiments/         roster, conditions, harnesses, run matrices, eval suite
-skills/ improvements/ knowledge skills + per-model self-improvement skills
+experiments/         models.yaml (roster) · run.yaml (selection) · evals/
+skills/              5 Earthdata knowledge skills
+harbor/              harbor.yaml · dataset.toml · metric.py · generated/
 src/earth_agent_bench/
-  patterns.py        pattern registry + selection ladder
-  schemas.py         pydantic task/result models
-  tasks.py           task loading + instruction rendering (dataset + concept_id)
-  runconfig.py       run config + manifests (models/harnesses/conditions/tasks)
-  runs.py            run-dir parsing (parse_job_dir) + read_json
-  trajectory.py      per-cell trajectory + metadata resolver (eab trajectory)
-  index.py           rebuildable per-trial JSONL index (eab index)
-  archive.py         shelve a run (eab archive)
-  report.py          per-model reward + token aggregation (eab report)
-  evals.py           deterministic correctness grader (10 eval tasks)
-  models.py          LiteLLM roster helpers (discover / reconcile)
-  mcp.py             MCP server manifest probe (eab mcp)
-  wiring.py          shared gateway / condition / MCP / skills wiring
-  runner.py          single-run orchestrator (eab run <task>)
-  sweep.py           cartesian sweep (eab sweep)
-  postmortem.py      per-model self-improvement skill generator (eab postmortem)
-  dashboard.py       live TUI (Textual): eab dashboard
-  harbor/            real Harbor integration (packages, JobConfig, runtime/)
-    runtime/         verifiers + executor (ok|error|timeout|oom) + profiler
-  oracles/           virtualizability (parquet), services, CMR, matrix
-  scoring/           access-pattern, efficiency, discovery, aggregate
-scripts/             EDVS build, sweep driver, loop watchdog, concept-id resolver
-tests/               unit tests
+  tasks.py           task loading + instruction rendering
+  scoring/           access-pattern, discovery, representation, efficiency
+  evals.py           deterministic correctness grader
+  harbor/            packages · matrix · dataset · runtime verifiers/executor
+  oracles/           virtualizability, services, CMR, matrix
+  index/trajectory/report/archive/analyze   run inspection
+scripts/             EDVS build, concept-id resolver, collection verification
+tests/               unit + Harbor conformance tests
 ```
 
 ## Status (0.1.0)
 
-Working: the grounded task suite (dataset given + `concept_id`), oracles,
-scoring, CLI, skills, MCP wiring, the full sweep driver (`eab run --name`) and
-single run, the correctness eval suite (`eab eval`), real Harbor integration
-(`eab harbor`), the code executor + profiler (`eab exec`), the per-model
-self-improvement loop (`eab postmortem` + `improve`), run naming/manifests +
-pause/resume + archive (`eab archive`), trajectory/index inspection
-(`eab trajectory`, `eab index`), and the live dashboard (`eab dashboard`).
+Working: the grounded suite + oracles + scoring, Harbor as the single runner
+(packages, matrix, isolated verifier with artifacts, digest-pinned dataset),
+model roster/selection, the web viewer and run-inspection tools, the correctness
+evals, and the code executor.
 
-EAB is **self-contained** — no hard-coded hosts/paths; run it with
-`EARTHDATA_TOKEN`, `LITE_LLM_ENDPOINT`, `LITE_LLM_API_KEY` (`eab doctor`
-validates). Remaining gaps: harbor/earthaccess version pinning, a reliable
-Harmony/OPeNDAP probe, byte-level instrumentation, reference solutions,
-earthaccess-mcp, and batch orchestration — see `docs/gaps.md`,
-`docs/reports/collection-verification.md` and `docs/quickstart.md`.
+EAB is self-contained — no hard-coded hosts/paths; set `EARTHDATA_TOKEN`,
+`LITE_LLM_ENDPOINT`, `LITE_LLM_API_KEY` and run `eab doctor`. Remaining work:
+reference solutions, byte-level instrumentation, earthaccess-mcp, sealed/offline
+mode, infeasible-task variants, batch resume — see [gaps](docs/gaps.md).
