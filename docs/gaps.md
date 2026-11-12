@@ -221,7 +221,7 @@ Legend: **P0** blocks the pilot · **P1** blocks credible full-run results ·
 ### 19. Long-horizon tasks
 - **What/why:** long tasks are where agents fail (Axis). EAB's demo-scope design
   intentionally shortens tasks ("show the route, don't run the study").
-- **Plan:** a separate `benchmark/tasks-long/` suite with a 2-hour budget.
+- **Plan:** a separate `benchmark/tasks/long-horizon/` suite with a 2-hour budget.
 - **Acceptance:** a parallel suite that does not complicate the pilot matrix.
 
 ## Map of scattered markers → this list

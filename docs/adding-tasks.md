@@ -4,12 +4,12 @@ EAB has two gradable suites. Put a task in the right one:
 
 | suite | where | graded on |
 |---|---|---|
-| **grounded** (access-pattern selection) | `benchmark/tasks/<sphere>/<id>.yaml` | the access pattern/service/representation you actually used (dominant), with a thin output-validation gate |
-| **correctness eval** (single value) | `experiments/evals/tasks/<id>.md` + `experiments/evals/suite.yaml` | typed-equality on the one value written to `output/answer.txt` |
+| **grounded** (access-pattern selection) | `benchmark/tasks/access-pattern/<sphere>/<id>.yaml` | the access pattern/service/representation you actually used (dominant), with a thin output-validation gate |
+| **correctness eval** (single value) | `benchmark/tasks/correctness/<id>.md` + `benchmark/tasks/correctness/suite.yaml` | typed-equality on the one value written to `output/answer.txt` |
 
 Sections 1–4 below cover **grounded** tasks (the main study). Section 5 covers
 **correctness eval** tasks (the cheap screen); the full eval detail is in
-[`experiments/evals/README.md`](../experiments/evals/README.md) and the scoring
+[`benchmark/tasks/correctness/README.md`](../benchmark/tasks/correctness/README.md) and the scoring
 contract in [tasks-and-evals](tasks-and-evals.md).
 
 ## 1. Instruction (what the agent sees)
@@ -135,7 +135,7 @@ raw CMR), land on a best/acceptable pattern, and produce real access events.
 
 ## 4. Checklist to add a grounded task
 
-1. Create `benchmark/tasks/<sphere>/<id>.yaml` using the shape above.
+1. Create `benchmark/tasks/access-pattern/<sphere>/<id>.yaml` using the shape above.
 2. Choose the collection(s) and set `tier` + per-service `available` (no `C1`).
 3. Set `pattern_tiers` and `gold` (best first; HTTPS only).
 4. Fill `validation` (units, aggregation, checks) and optional `labels`.
@@ -155,7 +155,7 @@ collection before CMR verification (see `benchmark/oracles/`).
 A correctness task is two files and is graded by deterministic typed equality
 (never an LLM):
 
-1. **Instruction** — add `experiments/evals/tasks/NN_short_name.md` ending with
+1. **Instruction** — add `benchmark/tasks/correctness/NN_short_name.md` ending with
    the single-value contract:
 
    ```
@@ -168,7 +168,7 @@ A correctness task is two files and is graded by deterministic typed equality
    (stripped before the agent sees it). Allow metadata search; forbid science
    data I/O for pure decisions.
 
-2. **Gold** — add one entry to `experiments/evals/suite.yaml`:
+2. **Gold** — add one entry to `benchmark/tasks/correctness/suite.yaml`:
 
    ```yaml
    - task_id: 11_modis_resolution

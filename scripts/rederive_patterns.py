@@ -35,7 +35,7 @@ from earth_agent_bench.oracles.cmr import (  # noqa: E402
 from earth_agent_bench.oracles.virtualizability import VirtualizabilityOracle  # noqa: E402
 from earth_agent_bench.tasks import load_task  # noqa: E402
 
-TASKS = EAB / "benchmark" / "tasks"
+TASKS = EAB / "benchmark" / "tasks" / "access-pattern"
 ORACLE = VirtualizabilityOracle(EAB / "benchmark" / "data" / "virtualizability.parquet")
 
 

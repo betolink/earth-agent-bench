@@ -34,8 +34,10 @@ harnesses: [pi, opencode, codex-cli]
 # Knowledge conditions (defined in experiments/conditions.yaml).
 conditions: [baseline, mcp, skills, mcp-skills]
 
-# Tasks: 'all' (18 grounded tasks) or a list of sphere/task ids.
-tasks: all
+# Tasks: 'access-pattern'/'benchmark' (18 grounded tasks, the default),
+# 'evals'/'correctness' (10 screen tasks), 'all' (both), or a list of
+# ids / paths / globs.
+tasks: access-pattern
 
 # Trials per cell.
 trials: 1

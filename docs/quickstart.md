@@ -144,8 +144,8 @@ harnesses × conditions × tasks):
 uv run eab harbor run --models tiel-coder-35b --harnesses opencode --conditions mcp-skills
 ```
 
-**Screen candidate models first** on `experiments/evals/tasks` (cheap
-correctness), then run the full matrix on `benchmark/tasks` — see
+**Screen candidate models first** on `benchmark/tasks/correctness` (cheap
+correctness), then run the full matrix on `benchmark/tasks/access-pattern` — see
 `benchmark/tasks/README.md`. To publish the suite as a Harbor dataset:
 
 ```bash

@@ -258,7 +258,7 @@ def generate_package(
         _vendor_eval(tests)
         metadata = _evaluation_metadata(gold)
         keywords = ["earthdata", "correctness", "eval", str(gold.answer_type)]
-        source = f"experiments/evals/tasks/{task_path.name}"
+        source = f"benchmark/tasks/correctness/{task_path.name}"
     else:
         task = load_task(task_path)
         instruction = render_instruction(task, access_policy=instruction_access_policy())
@@ -268,7 +268,7 @@ def generate_package(
         metadata = _benchmark_metadata(task)
         keywords = ["earthdata", "access-pattern", task.science_sphere,
                     task.access_requirement.kind]
-        source = f"benchmark/tasks/{task.task_id}.yaml"
+        source = f"benchmark/tasks/access-pattern/{task.task_id}.yaml"
 
     (package / "instruction.md").write_text(instruction.rstrip() + "\n")
     (package / "task.toml").write_text(

@@ -34,6 +34,19 @@ def test_selection_defaults_to_run_config():
     assert len(resolve_task_paths(None, cfg)) == 18
 
 
+def test_task_selection_keywords():
+    # Explicit keywords select one suite; ids/paths/globs search both.
+    assert len(resolve_task_paths(None, {"tasks": "all"})) == 28
+    assert len(resolve_task_paths(None, {"tasks": "benchmark"})) == 18
+    assert len(resolve_task_paths("access-pattern", {})) == 18
+    assert len(resolve_task_paths(None, {"tasks": "evals"})) == 10
+    assert len(resolve_task_paths("eval", {})) == 10
+    assert len(resolve_task_paths("benchmark/tasks/correctness", {})) == 10
+    assert len(resolve_task_paths("01_hls_open_vs_download", {})) == 1
+    assert len(resolve_task_paths(["01_hls_open_vs_download"], {})) == 1
+    assert len(resolve_task_paths("cryo-1", {})) == 1
+
+
 def test_explicit_selection_overrides_run_config():
     selection = resolve_selection(models="lfm2.5-2.6b", harnesses="pi", conditions="baseline")
     assert selection["models"] == "lfm2.5-2.6b"

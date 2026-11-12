@@ -4,7 +4,7 @@
 Each task collection has a ``short_name``; the grounded agent should be told the
 exact dataset to use, which is unambiguous by CMR ``concept_id``. This script
 resolves ``short_name -> concept_id`` via CMR and inserts a ``concept_id:`` line
-under each ``short_name:`` in ``benchmark/tasks/**/*.yaml`` (idempotent).
+under each ``short_name:`` in ``benchmark/tasks/access-pattern/**/*.yaml`` (idempotent).
 
 Usage::
 
@@ -25,7 +25,7 @@ sys.path.insert(0, str(EAB / "src"))
 
 from earth_agent_bench.oracles.cmr import find_collections  # noqa: E402
 
-TASKS = EAB / "benchmark" / "tasks"
+TASKS = EAB / "benchmark" / "tasks" / "access-pattern"
 _SHORT = re.compile(r"^(\s*)(?:-\s+)?short_name:\s*(\S+)\s*$")
 _CONCEPT = re.compile(r"^\s*concept_id:")
 

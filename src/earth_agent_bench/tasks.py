@@ -6,7 +6,9 @@ import yaml
 
 from .schemas import Task
 
-DEFAULT_TASKS_DIR = Path(__file__).resolve().parents[2] / "benchmark" / "tasks"
+DEFAULT_TASKS_DIR = (
+    Path(__file__).resolve().parents[2] / "benchmark" / "tasks" / "access-pattern"
+)
 
 
 def load_task(path: str | Path) -> Task:

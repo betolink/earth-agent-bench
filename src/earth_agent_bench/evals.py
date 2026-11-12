@@ -144,7 +144,7 @@ def grade(gold: EvalGold, produced: Optional[str], tool_calls: Optional[int] = N
 
 
 def load_suite(path: str | Path) -> list[EvalGold]:
-    """Load the consolidated eval suite manifest (experiments/evals/suite.yaml)."""
+    """Load the consolidated eval suite manifest (benchmark/tasks/correctness/suite.yaml)."""
     data = yaml.safe_load(Path(path).read_text())
     return [EvalGold.model_validate({**t, "pinned": t.get("pinned", True)}) for t in data["tasks"]]
 

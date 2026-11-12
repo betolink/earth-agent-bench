@@ -15,8 +15,9 @@ lives under `docs/archive/`.
 
 ## Task-tree readmes
 
-- [Benchmark tasks](../benchmark/tasks/README.md) — the grounded suite
-- [Correctness evals](../experiments/evals/README.md) — the single-value screen
+- [Task suites](../benchmark/tasks/README.md) — all task definitions
+- [Access-pattern tasks](../benchmark/tasks/access-pattern/README.md) — the grounded suite
+- [Correctness evals](../benchmark/tasks/correctness/README.md) — the single-value screen
 - [MCP wiring](../mcp/README.md) — server manifest and per-harness registration
 - [Skills](../skills/) — the five Earthdata skills
 

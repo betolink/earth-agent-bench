@@ -3,12 +3,12 @@
 Ten single-value Earthdata tasks. Each asks for one access micro-decision —
 search the right window, then choose `open` / `download` / `virtualize` — written
 to `output/answer.txt`. This is the **outcome** screen; the main study is the 18
-access-pattern tasks in [`benchmark/tasks/`](../../benchmark/tasks/).
+access-pattern tasks in [`../access-pattern/`](../access-pattern/).
 
 ```
-experiments/evals/
+benchmark/tasks/correctness/
   suite.yaml     # single source of truth: 10 golds + grader types
-  tasks/*.md     # agent-facing instructions
+  *.md           # agent-facing instructions
 ```
 
 ## Deterministic judge (never an LLM)
@@ -49,7 +49,7 @@ is `0.1 * 15 / (15 + tool_calls)`.
 
 ## Adding a task
 
-1. Add `tasks/NN_short_name.md` ending with the single-value contract and the
+1. Add `NN_short_name.md` ending with the single-value contract and the
    sink: `Write only that value to ./output/answer.txt (absolute:
    /app/output/answer.txt), then stop.` Allow metadata search; forbid science
    data I/O for pure decisions.

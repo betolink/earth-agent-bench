@@ -12,9 +12,10 @@ HARBOR_CONFIG = HARBOR_DIR / "harbor.yaml"
 DEFAULT_OUT = HARBOR_DIR / "generated"
 DEFAULT_JOBS = REPO_ROOT / "runs" / "harbor"
 RUNTIME_DIR = Path(__file__).resolve().parent / "runtime"
-BENCHMARK_TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
-EVAL_TASKS_DIR = REPO_ROOT / "experiments" / "evals" / "tasks"
-EVAL_SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
+TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
+BENCHMARK_TASKS_DIR = TASKS_DIR / "access-pattern"
+EVAL_TASKS_DIR = TASKS_DIR / "correctness"
+EVAL_SUITE = EVAL_TASKS_DIR / "suite.yaml"
 SKILLS_DIR = REPO_ROOT / "skills"
 
 

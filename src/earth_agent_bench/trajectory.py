@@ -28,7 +28,7 @@ from .runs import parse_job_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNS_DIR = Path(os.environ.get("EAB_RUNS_DIR", REPO_ROOT / "runs" / "harbor"))
-TASKS_DIR = REPO_ROOT / "benchmark" / "tasks"
+TASKS_DIR = REPO_ROOT / "benchmark" / "tasks" / "access-pattern"
 
 # named formats -> path relative to the trial dir
 ARTIFACTS = {

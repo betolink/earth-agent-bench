@@ -19,7 +19,7 @@ includes `opencode`, `codex`, `claude-code`, and `pi` — so this repo does
 uv run eab harbor generate cryo-1,atmo-2 --condition mcp-skills
 
 # render the harbor command without running (prints job.yaml + argv)
-uv run eab harbor run experiments/evals/tasks/01_hls_open_vs_download.md \
+uv run eab harbor run benchmark/tasks/correctness/01_hls_open_vs_download.md \
     --model tiel-coder-35b --harness opencode --dry-run
 
 # run for real (requires the harbor CLI installed)

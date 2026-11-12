@@ -55,6 +55,7 @@ eab models list          # roster + served name + whether run.yaml selects it
 eab models discover      # what the gateway actually serves
 eab harbor run           # run the run.yaml selection
 eab harbor run --models tiel-coder-35b,ornith-1.5-9b --harnesses pi,opencode
+eab harbor run evals --models tiel-coder-35b,ornith-1.5-9b   # correctness screen
 eab harbor run all --conditions baseline --dry-run
 ```
 
@@ -100,10 +101,12 @@ events count. Correctness evals are deterministic 0/1 typed-equality.
 
 ## Tasks and layout
 
-- **18 grounded tasks** (`benchmark/tasks/`) across atmosphere, cryosphere,
+- **18 grounded tasks** (`benchmark/tasks/access-pattern/`) across atmosphere, cryosphere,
   biosphere, ocean, solid-earth, and land-surface — real collections, regions,
   event windows, resolved `concept_id`s.
-- **10 correctness evals** (`experiments/evals/`) — cheap single-value screen.
+- **10 correctness evals** (`benchmark/tasks/correctness/`) — cheap single-value screen.
+- **One task root.** All task definitions live under `benchmark/tasks/`, split by
+  what they assess: `access-pattern/` (the study) and `correctness/` (the screen).
 - **Scope: NASA Earthdata only.** There is no general coding/reasoning/SWE/
   Terminal task set in this repo; general capability is out of scope.
 - **Layout: default Harbor.** Every task is a standard Harbor package
@@ -131,7 +134,9 @@ harbor datasets download eab/earth-agent-bench
 ## Repository layout
 
 ```
-benchmark/tasks/     18 grounded task YAMLs (schema-validated)
+benchmark/tasks/
+  access-pattern/    18 grounded task YAMLs (schema-validated)
+  correctness/       10 single-value evals + suite.yaml
 benchmark/oracles/   curated service catalog
 benchmark/data/      virtualizability.parquet (EDVS oracle)
 experiments/         models.yaml (roster) · run.yaml (selection) · evals/

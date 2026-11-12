@@ -15,8 +15,8 @@ from earth_agent_bench.evals import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
-EVAL_TASKS = REPO_ROOT / "experiments" / "evals" / "tasks"
+SUITE = REPO_ROOT / "benchmark" / "tasks" / "correctness" / "suite.yaml"
+EVAL_TASKS = REPO_ROOT / "benchmark" / "tasks" / "correctness"
 
 
 def _gold(task_id: str) -> EvalGold:

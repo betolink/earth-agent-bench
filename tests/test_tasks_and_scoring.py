@@ -28,7 +28,7 @@ def test_task_yaml_ids_are_unique():
 
 
 def test_render_instruction_hides_gold():
-    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    task = load_task("benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml")
     instruction = render_instruction(task)
     assert "tropospheric_no2_vertical_column" in instruction
     assert "gold" not in instruction.lower()
@@ -44,7 +44,7 @@ def test_access_pattern_tier_scores():
 
 
 def test_score_run_best_path():
-    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    task = load_task("benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
         observed_patterns=["C1"],
@@ -60,7 +60,7 @@ def test_score_run_best_path():
 
 
 def test_score_run_full_download_is_penalized():
-    task = load_task("benchmark/tasks/ocean/o2-mur-sst-gbr-2024.yaml")
+    task = load_task("benchmark/tasks/access-pattern/ocean/o2-mur-sst-gbr-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
         observed_patterns=["M1"],
@@ -79,14 +79,14 @@ def test_score_efficiency_no_metrics_no_credit():
     from earth_agent_bench.schemas import EfficiencyMetrics
     from earth_agent_bench.scoring import score_efficiency
 
-    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    task = load_task("benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml")
     assert score_efficiency(task, EfficiencyMetrics(), ["C1"]) == 0.0
     assert score_efficiency(task, EfficiencyMetrics(bytes_read=1000), ["C1"]) == 1.0
 
 
 def test_collection_selection_is_not_scored():
     """The dataset is given by the task, so collection choice is not scored."""
-    task = load_task("benchmark/tasks/atmosphere/a1-tempo-no2-florida-2024.yaml")
+    task = load_task("benchmark/tasks/access-pattern/atmosphere/a1-tempo-no2-florida-2024.yaml")
     observation = RunObservation(
         task_id=task.task_id,
         observed_patterns=["C1"],

@@ -34,7 +34,7 @@ console = Console()
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PARQUET = REPO_ROOT / "benchmark" / "data" / "virtualizability.parquet"
 DEFAULT_SERVICES = REPO_ROOT / "benchmark" / "oracles" / "services.yaml"
-DEFAULT_EVAL_SUITE = REPO_ROOT / "experiments" / "evals" / "suite.yaml"
+DEFAULT_EVAL_SUITE = REPO_ROOT / "benchmark" / "tasks" / "correctness" / "suite.yaml"
 
 
 def _load_env() -> None:

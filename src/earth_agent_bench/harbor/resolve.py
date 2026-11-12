@@ -83,6 +83,14 @@ def _md(directory: Path) -> list[Path]:
     return sorted(p for p in directory.rglob("*.md") if p.name.lower() != "readme.md")
 
 
+def _yaml(directory: Path) -> list[Path]:
+    """Grounded task files (``*.yaml``), excluding suite/manifest YAMLs."""
+    return sorted(
+        p for p in directory.rglob("*.yaml")
+        if p.name.lower() not in {"suite.yaml", "dataset.yaml", "manifest.yaml"}
+    )
+
+
 def resolve_tasks(selection: str) -> list[Path]:
     """Expand a selection into task files.
 
@@ -92,10 +100,7 @@ def resolve_tasks(selection: str) -> list[Path]:
     """
     token = selection.strip()
     if token.lower() == "all":
-        return [
-            *sorted(BENCHMARK_TASKS_DIR.rglob("*.yaml")),
-            *_md(EVAL_TASKS_DIR),
-        ]
+        return [*_yaml(BENCHMARK_TASKS_DIR), *_md(EVAL_TASKS_DIR)]
     paths: list[Path] = []
     for part in token.split(","):
         part = part.strip()
@@ -109,7 +114,7 @@ def resolve_tasks(selection: str) -> list[Path]:
             )
             for match in matches:
                 if match.is_dir():
-                    paths.extend(sorted(match.rglob("*.yaml")))
+                    paths.extend(_yaml(match))
                     paths.extend(_md(match))
                 elif match.is_file():
                     paths.append(match)

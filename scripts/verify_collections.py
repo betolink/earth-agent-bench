@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify each task collection against CMR (level, DOI, summary, services).
 
-For every collection in ``benchmark/tasks/**/*.yaml`` resolve its concept_id and
+For every collection in ``benchmark/tasks/access-pattern/**/*.yaml`` resolve its concept_id and
 pull the UMM-C record, then report:
 
   * processing level (``ProcessingLevel.Id``) — prefer L4 unless natively L2
@@ -34,7 +34,7 @@ from earth_agent_bench.oracles.cmr import (  # noqa: E402
 )
 from earth_agent_bench.tasks import load_task  # noqa: E402
 
-TASKS = EAB / "benchmark" / "tasks"
+TASKS = EAB / "benchmark" / "tasks" / "access-pattern"
 
 
 def resolve(short_name: str) -> dict | None:
